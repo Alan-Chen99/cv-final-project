@@ -24,6 +24,7 @@ if [[ -n ${DISPLAY:-} ]]; then
 fi
 
 exec singularity shell \
+	--nv \
 	--pid \
 	--cleanenv \
 	--env BASH_ENV="$HOME/.bashrc" \
@@ -33,4 +34,4 @@ exec singularity shell \
 	--mount 'type=bind,source=./,destination=/workspace' \
 	--env PREPEND_PATH=/nix/state/profile/bin:/nix/nix_path/bin \
 	--env NIX_REMOTE=daemon \
-	/home/chenxy/orcd/pool/ubuntu.sif
+	'/home/chenxy/orcd/pool/cuda:13.0.2-cudnn-devel-ubuntu24.04.sif'
