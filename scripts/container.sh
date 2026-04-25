@@ -2,6 +2,7 @@
 
 set -eux
 cd "$(dirname "$0")"
+cd ..
 
 # https://orcd-docs.mit.edu/software/apptainer/
 module load apptainer
@@ -13,10 +14,20 @@ module load apptainer
 
 export APPTAINER_SHELL=/bin/bash
 
+x11_args=()
+if [[ -n ${DISPLAY:-} ]]; then
+	x11_args+=(--env "DISPLAY=$DISPLAY")
+	if [[ -n ${XAUTHORITY:-} && -f $XAUTHORITY ]]; then
+		x11_args+=(--env "XAUTHORITY=$XAUTHORITY")
+		x11_args+=(--mount "type=bind,source=$XAUTHORITY,destination=$XAUTHORITY,ro")
+	fi
+fi
+
 exec singularity shell \
 	--pid \
 	--cleanenv \
 	--env BASH_ENV="$HOME/.bashrc" \
+	"${x11_args[@]}" \
 	--mount 'type=bind,source=/orcd,destination=/orcd' \
 	--mount 'type=bind,source=/nix,destination=/nix,ro' \
 	--mount 'type=bind,source=./,destination=/workspace' \
