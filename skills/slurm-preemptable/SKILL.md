@@ -5,8 +5,8 @@ description: Submit and monitor GPU training jobs on MIT Engaging mit_preemptabl
 
 # Slurm Preemptable GPU Jobs
 
-> **New, lightly tested.** See `CLAUDE.md` in this directory for reference
-> docs and architecture details. Official ORCD docs at
+> See `CLAUDE.md` in this directory for reference docs and architecture
+> details. Official ORCD docs at
 > https://orcd-docs.mit.edu/running-jobs/overview/ are authoritative.
 
 **PREREQUISITE**: Before running ANY Bash command from this skill,
@@ -70,12 +70,23 @@ Hold a GPU, dispatch commands to it. Preferred for iterative work.
 salloc -p mit_preemptable -G 1 -c 16 --mem=64G -t 24:00:00 --no-shell
 ```
 
-Then run commands via `scripts/gpu_run.py` (or `gpu_run.sh` which delegates to it):
+Then run commands via `scripts/gpu_run.py` (or `gpu_run.sh` which delegates to it).
+It handles singularity exec, /workspace mount, and venv activation.
 
 ```bash
+# Simple commands — pass args directly
 python3 scripts/gpu_run.py JOBID python train.py --config=A
-python3 scripts/gpu_run.py JOBID python evaluate.py
+python3 scripts/gpu_run.py JOBID nvidia-smi
+
+# Commands with pipes/redirects/semicolons — single-quote the whole thing
+python3 scripts/gpu_run.py JOBID 'echo hello | wc -l'
+
+# Inline python — pass as separate args (shlex.join re-quotes them)
+python3 scripts/gpu_run.py JOBID python -c "print('hello')"
 ```
+
+`srun` emits `couldn't chdir to /workspace` warnings — cosmetic,
+ignore them. The singularity container mounts /workspace correctly.
 
 Release with `scancel JOBID`. salloc does NOT auto-requeue on preemption.
 

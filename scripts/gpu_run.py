@@ -5,6 +5,7 @@ Usage: gpu_run.py JOBID command [args...]
 """
 
 import base64
+import shlex
 import subprocess
 import sys
 from pathlib import Path
@@ -32,7 +33,10 @@ def main():
         sys.exit(1)
 
     jobid = sys.argv[1]
-    user_cmd = " ".join(sys.argv[2:])
+    # Single arg: treat as shell command (may contain pipes, redirects).
+    # Multiple args: re-quote to preserve args with spaces/special chars.
+    args = sys.argv[2:]
+    user_cmd = args[0] if len(args) == 1 else shlex.join(args)
     project_dir = get_project_dir()
 
     inner = f"cd /workspace && source .venv/bin/activate && {user_cmd}"
@@ -58,7 +62,7 @@ singularity exec --nv \
     --env NIX_REMOTE=daemon \
     --env BASH_ENV=$HOME/.bashrc \
     {SIF} \
-    bash -c "eval \\$(echo {inner_b64} | base64 -d)" """,
+    bash -c 'eval "$(echo {inner_b64} | base64 -d)"' """,
     ]
 
     sys.exit(subprocess.call(srun_cmd))
