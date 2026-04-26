@@ -4,6 +4,31 @@
 
 Use `uv add <pkg>` to add dependencies. Do not use `pip install`.
 
+## Skills
+
+Project skills live in `skills/` (symlinked from `.claude/skills`). Use them — check the trigger conditions and invoke when relevant.
+
+| Skill                   | Trigger                                     |
+| ----------------------- | ------------------------------------------- |
+| `long-running-commands` | About to run a command expected to take >1m |
+
+## Directory structure
+
+```
+.
+├── .claude/
+│   └── skills -> ../skills       # symlink
+├── skills/                        # project-wide Claude skills
+│   └── long-running-commands/
+├── external/
+│   └── constrained-downscaling/   # Harder et al. baseline code
+├── papers/                        # arXiv paper notes (markdown)
+├── scripts/                       # project scripts
+├── CLAUDE.md
+├── pyproject.toml
+└── uv.lock
+```
+
 # Project
 
 ## Goal
@@ -37,13 +62,13 @@ Since that work, diffusion models have become the state of the art for both imag
 
 # Papers
 
-| Date | Title | arXiv | File |
-|------|-------|-------|------|
-| 2020-06-19 | Denoising Diffusion Probabilistic Models | [2006.11239](https://arxiv.org/abs/2006.11239) | [papers/2020-06-19 Denoising Diffusion Probabilistic Models.md](papers/2020-06-19%20Denoising%20Diffusion%20Probabilistic%20Models.md) |
-| 2021-04-15 | Image Super-Resolution via Iterative Refinement | [2104.07636](https://arxiv.org/abs/2104.07636) | [papers/2021-04-15 Image Super-Resolution via Iterative Refinement.md](papers/2021-04-15%20Image%20Super-Resolution%20via%20Iterative%20Refinement.md) |
-| 2021-12-20 | High-Resolution Image Synthesis with Latent Diffusion Models | [2112.10752](https://arxiv.org/abs/2112.10752) | [papers/2021-12-20 High-Resolution Image Synthesis with Latent Diffusion Models.md](papers/2021-12-20%20High-Resolution%20Image%20Synthesis%20with%20Latent%20Diffusion%20Models.md) |
-| 2022-08-08 | Hard-Constrained Deep Learning for Climate Downscaling | [2208.05424](https://arxiv.org/abs/2208.05424) | [papers/2022-08-08 Hard-Constrained Deep Learning for Climate Downscaling.md](papers/2022-08-08%20Hard-Constrained%20Deep%20Learning%20for%20Climate%20Downscaling.md) |
+| Date       | Title                                                                       | arXiv                                          | File                                                                                                                                                                                                                 |
+| ---------- | --------------------------------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2020-06-19 | Denoising Diffusion Probabilistic Models                                    | [2006.11239](https://arxiv.org/abs/2006.11239) | [papers/2020-06-19 Denoising Diffusion Probabilistic Models.md](papers/2020-06-19%20Denoising%20Diffusion%20Probabilistic%20Models.md)                                                                               |
+| 2021-04-15 | Image Super-Resolution via Iterative Refinement                             | [2104.07636](https://arxiv.org/abs/2104.07636) | [papers/2021-04-15 Image Super-Resolution via Iterative Refinement.md](papers/2021-04-15%20Image%20Super-Resolution%20via%20Iterative%20Refinement.md)                                                               |
+| 2021-12-20 | High-Resolution Image Synthesis with Latent Diffusion Models                | [2112.10752](https://arxiv.org/abs/2112.10752) | [papers/2021-12-20 High-Resolution Image Synthesis with Latent Diffusion Models.md](papers/2021-12-20%20High-Resolution%20Image%20Synthesis%20with%20Latent%20Diffusion%20Models.md)                                 |
+| 2022-08-08 | Hard-Constrained Deep Learning for Climate Downscaling                      | [2208.05424](https://arxiv.org/abs/2208.05424) | [papers/2022-08-08 Hard-Constrained Deep Learning for Climate Downscaling.md](papers/2022-08-08%20Hard-Constrained%20Deep%20Learning%20for%20Climate%20Downscaling.md)                                               |
 | 2023-09-24 | Residual Corrective Diffusion Modeling for Km-scale Atmospheric Downscaling | [2309.15214](https://arxiv.org/abs/2309.15214) | [papers/2023-09-24 Residual Corrective Diffusion Modeling for Km-scale Atmospheric Downscaling.md](papers/2023-09-24%20Residual%20Corrective%20Diffusion%20Modeling%20for%20Km-scale%20Atmospheric%20Downscaling.md) |
-| 2023-12-11 | Precipitation Downscaling with Spatiotemporal Video Diffusion | [2312.06071](https://arxiv.org/abs/2312.06071) | [papers/2023-12-11 Precipitation Downscaling with Spatiotemporal Video Diffusion.md](papers/2023-12-11%20Precipitation%20Downscaling%20with%20Spatiotemporal%20Video%20Diffusion.md) |
-| 2024-04-27 | Generative Diffusion-Based Downscaling for Climate | [2404.17752](https://arxiv.org/abs/2404.17752) | [papers/2024-04-27 Generative Diffusion-Based Downscaling for Climate.md](papers/2024-04-27%20Generative%20Diffusion-Based%20Downscaling%20for%20Climate.md) |
-| 2024-10-01 | Downscaling Extreme Precipitation with Wasserstein Regularized Diffusion | [2410.00381](https://arxiv.org/abs/2410.00381) | [papers/2024-10-01 Downscaling Extreme Precipitation with Wasserstein Regularized Diffusion.md](papers/2024-10-01%20Downscaling%20Extreme%20Precipitation%20with%20Wasserstein%20Regularized%20Diffusion.md) |
+| 2023-12-11 | Precipitation Downscaling with Spatiotemporal Video Diffusion               | [2312.06071](https://arxiv.org/abs/2312.06071) | [papers/2023-12-11 Precipitation Downscaling with Spatiotemporal Video Diffusion.md](papers/2023-12-11%20Precipitation%20Downscaling%20with%20Spatiotemporal%20Video%20Diffusion.md)                                 |
+| 2024-04-27 | Generative Diffusion-Based Downscaling for Climate                          | [2404.17752](https://arxiv.org/abs/2404.17752) | [papers/2024-04-27 Generative Diffusion-Based Downscaling for Climate.md](papers/2024-04-27%20Generative%20Diffusion-Based%20Downscaling%20for%20Climate.md)                                                         |
+| 2024-10-01 | Downscaling Extreme Precipitation with Wasserstein Regularized Diffusion    | [2410.00381](https://arxiv.org/abs/2410.00381) | [papers/2024-10-01 Downscaling Extreme Precipitation with Wasserstein Regularized Diffusion.md](papers/2024-10-01%20Downscaling%20Extreme%20Precipitation%20with%20Wasserstein%20Regularized%20Diffusion.md)         |
