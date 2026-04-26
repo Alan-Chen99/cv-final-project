@@ -48,7 +48,7 @@ Ubuntu 24.04 (glibc 2.39) but GPU nodes run Rocky 8 (glibc 2.28).
 
 ```bash
 sinfo -p mit_preemptable -O Partition:20,Nodes:10,CPUsState:15,FreeMem:15,StateLong:20,Gres:40,GresUsed:40,Reason:60,Reservation:40  # GPU availability
-squeue --me                                    # all my jobs
+squeue --me -o "%i %P %j %T %M %l %R"         # all my jobs (untruncated)
 sacct -j JOBID -o JobID,State,Elapsed,MaxRSS   # job stats
 scancel JOBID                                  # cancel job
 tail -f /path/to/output-JOBID.log              # watch output
