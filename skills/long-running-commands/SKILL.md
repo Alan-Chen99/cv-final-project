@@ -1,6 +1,6 @@
 ---
 name: long-running-commands
-description: Strategy for executing long-running bash commands (training, data processing, builds). TRIGGER when about to run a command expected to take more than 1 minute.
+description: Strategy for executing long-running bash commands (training, data processing, builds). TRIGGER when about to run a command expected to take >1m or when runtime is uncertain (e.g. waiting in a queue, network transfers, external dependencies).
 ---
 
 # Long-Running Bash Command

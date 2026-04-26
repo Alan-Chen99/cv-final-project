@@ -10,7 +10,7 @@ Project skills live in `skills/` (symlinked from `.claude/skills`). Use them —
 
 | Skill                   | Trigger                                     |
 | ----------------------- | ------------------------------------------- |
-| `long-running-commands` | About to run a command expected to take >1m |
+| `long-running-commands` | About to run a command expected to take >1m, or runtime is uncertain (queue waits, network transfers) |
 | `slurm-preemptable`     | If requested by user                        |
 
 ## Directory structure

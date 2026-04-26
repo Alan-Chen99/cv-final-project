@@ -9,6 +9,11 @@ description: Submit and monitor GPU training jobs on MIT Engaging mit_preemptabl
 > docs and architecture details. Official ORCD docs at
 > https://orcd-docs.mit.edu/running-jobs/overview/ are authoritative.
 
+**Always load the `long-running-commands` skill alongside this one.**
+Slurm operations (queue waits, salloc, training runs) have unpredictable
+runtimes. Use the long-running-commands protocol for all Bash calls that
+submit, wait on, or monitor jobs.
+
 You are inside an Apptainer container on a CPU node with Slurm
 bind-mounted from the host (`scripts/container.sh`). Call
 `sbatch`/`salloc`/`srun` directly.
@@ -42,6 +47,7 @@ Ubuntu 24.04 (glibc 2.39) but GPU nodes run Rocky 8 (glibc 2.28).
 ### Monitoring
 
 ```bash
+sinfo -p mit_preemptable -O Partition:20,Nodes:10,CPUsState:15,FreeMem:15,StateLong:20,Gres:40,GresUsed:40,Reason:60,Reservation:40  # GPU availability
 squeue --me                                    # all my jobs
 sacct -j JOBID -o JobID,State,Elapsed,MaxRSS   # job stats
 scancel JOBID                                  # cancel job
@@ -62,11 +68,11 @@ Hold a GPU, dispatch commands to it. Preferred for iterative work.
 salloc -p mit_preemptable -G 1 -c 16 --mem=64G -t 24:00:00 --no-shell
 ```
 
-Then run commands via `scripts/gpu_run.sh`:
+Then run commands via `scripts/gpu_run.py` (or `gpu_run.sh` which delegates to it):
 
 ```bash
-scripts/gpu_run.sh JOBID python train.py --config=A
-scripts/gpu_run.sh JOBID python evaluate.py
+python3 scripts/gpu_run.py JOBID python train.py --config=A
+python3 scripts/gpu_run.py JOBID python evaluate.py
 ```
 
 Release with `scancel JOBID`. salloc does NOT auto-requeue on preemption.
@@ -97,7 +103,8 @@ Save as e.g. `scripts/train_preemptable.sh`:
 
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+# Hardcoded: sbatch copies scripts to spool, so $0 won't resolve to the original path
+PROJECT_DIR='/home/chenxy/repos/workspace/main'
 SIF='/home/chenxy/orcd/pool/cuda:13.0.2-cudnn-devel-ubuntu24.04.sif'
 
 echo "Job $SLURM_JOB_ID started on $(hostname) at $(date)"
@@ -174,7 +181,7 @@ bash -c '
 # run_in_background: true
 bash -c '
   echo "[srun] Started at $(date)"
-  scripts/gpu_run.sh JOBID python train.py --config=A
+  python3 scripts/gpu_run.py JOBID python train.py --config=A
   echo "[srun] Finished at $(date) with exit=$?"
 '
 ```

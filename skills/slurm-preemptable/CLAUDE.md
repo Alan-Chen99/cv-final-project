@@ -9,11 +9,13 @@ Sources: [ORCD docs](https://orcd-docs.mit.edu), host diagnostics (2026-04-26),
 
 | GPU type         | VRAM   | CPUs/GPU | RAM/node   | Nodes | Partition          |
 | ---------------- | ------ | -------- | ---------- | ----- | ------------------ |
-| L40S             | 44 GB  | 16       | 256 GB     | 58    | preemptable, gpu   |
+| L40S             | 48 GB  | 16       | 256 GB     | many  | preemptable, gpu   |
 | A100 80GB        | 80 GB  | varies   | varies     | many  | preemptable, gpu   |
-| H100             | 79 GB  | 16       | 512 GB     | few   | preemptable, gpu   |
+| H100             | 80 GB  | 16       | 512 GB     | few   | preemptable, gpu   |
 | H200             | 140 GB | 15       | 1.5 TB     | 11    | preemptable, gpu   |
 | RTX PRO 6000     | 96 GB  | —        | —          | some  | preemptable        |
+| A40              | 48 GB  | —        | —          | few   | preemptable        |
+| L4               | 24 GB  | —        | —          | few   | preemptable        |
 
 Request specific type: `-G l40s:1`, `-G h200:2`.
 
