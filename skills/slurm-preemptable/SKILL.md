@@ -9,10 +9,12 @@ description: Submit and monitor GPU training jobs on MIT Engaging mit_preemptabl
 > docs and architecture details. Official ORCD docs at
 > https://orcd-docs.mit.edu/running-jobs/overview/ are authoritative.
 
-**Always load the `long-running-commands` skill alongside this one.**
-Slurm operations (queue waits, salloc, training runs) have unpredictable
-runtimes. Use the long-running-commands protocol for all Bash calls that
-submit, wait on, or monitor jobs.
+**PREREQUISITE**: Before running ANY Bash command from this skill,
+invoke the `long-running-commands` skill via the Skill tool. That skill
+defines the background-launch + timer protocol required for salloc,
+sbatch, srun, and any other command with unpredictable runtime. The
+bash templates in the "Slurm bash templates" section below are NOT
+that protocol — they are command snippets to use WITH it.
 
 You are inside an Apptainer container on a CPU node with Slurm
 bind-mounted from the host (`scripts/container.sh`). Call
@@ -138,10 +140,11 @@ that triggers an immediate save-and-exit.
 When preempted with `--requeue`: job gets a NEW job ID, same script
 re-runs. `SLURM_RESTART_COUNT` is incremented.
 
-## Notification integration (long-running-commands)
+## Slurm bash templates
 
-Slurm jobs run on remote GPU nodes — not local processes. Bridge to
-the `long-running-commands` notification system with a local waiter:
+Slurm jobs run on remote GPU nodes — not local processes. These are
+bash snippets to use with `run_in_background: true` (from the
+long-running-commands protocol):
 
 ### sbatch + notification
 
