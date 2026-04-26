@@ -21,12 +21,50 @@ if [[ -n ${DISPLAY:-} ]]; then
 	fi
 fi
 
+# Slurm client mounts — Rocky 8 binaries run fine on Ubuntu 24.04 (glibc 2.39 > 2.28).
+# sbatch RPATH=/usr/lib64/slurm (libslurmfull.so), auth_munge.so RPATH=/usr/lib64 (libmunge.so.2).
+# Standard glibc libs resolve via container's /lib/x86_64-linux-gnu/.
+# slurm.conf requires SlurmUser=slurm to resolve, so we merge it into the container's passwd.
+slurm_args=()
+if command -v sbatch &>/dev/null; then
+	for cmd in sbatch srun salloc squeue sacct scancel sinfo scontrol; do
+		slurm_args+=(--mount "type=bind,source=/usr/bin/$cmd,destination=/usr/bin/$cmd,ro")
+	done
+
+	# Merge container's passwd/group with slurm system user.
+	# Apptainer injects the current user into the container's /etc/passwd,
+	# but slurm.conf's SlurmUser=slurm requires that user to exist too.
+	# Files persist in .cache/ for the lifetime of the instance.
+	slurm_passwd="$HOME/.cache/container-slurm/passwd"
+	slurm_group="$HOME/.cache/container-slurm/group"
+	mkdir -p "$(dirname "$slurm_passwd")"
+	singularity exec --cleanenv "$SIF" cat /etc/passwd > "$slurm_passwd"
+	grep '^slurm:' /etc/passwd >> "$slurm_passwd" 2>/dev/null || true
+	singularity exec --cleanenv "$SIF" cat /etc/group > "$slurm_group"
+	grep '^slurm:' /etc/group >> "$slurm_group" 2>/dev/null || true
+
+	slurm_args+=(
+		--mount "type=bind,source=$slurm_passwd,destination=/etc/passwd,ro"
+		--mount "type=bind,source=$slurm_group,destination=/etc/group,ro"
+		--mount 'type=bind,source=/usr/lib64/slurm,destination=/usr/lib64/slurm,ro'
+		--mount 'type=bind,source=/usr/lib64/libmunge.so.2.0.1,destination=/usr/lib64/libmunge.so.2,ro'
+		# scontrol links against readline 7; container has 8
+		--mount 'type=bind,source=/lib64/libreadline.so.7.0,destination=/lib/x86_64-linux-gnu/libreadline.so.7,ro'
+		--mount 'type=bind,source=/lib64/libhistory.so.7.0,destination=/lib/x86_64-linux-gnu/libhistory.so.7,ro'
+		--mount 'type=bind,source=/etc/slurm,destination=/etc/slurm,ro'
+		# slurm.conf includes use absolute /home/systems/... paths
+		--mount 'type=bind,source=/home/systems,destination=/home/systems,ro'
+		--mount 'type=bind,source=/run/munge,destination=/run/munge'
+	)
+fi
+
 # Flags for instance start (namespaces, GPU, mounts)
 instance_args=(
 	--nv
 	--cleanenv
 	--env BASH_ENV="$HOME/.bashrc"
 	"${x11_args[@]}"
+	"${slurm_args[@]}"
 	--mount 'type=bind,source=/orcd,destination=/orcd'
 	# --mount 'type=bind,source=/nix,destination=/nix,ro'
 	--mount 'type=bind,source=/home/chenxy/nix_store,destination=/nix,ro'

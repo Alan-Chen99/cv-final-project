@@ -8,9 +8,10 @@ Use `uv add <pkg>` to add dependencies. Do not use `pip install`.
 
 Project skills live in `skills/` (symlinked from `.claude/skills`). Use them — check the trigger conditions and invoke when relevant.
 
-| Skill                   | Trigger                                     |
-| ----------------------- | ------------------------------------------- |
-| `long-running-commands` | About to run a command expected to take >1m |
+| Skill                   | Trigger                                                          |
+| ----------------------- | ---------------------------------------------------------------- |
+| `long-running-commands` | About to run a command expected to take >1m                      |
+| `slurm-preemptable`    | Running GPU training or submitting jobs to cluster / preemptable |
 
 ## Directory structure
 
@@ -19,11 +20,14 @@ Project skills live in `skills/` (symlinked from `.claude/skills`). Use them —
 ├── .claude/
 │   └── skills -> ../skills       # symlink
 ├── skills/                        # project-wide Claude skills
-│   └── long-running-commands/
+│   ├── long-running-commands/
+│   └── slurm-preemptable/
 ├── external/
 │   └── constrained-downscaling/   # Harder et al. baseline code
 ├── papers/                        # arXiv paper notes (markdown)
 ├── scripts/                       # project scripts
+│   ├── container.sh               # Apptainer instance (CPU node)
+│   └── gpu_run.sh                 # srun + singularity exec wrapper
 ├── CLAUDE.md
 ├── pyproject.toml
 └── uv.lock
