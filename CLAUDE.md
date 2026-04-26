@@ -8,10 +8,10 @@ Use `uv add <pkg>` to add dependencies. Do not use `pip install`.
 
 Project skills live in `skills/` (symlinked from `.claude/skills`). Use them — check the trigger conditions and invoke when relevant.
 
-| Skill                   | Trigger                                                          |
-| ----------------------- | ---------------------------------------------------------------- |
-| `long-running-commands` | About to run a command expected to take >1m                      |
-| `slurm-preemptable`    | Running GPU training or submitting jobs to cluster / preemptable |
+| Skill                   | Trigger                                     |
+| ----------------------- | ------------------------------------------- |
+| `long-running-commands` | About to run a command expected to take >1m |
+| `slurm-preemptable`     | If requested by user                        |
 
 ## Directory structure
 

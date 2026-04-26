@@ -1,9 +1,13 @@
 ---
 name: slurm-preemptable
-description: Submit and monitor GPU training jobs on MIT Engaging mit_preemptable partition. TRIGGER when about to run GPU training, or when user asks to run something on the cluster / on GPUs / on preemptable.
+description: Submit and monitor GPU training jobs on MIT Engaging mit_preemptable partition.
 ---
 
 # Slurm Preemptable GPU Jobs
+
+> **New, lightly tested.** See `CLAUDE.md` in this directory for reference
+> docs and architecture details. Official ORCD docs at
+> https://orcd-docs.mit.edu/running-jobs/overview/ are authoritative.
 
 You are inside an Apptainer container on a CPU node with Slurm
 bind-mounted from the host (`scripts/container.sh`). Call
@@ -16,10 +20,10 @@ Ubuntu 24.04 (glibc 2.39) but GPU nodes run Rocky 8 (glibc 2.28).
 
 ## Quick reference
 
-| Partition          | Max time | GPU limit | Notes                |
-| ------------------ | -------- | --------- | -------------------- |
-| `mit_preemptable`  | 48h      | 4         | Can be killed        |
-| `mit_normal_gpu`   | 6h       | 2         | Guaranteed           |
+| Partition         | Max time | GPU limit | Notes         |
+| ----------------- | -------- | --------- | ------------- |
+| `mit_preemptable` | 48h      | 4         | Can be killed |
+| `mit_normal_gpu`  | 6h       | 2         | Guaranteed    |
 
 ### Key Slurm flags
 
@@ -67,12 +71,12 @@ scripts/gpu_run.sh JOBID python evaluate.py
 
 Release with `scancel JOBID`. salloc does NOT auto-requeue on preemption.
 
-| Scenario                            | Mode               |
-| ----------------------------------- | ------------------- |
-| Single long training run            | `sbatch --requeue`  |
-| Multiple runs, check between        | `salloc` + `srun`   |
-| Parameter sweep (independent)       | `sbatch` job arrays |
-| Quick one-off (nvidia-smi, test)    | `salloc` + `srun`   |
+| Scenario                         | Mode                |
+| -------------------------------- | ------------------- |
+| Single long training run         | `sbatch --requeue`  |
+| Multiple runs, check between     | `salloc` + `srun`   |
+| Parameter sweep (independent)    | `sbatch` job arrays |
+| Quick one-off (nvidia-smi, test) | `salloc` + `srun`   |
 
 ## sbatch template
 
@@ -177,10 +181,10 @@ bash -c '
 
 ### State actions
 
-| State     | Action                                           |
-| --------- | ------------------------------------------------ |
-| COMPLETED | Read results                                     |
-| FAILED    | Read log, diagnose, fix, resubmit                |
-| PREEMPTED | If `--requeue`: start waiter for new job ID      |
-| TIMEOUT   | Increase `-t` or checkpoint more often            |
-| NODE_FAIL | Auto-resubmitted if `--requeue`                  |
+| State     | Action                                      |
+| --------- | ------------------------------------------- |
+| COMPLETED | Read results                                |
+| FAILED    | Read log, diagnose, fix, resubmit           |
+| PREEMPTED | If `--requeue`: start waiter for new job ID |
+| TIMEOUT   | Increase `-t` or checkpoint more often      |
+| NODE_FAIL | Auto-resubmitted if `--requeue`             |
