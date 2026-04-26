@@ -1,3 +1,9 @@
+# Dev
+
+## Package management
+
+Use `uv add <pkg>` to add dependencies. Do not use `pip install`.
+
 # Project
 
 ## Goal

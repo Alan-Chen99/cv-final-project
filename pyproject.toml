@@ -5,7 +5,12 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.14"
 dependencies = [
+    "gdown>=6.0.0",
     "numpy>=2.4.4",
     "pydantic>=2.13.3",
+    "scikit-image>=0.26.0",
     "torch>=2.11.0",
+    "torchgeometry>=0.1.2",
+    "torchmetrics>=1.9.0",
+    "tqdm>=4.67.3",
 ]
