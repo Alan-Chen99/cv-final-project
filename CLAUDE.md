@@ -116,3 +116,12 @@ Since that work, diffusion models have become the state of the art for both imag
 | 2024-05-31 | Climate Variable Downscaling with Conditional Normalizing Flows | [2405.20719](https://arxiv.org/abs/2405.20719) | [papers/2024-05-31 Climate Variable Downscaling with Conditional Normalizing Flows.md](papers/2024-05-31%20Climate%20Variable%20Downscaling%20with%20Conditional%20Normalizing%20Flows.md) |
 | 2025-12-16 | An Intercomparison of Generative ML Methods for Downscaling Precipitation | [2512.13987](https://arxiv.org/abs/2512.13987) | [papers/2025-12-16 An intercomparison of generative machine learning methods for downscaling precipitation at fine spatial scales.md](papers/2025-12-16%20An%20intercomparison%20of%20generative%20machine%20learning%20methods%20for%20downscaling%20precipitation%20at%20fine%20spatial%20scales.md) |
 | 2026-03-04 | Climate Downscaling with Stochastic Interpolants (CDSI) | [2603.03838](https://arxiv.org/abs/2603.03838) | [papers/2026-03-04 Climate Downscaling with Stochastic Interpolants.md](papers/2026-03-04%20Climate%20Downscaling%20with%20Stochastic%20Interpolants.md) |
+
+## Cross-Domain Diffusion Adaptation
+
+| Date | Title | arXiv | File |
+|---|---|---|---|
+| 2021-10-08 | Score-based Diffusion Models for Accelerated MRI | [2110.05243](https://arxiv.org/abs/2110.05243) | [papers/2021-10-08 Score-based Diffusion Models for Accelerated MRI.md](papers/2021-10-08%20Score-based%20Diffusion%20Models%20for%20Accelerated%20MRI.md) |
+| 2023-12-06 | DiffusionSat: A Generative Foundation Model for Satellite Imagery | [2312.03606](https://arxiv.org/abs/2312.03606) | [papers/2023-12-06 DiffusionSat A Generative Foundation Model for Satellite Imagery.md](papers/2023-12-06%20DiffusionSat%20A%20Generative%20Foundation%20Model%20for%20Satellite%20Imagery.md) |
+| 2024-09-18 | Denoising Diffusion Models for High-Resolution Microscopy Image Restoration | [2409.12078](https://arxiv.org/abs/2409.12078) | [papers/2024-09-18 Denoising Diffusion Models for High-Resolution Microscopy Image Restoration.md](papers/2024-09-18%20Denoising%20Diffusion%20Models%20for%20High-Resolution%20Microscopy%20Image%20Restoration.md) |
+| 2025-02-03 | A Generative Foundation Model for All-in-One Seismic Processing (GSFM) | [2502.01111](https://arxiv.org/abs/2502.01111) | [papers/2025-02-03 A Generative Foundation Model for All-in-One Seismic Processing.md](papers/2025-02-03%20A%20Generative%20Foundation%20Model%20for%20All-in-One%20Seismic%20Processing.md) |
