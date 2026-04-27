@@ -9,7 +9,10 @@ module load apptainer
 
 export APPTAINER_SHELL=/bin/bash
 
-INSTANCE_NAME=workspace
+# Each worktree gets its own instance, named after its directory.
+# e.g. /home/chenxy/repos/workspace/research -> workspace-research
+WORKTREE_DIR="$(basename "$(pwd)")"
+INSTANCE_NAME="workspace-${WORKTREE_DIR}"
 SIF='/home/chenxy/orcd/pool/cuda:13.0.2-cudnn-devel-ubuntu24.04.sif'
 
 x11_args=()
@@ -35,8 +38,8 @@ if command -v sbatch &>/dev/null; then
 	# Apptainer injects the current user into the container's /etc/passwd,
 	# but slurm.conf's SlurmUser=slurm requires that user to exist too.
 	# Files persist in .cache/ for the lifetime of the instance.
-	slurm_passwd="$HOME/.cache/container-slurm/passwd"
-	slurm_group="$HOME/.cache/container-slurm/group"
+	slurm_passwd="$HOME/.cache/container-slurm/$INSTANCE_NAME/passwd"
+	slurm_group="$HOME/.cache/container-slurm/$INSTANCE_NAME/group"
 	mkdir -p "$(dirname "$slurm_passwd")"
 	singularity exec --cleanenv "$SIF" cat /etc/passwd > "$slurm_passwd"
 	grep '^slurm:' /etc/passwd >> "$slurm_passwd" 2>/dev/null || true
