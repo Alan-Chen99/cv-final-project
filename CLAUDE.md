@@ -25,6 +25,7 @@ Project skills live in `skills/` (symlinked from `.claude/skills`). Use them —
 ├── external/
 │   └── constrained-downscaling/   # Harder et al. baseline code
 ├── papers/                        # arXiv paper notes (markdown)
+├── notes/                         # research session notes
 ├── scripts/                       # project scripts
 │   ├── container.sh               # Apptainer instance (CPU node)
 │   └── gpu_run.sh                 # srun + singularity exec wrapper
@@ -52,11 +53,26 @@ Since that work, diffusion models have become the state of the art for both imag
 
 ## Research Directions
 
+### Bridging foundation models and task-specific downscaling
+
+These directions exploit the gap between the two disconnected lineages (see [notes/2026-04-27](notes/2026-04-27-foundation-models-vs-downscaling.md)).
+
+6. **Pretrained ViT backbone + diffusion head + constraints**: Use frozen/LoRA'd Prithvi WxC as encoder in CorrDiff-style two-stage setup. SmCL on deterministic mean, diffusion for stochastic residuals. No existing work combines all three.
+7. **DiT for climate downscaling**: All downscaling diffusion papers use UNet backbones. Transformer-based score networks (DiT) are untested in climate downscaling and are a natural fit with foundation model pretraining.
+8. **Foundation model on real GCM→RCM distribution shift**: Prithvi WxC only demonstrated perfect-model downscaling (coarsen-then-recover). Testing on actual GCM→RCM pairs measures whether pretrained representations transfer across the distribution gap.
+
+### Constraints + modern generative models
+
 1. **Constraint layers + diffusion**: Can SmCL/AddCL be applied to the output of a diffusion denoising step or to the final sample? The constraint is a differentiable projection — it should compose with any generator.
 2. **Latent diffusion for efficiency**: Harder et al. used 128x128 patches. Latent diffusion (2112.10752) compresses to a lower-dim latent space, enabling higher resolution and faster sampling. Constraints could be applied after decoding.
 3. **Residual diffusion with constraints**: CorrDiff's two-step (mean + stochastic residual) naturally separates the conservation-satisfying component (mean) from fine detail (residual). Constraining only the mean prediction and letting diffusion handle texture may be cleaner than constraining the full output.
-4. **Spatiotemporal extension**: Harder et al.'s FlowConvGRU was a first attempt at joint spatial-temporal SR. Video diffusion (STVD) is a more capable framework for this. Conservation constraints across time frames remain unexplored.
-5. **Extreme events**: WassDiff shows standard diffusion underestimates extremes. Wasserstein regularization or tail-aware losses could combine with hard constraints that already help in coastal/mountainous regions.
+4. **Constrained stochastic interpolants**: CDSI outperforms CorrDiff, starts from LR field instead of noise. SmCL on the final output is straightforward. Probably lowest-hanging fruit for constraints + modern generative model.
+5. **Multi-variable constraints in generative framework**: 1EMD shows multi-variable ViT downscaling works but has no constraints. Multi-variable constraints paper (2308.01868) only handles Tmin/Tmean/Tmax in UNet. Combining both in a generative model is open.
+
+### Extensions
+
+6. **Spatiotemporal extension**: Harder et al.'s FlowConvGRU was a first attempt at joint spatial-temporal SR. Video diffusion (STVD) is a more capable framework for this. Conservation constraints across time frames remain unexplored.
+7. **Extreme events**: WassDiff shows standard diffusion underestimates extremes. Wasserstein regularization or tail-aware losses could combine with hard constraints that already help in coastal/mountainous regions.
 
 # Papers
 
@@ -108,19 +124,32 @@ Since that work, diffusion models have become the state of the art for both imag
 | 2024-12-19 | Downscaling Precipitation with Bias-informed Conditional Diffusion Model | [2412.14539](https://arxiv.org/abs/2412.14539) | [papers/2024-12-19 Downscaling Precipitation with Bias-informed Conditional Diffusion Model.md](papers/2024-12-19%20Downscaling%20Precipitation%20with%20Bias-informed%20Conditional%20Diffusion%20Model.md) |
 | 2026-02-13 | High-Resolution Climate Projections Using Diffusion-Based Downscaling | [2602.13416](https://arxiv.org/abs/2602.13416) | [papers/2026-02-13 High-Resolution Climate Projections Using Diffusion-Based Downscaling of a Lightweight Climate Emulator.md](papers/2026-02-13%20High-Resolution%20Climate%20Projections%20Using%20Diffusion-Based%20Downscaling%20of%20a%20Lightweight%20Climate%20Emulator.md) |
 
-## Climate Downscaling: Other Generative
+## Climate Foundation Models
+
+Deterministic ViT-based regressors for weather/climate. Separate lineage from downscaling papers — see [notes/2026-04-27-foundation-models-vs-downscaling.md](notes/2026-04-27-foundation-models-vs-downscaling.md).
 
 | Date | Title | arXiv | File |
 |---|---|---|---|
 | 2023-01-24 | ClimaX: A Foundation Model for Weather and Climate | [2301.10343](https://arxiv.org/abs/2301.10343) | [papers/2023-01-24 ClimaX A Foundation Model for Weather and Climate.md](papers/2023-01-24%20ClimaX%20A%20Foundation%20Model%20for%20Weather%20and%20Climate.md) |
-| 2023-05-23 | Fourier Neural Operators for Arbitrary Resolution Climate Data Downscaling | [2305.14452](https://arxiv.org/abs/2305.14452) | [papers/2023-05-23 Fourier Neural Operators for Arbitrary Resolution Climate Data Downscaling.md](papers/2023-05-23%20Fourier%20Neural%20Operators%20for%20Arbitrary%20Resolution%20Climate%20Data%20Downscaling.md) |
 | 2024-05-20 | A Foundation Model for the Earth System (Aurora) | [2405.13063](https://arxiv.org/abs/2405.13063) | [papers/2024-05-20 A Foundation Model for the Earth System.md](papers/2024-05-20%20A%20Foundation%20Model%20for%20the%20Earth%20System.md) |
-| 2024-05-31 | Climate Variable Downscaling with Conditional Normalizing Flows | [2405.20719](https://arxiv.org/abs/2405.20719) | [papers/2024-05-31 Climate Variable Downscaling with Conditional Normalizing Flows.md](papers/2024-05-31%20Climate%20Variable%20Downscaling%20with%20Conditional%20Normalizing%20Flows.md) |
 | 2024-09-20 | Prithvi WxC: Foundation Model for Weather and Climate (ICLR 2025) | [2409.13598](https://arxiv.org/abs/2409.13598) | [papers/2024-09-20 Prithvi WxC Foundation Model for Weather and Climate.md](papers/2024-09-20%20Prithvi%20WxC%20Foundation%20Model%20for%20Weather%20and%20Climate.md) |
 | 2024-11-08 | WeatherGFM: Learning A Weather Generalist Foundation Model via In-context Learning | [2411.05420](https://arxiv.org/abs/2411.05420) | [papers/2024-11-08 WeatherGFM Learning A Weather Generalist Foundation Model via In-context Learning.md](papers/2024-11-08%20WeatherGFM%20Learning%20A%20Weather%20Generalist%20Foundation%20Model%20via%20In-context%20Learning.md) |
+
+## Climate Downscaling: Other Methods
+
+| Date | Title | arXiv | File |
+|---|---|---|---|
+| 2023-05-23 | Fourier Neural Operators for Arbitrary Resolution Climate Data Downscaling | [2305.14452](https://arxiv.org/abs/2305.14452) | [papers/2023-05-23 Fourier Neural Operators for Arbitrary Resolution Climate Data Downscaling.md](papers/2023-05-23%20Fourier%20Neural%20Operators%20for%20Arbitrary%20Resolution%20Climate%20Data%20Downscaling.md) |
+| 2024-05-31 | Climate Variable Downscaling with Conditional Normalizing Flows | [2405.20719](https://arxiv.org/abs/2405.20719) | [papers/2024-05-31 Climate Variable Downscaling with Conditional Normalizing Flows.md](papers/2024-05-31%20Climate%20Variable%20Downscaling%20with%20Conditional%20Normalizing%20Flows.md) |
+| 2025-06-12 | Vision Transformers for Multi-Variable Climate Downscaling (1EMD) | [2506.22447](https://arxiv.org/abs/2506.22447) | [papers/2025-06-12 Vision Transformers for Multi-Variable Climate Downscaling.md](papers/2025-06-12%20Vision%20Transformers%20for%20Multi-Variable%20Climate%20Downscaling.md) |
 | 2025-12-16 | An Intercomparison of Generative ML Methods for Downscaling Precipitation | [2512.13987](https://arxiv.org/abs/2512.13987) | [papers/2025-12-16 An intercomparison of generative machine learning methods for downscaling precipitation at fine spatial scales.md](papers/2025-12-16%20An%20intercomparison%20of%20generative%20machine%20learning%20methods%20for%20downscaling%20precipitation%20at%20fine%20spatial%20scales.md) |
 | 2026-03-04 | Climate Downscaling with Stochastic Interpolants (CDSI) | [2603.03838](https://arxiv.org/abs/2603.03838) | [papers/2026-03-04 Climate Downscaling with Stochastic Interpolants.md](papers/2026-03-04%20Climate%20Downscaling%20with%20Stochastic%20Interpolants.md) |
-| 2025-06-12 | Vision Transformers for Multi-Variable Climate Downscaling (1EMD) | [2506.22447](https://arxiv.org/abs/2506.22447) | [papers/2025-06-12 Vision Transformers for Multi-Variable Climate Downscaling.md](papers/2025-06-12%20Vision%20Transformers%20for%20Multi-Variable%20Climate%20Downscaling.md) |
+
+## Notes
+
+| Date | Title | File |
+|---|---|---|
+| 2026-04-27 | Foundation Models vs Task-Specific Downscaling: Two Disconnected Lineages | [notes/2026-04-27-foundation-models-vs-downscaling.md](notes/2026-04-27-foundation-models-vs-downscaling.md) |
 
 ## Cross-Domain Diffusion Adaptation
 
