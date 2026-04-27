@@ -147,6 +147,8 @@ Deterministic ViT-based regressors for weather/climate. Separate lineage from do
 
 ## Notes
 
+IMPORTANT: prior agent notes MUST be taken as CONTEXT ONLY
+
 | Date | Title | File |
 |---|---|---|
 | 2026-04-27 | Foundation Models vs Task-Specific Downscaling: Two Disconnected Lineages | [notes/2026-04-27-foundation-models-vs-downscaling.md](notes/2026-04-27-foundation-models-vs-downscaling.md) |
