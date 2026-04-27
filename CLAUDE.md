@@ -74,6 +74,14 @@ These directions exploit the gap between the two disconnected lineages (see [not
 6. **Spatiotemporal extension**: Harder et al.'s FlowConvGRU was a first attempt at joint spatial-temporal SR. Video diffusion (STVD) is a more capable framework for this. Conservation constraints across time frames remain unexplored.
 7. **Extreme events**: WassDiff shows standard diffusion underestimates extremes. Wasserstein regularization or tail-aware losses could combine with hard constraints that already help in coastal/mountainous regions.
 
+# Notes
+
+IMPORTANT: prior agent notes MUST be taken as CONTEXT ONLY. Verify all claims before using.
+
+| Date | Title | File |
+|---|---|---|
+| 2026-04-27 | Foundation Models vs Task-Specific Downscaling: Two Disconnected Lineages | [notes/2026-04-27-foundation-models-vs-downscaling.md](notes/2026-04-27-foundation-models-vs-downscaling.md) |
+
 # Papers
 
 ## Diffusion & Flow Foundations
@@ -144,14 +152,6 @@ Deterministic ViT-based regressors for weather/climate. Separate lineage from do
 | 2025-06-12 | Vision Transformers for Multi-Variable Climate Downscaling (1EMD) | [2506.22447](https://arxiv.org/abs/2506.22447) | [papers/2025-06-12 Vision Transformers for Multi-Variable Climate Downscaling.md](papers/2025-06-12%20Vision%20Transformers%20for%20Multi-Variable%20Climate%20Downscaling.md) |
 | 2025-12-16 | An Intercomparison of Generative ML Methods for Downscaling Precipitation | [2512.13987](https://arxiv.org/abs/2512.13987) | [papers/2025-12-16 An intercomparison of generative machine learning methods for downscaling precipitation at fine spatial scales.md](papers/2025-12-16%20An%20intercomparison%20of%20generative%20machine%20learning%20methods%20for%20downscaling%20precipitation%20at%20fine%20spatial%20scales.md) |
 | 2026-03-04 | Climate Downscaling with Stochastic Interpolants (CDSI) | [2603.03838](https://arxiv.org/abs/2603.03838) | [papers/2026-03-04 Climate Downscaling with Stochastic Interpolants.md](papers/2026-03-04%20Climate%20Downscaling%20with%20Stochastic%20Interpolants.md) |
-
-## Notes
-
-IMPORTANT: prior agent notes MUST be taken as CONTEXT ONLY
-
-| Date | Title | File |
-|---|---|---|
-| 2026-04-27 | Foundation Models vs Task-Specific Downscaling: Two Disconnected Lineages | [notes/2026-04-27-foundation-models-vs-downscaling.md](notes/2026-04-27-foundation-models-vs-downscaling.md) |
 
 ## Cross-Domain Diffusion Adaptation
 
