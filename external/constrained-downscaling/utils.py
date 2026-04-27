@@ -6,14 +6,14 @@ from torch.utils.data import DataLoader, TensorDataset
 device = 'cuda'
 
 def load_data(args):
-    input_train = torch.load('./data/'+args.dataset+'/train/input_train.pt')
-    target_train = torch.load('./data/'+args.dataset+'/train/target_train.pt')
+    input_train = torch.load('./data/'+args.dataset+'/train/input_train.pt', weights_only=False)
+    target_train = torch.load('./data/'+args.dataset+'/train/target_train.pt', weights_only=False)
     if args.test_val_train == 'test':
-        input_val = torch.load('./data/'+args.dataset+'/test/input_test.pt')
-        target_val = torch.load('./data/'+args.dataset+'/test/target_test.pt')
+        input_val = torch.load('./data/'+args.dataset+'/test/input_test.pt', weights_only=False)
+        target_val = torch.load('./data/'+args.dataset+'/test/target_test.pt', weights_only=False)
     elif args.test_val_train == 'val':
-        input_val = torch.load('./data/'+args.dataset+'/val/input_val.pt')
-        target_val = torch.load('./data/'+args.dataset+'/val/target_val.pt')
+        input_val = torch.load('./data/'+args.dataset+'/val/input_val.pt', weights_only=False)
+        target_val = torch.load('./data/'+args.dataset+'/val/target_val.pt', weights_only=False)
     elif args.test_val_train == 'train':
         input_val = input_train
         target_val = target_train

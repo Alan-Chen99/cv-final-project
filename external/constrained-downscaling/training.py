@@ -146,8 +146,8 @@ def evaluate_model(data, args):
     calculate_scores(args)
     
 def calculate_scores(args):
-    input_val = torch.load('./data/'+args.dataset+'/'+ args.test_val_train+'/input_'+ args.test_val_train+'.pt')
-    target_val = torch.load('./data/'+args.dataset+'/'+ args.test_val_train+'/target_'+ args.test_val_train+'.pt')
+    input_val = torch.load('./data/'+args.dataset+'/'+ args.test_val_train+'/input_'+ args.test_val_train+'.pt', weights_only=False)
+    target_val = torch.load('./data/'+args.dataset+'/'+ args.test_val_train+'/target_'+ args.test_val_train+'.pt', weights_only=False)
     val_data = TensorDataset(input_val, target_val)
     pred = np.zeros(target_val.shape)
     max_val = target_val.max()
@@ -168,11 +168,11 @@ def calculate_scores(args):
     l1_crit = nn.L1Loss()
     
     if args.model == 'gan':
-        en_pred = torch.load('./data/prediction/'+args.dataset+'_'+args.model_id+ '_' + args.test_val_train+'_ensemble.pt')
+        en_pred = torch.load('./data/prediction/'+args.dataset+'_'+args.model_id+ '_' + args.test_val_train+'_ensemble.pt', weights_only=False)
         pred = torch.mean(en_pred, dim=1)
         en_pred = en_pred.detach().cpu().numpy()
     else:
-        pred = torch.load('./data/prediction/'+args.dataset+'_'+args.model_id+ '_' + args.test_val_train+'.pt')
+        pred = torch.load('./data/prediction/'+args.dataset+'_'+args.model_id+ '_' + args.test_val_train+'.pt', weights_only=False)
         #torch.save(full_pred, './data/prediction/'+args.dataset+'_'+args.model_id+ '_' + args.test_val_train+'.pt')
 
     pred = pred.detach().cpu().numpy()
@@ -240,7 +240,7 @@ def save_dict(dictionary, args):
 
 def load_weights(model, model_id):
     PATH = './models/'+model_id+'.pth'
-    checkpoint = torch.load(PATH) # ie, model_best.pth.tar
+    checkpoint = torch.load(PATH, weights_only=False) # ie, model_best.pth.tar
     model.load_state_dict(checkpoint['state_dict'])
     model.to('cuda')
     return model
