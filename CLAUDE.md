@@ -112,10 +112,15 @@ Since that work, diffusion models have become the state of the art for both imag
 
 | Date | Title | arXiv | File |
 |---|---|---|---|
+| 2023-01-24 | ClimaX: A Foundation Model for Weather and Climate | [2301.10343](https://arxiv.org/abs/2301.10343) | [papers/2023-01-24 ClimaX A Foundation Model for Weather and Climate.md](papers/2023-01-24%20ClimaX%20A%20Foundation%20Model%20for%20Weather%20and%20Climate.md) |
 | 2023-05-23 | Fourier Neural Operators for Arbitrary Resolution Climate Data Downscaling | [2305.14452](https://arxiv.org/abs/2305.14452) | [papers/2023-05-23 Fourier Neural Operators for Arbitrary Resolution Climate Data Downscaling.md](papers/2023-05-23%20Fourier%20Neural%20Operators%20for%20Arbitrary%20Resolution%20Climate%20Data%20Downscaling.md) |
+| 2024-05-20 | A Foundation Model for the Earth System (Aurora) | [2405.13063](https://arxiv.org/abs/2405.13063) | [papers/2024-05-20 A Foundation Model for the Earth System.md](papers/2024-05-20%20A%20Foundation%20Model%20for%20the%20Earth%20System.md) |
 | 2024-05-31 | Climate Variable Downscaling with Conditional Normalizing Flows | [2405.20719](https://arxiv.org/abs/2405.20719) | [papers/2024-05-31 Climate Variable Downscaling with Conditional Normalizing Flows.md](papers/2024-05-31%20Climate%20Variable%20Downscaling%20with%20Conditional%20Normalizing%20Flows.md) |
+| 2024-09-20 | Prithvi WxC: Foundation Model for Weather and Climate (ICLR 2025) | [2409.13598](https://arxiv.org/abs/2409.13598) | [papers/2024-09-20 Prithvi WxC Foundation Model for Weather and Climate.md](papers/2024-09-20%20Prithvi%20WxC%20Foundation%20Model%20for%20Weather%20and%20Climate.md) |
+| 2024-11-08 | WeatherGFM: Learning A Weather Generalist Foundation Model via In-context Learning | [2411.05420](https://arxiv.org/abs/2411.05420) | [papers/2024-11-08 WeatherGFM Learning A Weather Generalist Foundation Model via In-context Learning.md](papers/2024-11-08%20WeatherGFM%20Learning%20A%20Weather%20Generalist%20Foundation%20Model%20via%20In-context%20Learning.md) |
 | 2025-12-16 | An Intercomparison of Generative ML Methods for Downscaling Precipitation | [2512.13987](https://arxiv.org/abs/2512.13987) | [papers/2025-12-16 An intercomparison of generative machine learning methods for downscaling precipitation at fine spatial scales.md](papers/2025-12-16%20An%20intercomparison%20of%20generative%20machine%20learning%20methods%20for%20downscaling%20precipitation%20at%20fine%20spatial%20scales.md) |
 | 2026-03-04 | Climate Downscaling with Stochastic Interpolants (CDSI) | [2603.03838](https://arxiv.org/abs/2603.03838) | [papers/2026-03-04 Climate Downscaling with Stochastic Interpolants.md](papers/2026-03-04%20Climate%20Downscaling%20with%20Stochastic%20Interpolants.md) |
+| 2025-06-12 | Vision Transformers for Multi-Variable Climate Downscaling (1EMD) | [2506.22447](https://arxiv.org/abs/2506.22447) | [papers/2025-06-12 Vision Transformers for Multi-Variable Climate Downscaling.md](papers/2025-06-12%20Vision%20Transformers%20for%20Multi-Variable%20Climate%20Downscaling.md) |
 
 ## Cross-Domain Diffusion Adaptation
 
