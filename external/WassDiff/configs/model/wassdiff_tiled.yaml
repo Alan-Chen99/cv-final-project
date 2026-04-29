@@ -1,0 +1,14 @@
+#configs for tiled_diffusion
+defaults:
+  - wassdiff
+  - _self_
+_target_: src.models.precip_downscale.wassdiff_tiled.WassDiffTiledLitModule
+
+tiled_diffusion: True
+
+tiled_config:
+  patch_size: 256  # dimension of each patch (in pixels, assuming square patches)
+  stride: 192  # the spacing between adjacent patche
+  sf: 1 # scaling factor, DO NOT MODIFY
+  batch_size: 6 # how many patches to process concurrently
+  model_size: 1024 # for model initialization, (512 or 1024). 1024 for better performance.
