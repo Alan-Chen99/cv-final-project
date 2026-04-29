@@ -1,0 +1,13 @@
+Models*
+results*
+runs*
+.idea/
+*.pyc
+*.DS_Store
+*.ipynb_checkpoints*
+
+# Data
+data/samples_*.nc
+data/e5.*.nc
+
+
