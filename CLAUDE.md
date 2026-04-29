@@ -23,7 +23,9 @@ Project skills live in `skills/` (symlinked from `.claude/skills`). Use them —
 │   ├── long-running-commands/
 │   └── slurm-preemptable/
 ├── external/
-│   └── constrained-downscaling/   # Harder et al. baseline code
+│   ├── constrained-downscaling/   # Harder et al. baseline code
+│   ├── ClimateDiffuse/            # GenDiff (robbiewatt1) — git subtree
+│   └── WassDiff/                  # WassDiff (Way-Yuhao) — git subtree
 ├── papers/                        # arXiv paper notes (markdown)
 ├── notes/                         # research session notes
 ├── scripts/                       # project scripts
@@ -73,6 +75,17 @@ These directions exploit the gap between the two disconnected lineages (see [not
 
 6. **Spatiotemporal extension**: Harder et al.'s FlowConvGRU was a first attempt at joint spatial-temporal SR. Video diffusion (STVD) is a more capable framework for this. Conservation constraints across time frames remain unexplored.
 7. **Extreme events**: WassDiff shows standard diffusion underestimates extremes. Wasserstein regularization or tail-aware losses could combine with hard constraints that already help in coastal/mountainous regions.
+
+# Downloaded data and weights (not in git)
+
+Located on `/home/chenxy/orcd/pool/datasets/` (pool disk, not HOME).
+
+| Path | Size | Contents |
+|---|---|---|
+| `gendiff/weights/diffusion.pt` | 372 MB | GenDiff EDM diffusion checkpoint (from Git LFS) |
+| `gendiff/weights/unet.pt` | 372 MB | GenDiff UNet checkpoint (from Git LFS) |
+| `wassdiff/weights/wassdiff.pth` | 938 MB | WassDiff NCSN++ checkpoint (from HuggingFace YuhaoL/WassDiff) |
+| `wassdiff/data/mini_dataset/` | 21 GB | CPC precipitation (1990-1999) + ERA5 single/pressure level vars (from HuggingFace) |
 
 # Notes
 
