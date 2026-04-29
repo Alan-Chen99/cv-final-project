@@ -58,13 +58,15 @@ tail -f /path/to/output-JOBID.log              # watch output
 
 ## Two submission modes
 
-### Mode 1: `sbatch` (fire-and-forget)
+**Default to `salloc`**. Keep the GPU allocated and submit commands to
+it. This lets you test imports, debug errors, and iterate without
+waiting in the queue each time. Only use `sbatch` when you have
+something already tested that you know will work and you know how long
+it takes.
 
-One script, one allocation. Use for long unattended training.
+### Mode 1: `salloc` + `srun` (DEFAULT — hold allocation, iterate)
 
-### Mode 2: `salloc` + `srun` (hold allocation, multiple commands)
-
-Hold a GPU, dispatch commands to it. Preferred for iterative work.
+Hold a GPU, dispatch commands to it. Use for all new/untested work.
 
 ```bash
 salloc -p mit_preemptable -G 1 -c 16 --mem=64G -t 24:00:00 --no-shell
@@ -90,12 +92,21 @@ ignore them. The singularity container mounts /workspace correctly.
 
 Release with `scancel JOBID`. salloc does NOT auto-requeue on preemption.
 
-| Scenario                         | Mode                |
-| -------------------------------- | ------------------- |
-| Single long training run         | `sbatch --requeue`  |
-| Multiple runs, check between     | `salloc` + `srun`   |
-| Parameter sweep (independent)    | `sbatch` job arrays |
-| Quick one-off (nvidia-smi, test) | `salloc` + `srun`   |
+### Mode 2: `sbatch` (fire-and-forget — tested workloads only)
+
+One script, one allocation. Use ONLY for workloads that have already
+been tested on an salloc allocation and are known to work. Appropriate
+for long unattended training runs where you know the script, data
+paths, and dependencies are correct.
+
+| Scenario                                    | Mode                |
+| ------------------------------------------- | ------------------- |
+| **New/untested script**                     | `salloc` + `srun`   |
+| **Debugging or iterating**                  | `salloc` + `srun`   |
+| **Quick one-off (nvidia-smi, test import)** | `salloc` + `srun`   |
+| **Multiple runs, check between**            | `salloc` + `srun`   |
+| **Tested long training run**                | `sbatch --requeue`  |
+| **Tested parameter sweep (independent)**    | `sbatch` job arrays |
 
 ## sbatch template
 
