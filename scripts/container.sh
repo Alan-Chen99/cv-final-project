@@ -92,6 +92,7 @@ shell_args=(
 	"${x11_env_args[@]}"
 	--env PREPEND_PATH=/nix/state/profile/bin:/nix/nix_path/bin
 	--env NIX_REMOTE=daemon
+	--pwd /workspace
 )
 
 start_instance() {
