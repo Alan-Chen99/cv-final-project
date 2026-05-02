@@ -95,6 +95,7 @@ IMPORTANT: prior agent notes MUST be taken as CONTEXT ONLY. Verify all claims be
 |---|---|---|
 | 2026-04-27 | Foundation Models vs Task-Specific Downscaling: Two Disconnected Lineages | [notes/2026-04-27-foundation-models-vs-downscaling.md](notes/2026-04-27-foundation-models-vs-downscaling.md) |
 | 2026-04-29 | Paper Code, Weights & Compute Survey | [notes/2026-04-29-paper-code-weights-compute.md](notes/2026-04-29-paper-code-weights-compute.md) |
+| 2026-05-02 | CV Final Project Outline | [notes/2026-05-02-cv-project-outline.md](notes/2026-05-02-cv-project-outline.md) |
 
 # Papers
 
