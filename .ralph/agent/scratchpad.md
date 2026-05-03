@@ -60,7 +60,7 @@ The baseline GAN produces **zero ensemble spread**:
 
 ## Iteration 2 — 2026-05-03 00:21 EDT → 2026-05-03 02:17 EDT
 **Starting commit**: 2df87d1
-**Ending commit**: TBD (will set after commit)
+**Ending commit**: 4e3fea1
 **Goal**: Implement conditional flow matching model and beat CRPS baseline
 
 ### Concerns About Iteration 1 (Addressed)
