@@ -378,5 +378,5 @@ Eval: 946s (mult), 938s (none).
 - 50 Euler steps (better ODE integration — ~50 min eval, need larger alloc)
 - Test noise_std=0.4 to find optimum between 0.3 and 0.5
 
-**Ending commit**: (pending)
+**Ending commit**: 06202dc
 **Ending time**: 2026-05-03 15:37 EDT
