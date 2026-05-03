@@ -58,7 +58,7 @@ class GaussianDiffusion:
         self.posterior_mean_coef2 = (1.0 - self.alphas_cumprod_prev) * torch.sqrt(alphas) / (1.0 - self.alphas_cumprod)
 
     def _extract(self, a, t, shape):
-        return a.gather(-1, t).reshape(-1, *([1] * (len(shape) - 1))).to(t.device)
+        return a.to(t.device).gather(-1, t).reshape(-1, *([1] * (len(shape) - 1)))
 
     def q_sample(self, x0, t, noise=None):
         """Forward diffusion: add noise to x0."""
@@ -97,13 +97,46 @@ class GaussianDiffusion:
         return mean + nonzero_mask * torch.exp(0.5 * log_var) * noise
 
     @torch.no_grad()
-    def sample(self, model, condition, shape):
-        """Full reverse sampling."""
+    def sample(self, model, condition, shape, ddim_steps=None, eta=1.0):
+        """Reverse sampling with optional DDIM acceleration."""
         device = condition.device
+        if ddim_steps is not None and ddim_steps < self.timesteps:
+            return self.ddim_sample(model, condition, shape, ddim_steps, eta)
         x = torch.randn(shape, device=device)
         for i in reversed(range(self.timesteps)):
             t = torch.full((shape[0],), i, device=device, dtype=torch.long)
             x = self.p_sample(model, x, t, condition)
+        return x
+
+    @torch.no_grad()
+    def ddim_sample(self, model, condition, shape, steps=50, eta=1.0):
+        """DDIM sampling with fewer steps. eta=0 deterministic, eta=1 stochastic."""
+        device = condition.device
+        # Subsequence of timesteps
+        step_size = self.timesteps // steps
+        timesteps = list(range(0, self.timesteps, step_size))[:steps]
+        timesteps = list(reversed(timesteps))
+
+        x = torch.randn(shape, device=device)
+        for i, t_cur in enumerate(timesteps):
+            t = torch.full((shape[0],), t_cur, device=device, dtype=torch.long)
+            pred_noise = model(x, t, condition)
+            x0_pred = self.predict_x0_from_noise(x, t, pred_noise)
+            x0_pred = torch.clamp(x0_pred, -5, 5)
+
+            if i < len(timesteps) - 1:
+                t_next = timesteps[i + 1]
+                alpha_bar_t = self.alphas_cumprod[t_cur]
+                alpha_bar_next = self.alphas_cumprod[t_next]
+                sigma = eta * torch.sqrt(
+                    (1 - alpha_bar_next) / (1 - alpha_bar_t) *
+                    (1 - alpha_bar_t / alpha_bar_next)
+                )
+                dir_xt = torch.sqrt(1 - alpha_bar_next - sigma ** 2) * pred_noise
+                noise = torch.randn_like(x) if eta > 0 else 0
+                x = torch.sqrt(alpha_bar_next) * x0_pred + dir_xt + sigma * noise
+            else:
+                x = x0_pred
         return x
 
 
@@ -207,7 +240,7 @@ class SimpleUNet(nn.Module):
                 ResBlock(ch + out_ch, out_ch, time_emb_dim, dropout),  # skip connection
                 ResBlock(out_ch, out_ch, time_emb_dim, dropout),
             ]))
-            self.up_samples.append(Upsample(out_ch))
+            self.up_samples.append(Upsample(ch))  # upsample input channels, not output
             ch = out_ch
 
         self.final_norm = nn.GroupNorm(min(32, ch), ch)
@@ -329,7 +362,7 @@ def train(args):
     model = SimpleUNet(
         in_channels=2, out_channels=1,
         base_channels=args.base_channels,
-        channel_mults=(1, 2, 4, 8),
+        channel_mults=args.channel_mults_tuple,
         time_emb_dim=256,
         dropout=0.1,
     ).to(device)
@@ -340,9 +373,23 @@ def train(args):
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
     best_val_loss = float('inf')
+    start_epoch = 0
+
+    # Resume from checkpoint
+    ckpt_path = os.path.join(args.save_dir, 'best_diffusion.pt')
+    if args.resume and os.path.exists(ckpt_path):
+        ckpt = torch.load(ckpt_path, weights_only=False)
+        model.load_state_dict(ckpt['model'])
+        start_epoch = ckpt['epoch'] + 1
+        best_val_loss = ckpt['val_loss']
+        # Advance scheduler to correct position
+        for _ in range(start_epoch):
+            scheduler.step()
+        print(f"Resumed from epoch {start_epoch}, best val loss: {best_val_loss:.6f}")
+
     start_time = time.time()
 
-    for epoch in range(args.epochs):
+    for epoch in range(start_epoch, args.epochs):
         model.train()
         train_loss = 0
         for lr_batch, res_batch in train_loader:
@@ -414,10 +461,13 @@ def evaluate(args):
 
     # Load model
     ckpt = torch.load(os.path.join(args.save_dir, 'best_diffusion.pt'), weights_only=False)
+    saved_mults = ckpt['args'].get('channel_mults_tuple', (1, 2, 4))
+    if isinstance(saved_mults, str):
+        saved_mults = tuple(int(x) for x in saved_mults.split(','))
     model = SimpleUNet(
         in_channels=2, out_channels=1,
         base_channels=ckpt['args'].get('base_channels', 64),
-        channel_mults=(1, 2, 4, 8),
+        channel_mults=saved_mults,
         time_emb_dim=256,
         dropout=0.0,  # no dropout at inference
     ).to(device)
@@ -429,9 +479,20 @@ def evaluate(args):
         schedule=ckpt['args'].get('schedule', 'cosine'),
     )
 
-    n_samples = lr_up.shape[0]
+    n_samples = min(lr_up.shape[0], args.max_samples) if args.max_samples else lr_up.shape[0]
     n_ensemble = args.n_ensemble
     batch_size = args.eval_batch_size
+
+    # Move diffusion schedule to GPU for faster sampling
+    diffusion.alphas_cumprod = diffusion.alphas_cumprod.to(device)
+    diffusion.sqrt_alphas_cumprod = diffusion.sqrt_alphas_cumprod.to(device)
+    diffusion.sqrt_one_minus_alphas_cumprod = diffusion.sqrt_one_minus_alphas_cumprod.to(device)
+    diffusion.sqrt_recip_alphas_cumprod = diffusion.sqrt_recip_alphas_cumprod.to(device)
+    diffusion.sqrt_recipm1_alphas_cumprod = diffusion.sqrt_recipm1_alphas_cumprod.to(device)
+    diffusion.posterior_variance = diffusion.posterior_variance.to(device)
+    diffusion.posterior_log_variance = diffusion.posterior_log_variance.to(device)
+    diffusion.posterior_mean_coef1 = diffusion.posterior_mean_coef1.to(device)
+    diffusion.posterior_mean_coef2 = diffusion.posterior_mean_coef2.to(device)
 
     print(f"Evaluating {n_samples} samples with {n_ensemble} ensemble members...")
 
@@ -450,10 +511,12 @@ def evaluate(args):
         ensemble_preds = []
         for e in range(n_ensemble):
             with torch.no_grad():
-                # Sample from diffusion
+                # Sample from diffusion (DDIM for speed)
                 sampled_res_norm = diffusion.sample(
                     model, batch_lr,
-                    shape=(bs, 1, 128, 128)
+                    shape=(bs, 1, 128, 128),
+                    ddim_steps=args.ddim_steps,
+                    eta=args.ddim_eta,
                 )
                 # Un-normalize residual
                 sampled_res = sampled_res_norm.cpu() * stats['res_std'] + stats['res_mean']
@@ -497,12 +560,20 @@ if __name__ == "__main__":
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--timesteps", type=int, default=1000)
     parser.add_argument("--schedule", default="cosine")
+    parser.add_argument("--resume", action="store_true", help="Resume from checkpoint")
     parser.add_argument("--base_channels", type=int, default=64)
+    parser.add_argument("--channel_mults", type=str, default="1,2,4",
+                        help="Channel multipliers (comma-separated)")
     # Eval args
     parser.add_argument("--n_ensemble", type=int, default=20)
     parser.add_argument("--eval_batch_size", type=int, default=32)
+    parser.add_argument("--ddim_steps", type=int, default=50, help="DDIM steps for eval (None=full DDPM)")
+    parser.add_argument("--ddim_eta", type=float, default=1.0, help="DDIM stochasticity (0=deterministic, 1=DDPM-like)")
+    parser.add_argument("--max_samples", type=int, default=None, help="Limit test samples")
     parser.add_argument("--split", default="test")
     args = parser.parse_args()
+
+    args.channel_mults_tuple = tuple(int(x) for x in args.channel_mults.split(','))
 
     if args.mode == "train":
         train(args)

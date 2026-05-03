@@ -61,6 +61,7 @@ singularity exec --nv \
     --env PREPEND_PATH=/nix/state/profile/bin:/nix/nix_path/bin \
     --env NIX_REMOTE=daemon \
     --env BASH_ENV=$HOME/.bashrc \
+    --env PYTHONUNBUFFERED=1 \
     {SIF} \
     bash -c 'eval "$(echo {inner_b64} | base64 -d)"' """,
     ]
