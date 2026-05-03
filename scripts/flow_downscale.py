@@ -199,6 +199,41 @@ def bicubic_upsample(lr, size=128):
     return F.interpolate(lr, size=(size, size), mode='bicubic', align_corners=False)
 
 
+# ── Constraint layers ────────────────────────────────────────────────────────
+
+def apply_constraint(hr, lr_32, constraint_type='none', eps=1e-6):
+    """Apply conservation constraint to HR prediction (post-hoc).
+
+    Enforces: AvgPool_4x4(output) = lr_32 exactly.
+
+    Args:
+        hr: (B, 1, 128, 128) HR prediction (normalized)
+        lr_32: (B, 1, 32, 32) LR input (normalized)
+        constraint_type: 'softmax' (exp + scale), 'mult' (clamp + scale), or 'none'
+        eps: numerical stability
+    Returns:
+        (B, 1, 128, 128) constrained HR prediction
+    """
+    if constraint_type == 'none':
+        return hr.clamp(0, 1)
+
+    if constraint_type == 'softmax':
+        y = torch.exp(hr)
+    elif constraint_type == 'mult':
+        y = hr.clamp(min=eps)
+    else:
+        raise ValueError(f"Unknown constraint: {constraint_type}")
+
+    # Downsample to 32×32 via block average
+    sum_y = F.avg_pool2d(y, kernel_size=4)  # (B, 1, 32, 32)
+
+    # Ratio: lr / sum_y, then broadcast back to 128×128
+    ratio = lr_32 / (sum_y + eps)
+    ratio_up = ratio.repeat_interleave(4, dim=2).repeat_interleave(4, dim=3)
+
+    return y * ratio_up
+
+
 # ── Training ──────────────────────────────────────────────────────────────────
 
 def train(args):
@@ -319,7 +354,8 @@ def train(args):
 # ── Inference ─────────────────────────────────────────────────────────────────
 
 @torch.no_grad()
-def generate_ensemble(model, lr_input, n_members, n_steps, device):
+def generate_ensemble(model, lr_input, n_members, n_steps, device,
+                      constraint='none'):
     """Generate ensemble predictions via Euler ODE integration.
 
     Args:
@@ -328,9 +364,10 @@ def generate_ensemble(model, lr_input, n_members, n_steps, device):
         n_members: number of ensemble members
         n_steps: Euler integration steps
         device: torch device
+        constraint: 'none', 'softmax', or 'mult'
 
     Returns:
-        (B, M, 1, 128, 128) ensemble predictions (normalized [0,1])
+        (B, M, 1, 128, 128) ensemble predictions (normalized)
     """
     B = lr_input.shape[0]
     cond = bicubic_upsample(lr_input)  # (B, 1, 128, 128)
@@ -345,7 +382,8 @@ def generate_ensemble(model, lr_input, n_members, n_steps, device):
             v = model(x, t, cond)
             x = x + v * dt
 
-        all_members.append(x.clamp(0, 1))  # Clamp to valid range
+        x = apply_constraint(x, lr_input, constraint)
+        all_members.append(x)
 
     return torch.stack(all_members, dim=1)  # (B, M, 1, 128, 128)
 
@@ -366,7 +404,9 @@ def evaluate(args):
     ckpt = 'flow_best.pth' if (save_dir / 'flow_best.pth').exists() else 'flow_last.pth'
     model.load_state_dict(torch.load(save_dir / ckpt, weights_only=False))
     model.eval()
-    print(f"Loaded {ckpt}, euler_steps={euler_steps}, n_members={args.n_members}")
+    constraint = getattr(args, 'constraint', 'none')
+    print(f"Loaded {ckpt}, euler_steps={euler_steps}, n_members={args.n_members}, "
+          f"constraint={constraint}")
 
     # Load test data (normalized)
     test_loader, _, _ = load_data(args.data_dir, args.eval_batch_size, 'test')
@@ -380,7 +420,8 @@ def evaluate(args):
 
     for i, (lr_input, hr_target) in enumerate(test_loader):
         lr_input = lr_input.to(device)
-        ensemble = generate_ensemble(model, lr_input, args.n_members, euler_steps, device)
+        ensemble = generate_ensemble(model, lr_input, args.n_members, euler_steps,
+                                     device, constraint=constraint)
         # Denormalize
         ensemble = ensemble * (max_val - min_val) + min_val
         hr_denorm = hr_target * (max_val - min_val) + min_val
@@ -484,6 +525,8 @@ if __name__ == '__main__':
     parser.add_argument('--channels', default='32,64,128')
     parser.add_argument('--euler-steps', type=int, default=20)
     parser.add_argument('--n-members', type=int, default=10)
+    parser.add_argument('--constraint', choices=['none', 'softmax', 'mult'],
+                        default='none', help='Post-hoc conservation constraint')
     args = parser.parse_args()
 
     if args.mode in ('train', 'both'):

@@ -35,3 +35,12 @@
 - **Reasoning**: Loss plateaued around epoch 50 (val=0.0025), cosine schedule reaches near-zero LR by epoch 100. 200 epochs would give marginal improvement. 100 epochs fits in 3h GPU allocation with room for eval.
 - **Reversibility**: High — can train longer in next iteration
 - **Timestamp**: 2026-05-03T04:35:00Z
+
+## DEC-005
+- **Decision**: Use multiplicative constraint (not SmCL/softmax) for post-hoc conservation on flow model
+- **Chosen Option**: `out = clamp(hr, ε) × (lr / AvgPool(clamp(hr, ε)))↑4×4`
+- **Confidence**: 95
+- **Alternatives Considered**: SmCL with exp() (CRPS=0.553, terrible), no constraint (CRPS=0.252, mass viol=0.058)
+- **Reasoning**: SmCL's exp() distorts the flow model's calibrated [0,1] output — the model was not trained to account for exp(). Mult is a minimal adjustment (scaling factors ≈ 1.0) that preserves the flow output distribution while enforcing exact conservation. Confirmed empirically: mult CRPS=0.246, SmCL CRPS=0.553.
+- **Reversibility**: High — constraint is only applied at inference time
+- **Timestamp**: 2026-05-03T07:10:00Z

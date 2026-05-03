@@ -97,3 +97,47 @@ The GAN has zero spread due to mode collapse. Flow matching naturally generates 
 - Try more Euler steps (50, 100) → may improve sample quality
 - Train longer (200 epochs) → loss was still slightly decreasing
 - CNN/GAN+softmax baselines for complete picture
+
+## Iteration 3 — 2026-05-03 02:20 EDT → 2026-05-03 03:10 EDT
+**Starting commit**: fb44366
+**Goal**: Add SmCL constraint to flow model inference, evaluate impact on CRPS and mass violation
+
+### Concerns About Iteration 2
+
+1. **FACT (minor)**: DEC-004 claims "loss plateaued around epoch 50" but training log shows val loss continued decreasing: 0.002677 (ep50) → 0.002009 (best, unknown epoch). The cosine schedule pushed LR to 0 by ep100, so training for more epochs with same schedule is pointless — would need longer cosine period or restart. Not blocking since the best checkpoint was saved.
+
+2. **QUALITY**: Flow model (2.3M params) is ~10× bigger than baseline ResNet (~250K). CRPS improvement is from diversity not pointwise accuracy, so model capacity is not the main factor, but worth noting.
+
+3. **WORKFLOW (IMPORTANT)**: SmCL in the baseline uses `exp(y)` on the model output before scaling. The flow model output is already in [0,1] (clamped). We need to decide: (a) apply exp() then constrain (changes distribution), or (b) apply multiplicative scaling directly (simpler, preserves positivity since output ≥ 0). Option (b) is simpler and has the same conservation guarantee: AvgPool(out) = lr. Going with (b) — this is a "MultCL" variant rather than true SmCL.
+
+### Plan
+1. Add a post-hoc conservation constraint to flow model inference
+2. Constraint: `out = hr * kron(lr / AvgPool(hr), ones(4,4))` — multiplicative scaling
+3. Apply AFTER each Euler integration (to the final sample, before clamping)
+4. Evaluate on test set: expect mass violation → ~0, CRPS may change
+5. Also try the full SmCL (with exp) for comparison
+
+### Results
+
+**Mult constraint: CRPS = 0.2460, mass violation ≈ 0**
+
+| Metric | Flow+mult | Flow+softmax | Flow (none) | GAN Baseline |
+|--------|-----------|--------------|-------------|--------------|
+| CRPS | **0.2460** | 0.5532 | 0.2516 | 0.3066 |
+| MSE | 0.3465 | 1.0773 | 0.3521 | 0.3824 |
+| RMSE | 0.5887 | 1.0379 | 0.5934 | 0.6184 |
+| MAE | 0.3207 | 0.5887 | 0.3283 | 0.3066 |
+| Spread | 0.4267 | 0.0782 | 0.4554 | ~0 |
+| Mass Viol | **0.0001** | 0.0000 | 0.0579 | 0.0454 |
+
+Key findings:
+1. **Mult constraint improves CRPS** from 0.252 to 0.246 (−2.2%) while eliminating mass violation (0.058 → 0.0001).
+2. **SmCL (exp-based) is terrible post-hoc**: CRPS degrades to 0.553. The exp() distorts the flow output distribution. SmCL only works when the model is trained end-to-end with it.
+3. **All metrics improved with mult** — MSE, RMSE, MAE all decreased. Spread decreased slightly (0.455 → 0.427) because the constraint reduces inter-member variability at the block level.
+4. **Mult is a simple post-hoc projection**: out = max(hr, ε) × (lr / AvgPool(max(hr, ε)))↑4×4. It preserves the relative HR texture within each 4×4 block while enforcing exact block-mean conservation.
+
+### What Remains
+- Try more Euler steps (50, 100) with mult constraint — better ODE accuracy may improve CRPS
+- Train flow model longer (200 epochs with cosine restart) + mult constraint
+- Train WITH mult constraint in the loop (backprop through the constraint)
+- Explore other directions: larger model, different architectures
