@@ -62,3 +62,12 @@
 - **Reasoning**: Heun at 20 steps gives CRPS=0.751 (3× worse than Euler). The velocity field is not smooth enough for the 2nd-order corrector at large dt=0.05. Heun doubles NFE, so 20 Heun steps = 40 NFE ≈ 40 Euler steps. If we want more accuracy, just increase Euler steps.
 - **Reversibility**: High — solver choice is inference-only
 - **Timestamp**: 2026-05-03T10:10:00Z
+
+## DEC-008
+- **Decision**: Use LR-anchor flow matching (start ODE from LR + noise instead of pure noise)
+- **Chosen Option**: x_0 = bicubic(LR) + 0.5 * N(0,I), with CA loss and mult constraint
+- **Confidence**: 90
+- **Alternatives Considered**: (1) More Euler steps with standard flow (marginal gains expected), (2) Larger model (capacity not the bottleneck), (3) Different noise_std values (0.5 worked well, tuning deferred)
+- **Reasoning**: Inspired by CDSI (2603.03838) which starts from LR field. Standard flow matching transports from N(0,I) to HR — the model must reconstruct the entire image. LR-anchor reduces transport distance since bicubic LR is already close to HR (SSIM~0.98). Val loss dropped 50% (0.001034 vs 0.002068), CRPS improved 8.5% (0.2218 vs 0.2424). The simpler velocity field also needs fewer Euler steps.
+- **Reversibility**: High — new model directory, old models preserved
+- **Timestamp**: 2026-05-03T12:22:00Z

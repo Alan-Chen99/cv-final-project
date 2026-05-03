@@ -252,9 +252,13 @@ def train(args):
     device = torch.device('cuda')
     constraint_aware = getattr(args, 'constraint_aware', False)
     constraint_weight = getattr(args, 'constraint_weight', 0.1)
+    lr_anchor = getattr(args, 'lr_anchor', False)
+    noise_std = getattr(args, 'noise_std', 0.5)
     print(f"Training flow matching model on {device}")
     print(f"Args: epochs={args.epochs}, bs={args.batch_size}, lr={args.lr}, "
           f"channels={args.channels}, euler_steps={args.euler_steps}")
+    if lr_anchor:
+        print(f"LR-anchor mode: noise_std={noise_std}")
     if constraint_aware:
         print(f"Constraint-aware training: weight={constraint_weight}")
 
@@ -308,8 +312,12 @@ def train(args):
             # Bicubic upsample LR for conditioning
             cond = bicubic_upsample(lr_input)    # (B, 1, 128, 128)
 
-            # Sample noise and time
-            x0 = torch.randn_like(hr_target)     # (B, 1, 128, 128)
+            # Sample source and time
+            if lr_anchor:
+                # LR-anchor: start from LR + noise (shorter ODE trajectory)
+                x0 = cond + noise_std * torch.randn_like(hr_target)
+            else:
+                x0 = torch.randn_like(hr_target)     # (B, 1, 128, 128)
             t = torch.rand(B, device=device)      # (B,) in [0, 1]
 
             # Interpolate: x_t = (1-t)*x0 + t*x1
@@ -365,7 +373,10 @@ def train(args):
                 hr_target = hr_target.to(device)
                 B = lr_input.shape[0]
                 cond = bicubic_upsample(lr_input)
-                x0 = torch.randn_like(hr_target)
+                if lr_anchor:
+                    x0 = cond + noise_std * torch.randn_like(hr_target)
+                else:
+                    x0 = torch.randn_like(hr_target)
                 t = torch.rand(B, device=device)
                 t_expand = t[:, None, None, None]
                 x_t = (1 - t_expand) * x0 + t_expand * hr_target
@@ -406,7 +417,8 @@ def train(args):
     # Save normalization stats
     torch.save({'min_val': min_val, 'max_val': max_val,
                 'channels': channels, 'euler_steps': args.euler_steps,
-                'constraint_aware': constraint_aware},
+                'constraint_aware': constraint_aware,
+                'lr_anchor': lr_anchor, 'noise_std': noise_std},
                save_dir / 'flow_config.pth')
 
 
@@ -414,7 +426,8 @@ def train(args):
 
 @torch.no_grad()
 def generate_ensemble(model, lr_input, n_members, n_steps, device,
-                      constraint='none', solver='euler'):
+                      constraint='none', solver='euler',
+                      lr_anchor=False, noise_std=1.0):
     """Generate ensemble predictions via ODE integration.
 
     Args:
@@ -425,6 +438,8 @@ def generate_ensemble(model, lr_input, n_members, n_steps, device,
         device: torch device
         constraint: 'none', 'softmax', or 'mult'
         solver: 'euler' (1st order) or 'heun' (2nd order, 2x NFE)
+        lr_anchor: if True, start from LR + noise instead of pure noise
+        noise_std: noise scale for LR-anchor mode
 
     Returns:
         (B, M, 1, 128, 128) ensemble predictions (normalized)
@@ -435,7 +450,10 @@ def generate_ensemble(model, lr_input, n_members, n_steps, device,
 
     all_members = []
     for m in range(n_members):
-        x = torch.randn(B, 1, 128, 128, device=device)  # Start from noise
+        if lr_anchor:
+            x = cond + noise_std * torch.randn(B, 1, 128, 128, device=device)
+        else:
+            x = torch.randn(B, 1, 128, 128, device=device)  # Start from noise
 
         for step in range(n_steps):
             t_cur = torch.full((B,), step * dt, device=device)
@@ -468,6 +486,9 @@ def evaluate(args):
     channels = config['channels']
     euler_steps = args.euler_steps or config['euler_steps']
 
+    lr_anchor = config.get('lr_anchor', False)
+    noise_std = config.get('noise_std', 1.0)
+
     model = FlowUNet(channels=channels).to(device)
     ckpt = 'flow_best.pth' if (save_dir / 'flow_best.pth').exists() else 'flow_last.pth'
     model.load_state_dict(torch.load(save_dir / ckpt, weights_only=False))
@@ -475,7 +496,7 @@ def evaluate(args):
     constraint = getattr(args, 'constraint', 'none')
     solver = getattr(args, 'solver', 'euler')
     print(f"Loaded {ckpt}, euler_steps={euler_steps}, n_members={args.n_members}, "
-          f"constraint={constraint}, solver={solver}")
+          f"constraint={constraint}, solver={solver}, lr_anchor={lr_anchor}, noise_std={noise_std}")
 
     # Load test data (normalized)
     test_loader, _, _ = load_data(args.data_dir, args.eval_batch_size, 'test')
@@ -490,7 +511,8 @@ def evaluate(args):
     for i, (lr_input, hr_target) in enumerate(test_loader):
         lr_input = lr_input.to(device)
         ensemble = generate_ensemble(model, lr_input, args.n_members, euler_steps,
-                                     device, constraint=constraint, solver=solver)
+                                     device, constraint=constraint, solver=solver,
+                                     lr_anchor=lr_anchor, noise_std=noise_std)
         # Denormalize
         ensemble = ensemble * (max_val - min_val) + min_val
         hr_denorm = hr_target * (max_val - min_val) + min_val
@@ -602,6 +624,10 @@ if __name__ == '__main__':
                         help='Enable constraint-aware auxiliary loss during training')
     parser.add_argument('--constraint-weight', type=float, default=0.1,
                         help='Weight for constraint-aware auxiliary loss')
+    parser.add_argument('--lr-anchor', action='store_true',
+                        help='Start ODE from LR + noise instead of pure noise')
+    parser.add_argument('--noise-std', type=float, default=0.5,
+                        help='Noise scale for LR-anchor mode')
     args = parser.parse_args()
 
     if args.mode in ('train', 'both'):

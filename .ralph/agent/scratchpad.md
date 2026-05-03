@@ -190,3 +190,65 @@ Heun failure is expected — velocity field not smooth enough for large dt with 
 
 **Ending commit**: 3b7272f
 **Ending time**: 2026-05-03 06:13 EDT
+
+## Iteration 5 — 2026-05-03 06:15 EDT → ?
+**Starting commit**: 8ba8cb9
+**Goal**: LR-anchor flow matching — start ODE from LR instead of pure noise
+
+### Concerns About Prior Iterations
+
+1. **WORKFLOW (CRITICAL)**: Dangling GPU allocation AGAIN. Job 13104691 (diff-train2) on node1632 was still running when iteration 5 started (submitted 04:38, during iter 4). Also a new job 13108713 (diff-eval) appeared at 06:16 — likely submitted by orchestration from the prior iteration's exit. Both cancelled. This is the SECOND consecutive "no cross-iteration jobs" violation.
+
+2. **FACT: Training was 100 epochs, not 200 as explicitly planned**. The iter 4 plan says "Train for 200 epochs with T_max=200" but training log shows "Epoch 100/100". DEC-004 says "loss plateaued around epoch 50" but the training log shows val loss improving through epoch 80 (best val 0.002068 at unknown epoch). The cosine schedule hit lr=0 at epoch 100, so epochs 80-100 effectively had zero learning. The 200-epoch plan from iter 3's "what remains" was never executed.
+
+3. **QUALITY: All experiments start from pure noise — LR-start unexplored**. CLAUDE.md lists "constrained stochastic interpolants" as "probably lowest-hanging fruit." CDSI (2603.03838) starts from LR field instead of noise, reducing transport distance. All 4 iterations used x_0 ~ N(0,I), which forces the model to reconstruct the entire image from scratch at each ODE step. Starting from x_0 = LR_up + σ*ε should make the velocity field simpler and ODE integration more accurate.
+
+### Plan: LR-Anchor Flow Matching
+
+**Key idea**: Replace x_0 ~ N(0,I) with x_0 = LR_up + σ*ε where σ controls diversity.
+
+Training:
+- x_0 = bicubic(LR) + noise_std * N(0,I)
+- x_t = (1-t)*x_0 + t*HR
+- v_target = HR - x_0 (unchanged formula)
+- Include constraint-aware aux loss (proven to help)
+
+Inference:
+- Start from x_0 = bicubic(LR) + noise_std * N(0,I) instead of pure noise
+- Each ensemble member gets different noise realization → diversity
+- Apply mult constraint on final output
+
+Benefits:
+- Shorter ODE trajectory (LR ≈ HR at SSIM~0.98)
+- Simpler velocity field (model only predicts residual correction + noise removal)
+- Should need fewer Euler steps
+
+Risk: diversity may be too low with small σ. Using σ=0.5 as initial choice.
+
+Implementation: Add --lr-anchor flag and --noise-std param to flow_downscale.py.
+
+### Results
+
+**LR-anchor + CA + mult: CRPS = 0.2218 (NEW BEST)**
+
+| Config | CRPS | MSE | RMSE | MAE | Spread | Mass Viol |
+|--------|------|-----|------|-----|--------|-----------|
+| **LR-anchor + CA + mult** | **0.2218** | 0.3156 | 0.5618 | 0.2847 | 0.2301 | 0.0001 |
+| LR-anchor + CA + none | 0.2265 | 0.3188 | 0.5646 | 0.2911 | 0.2690 | 0.0441 |
+| CA + mult (iter 4) | 0.2424 | 0.3347 | 0.5786 | 0.3159 | 0.4104 | 0.0001 |
+| Post-hoc mult (iter 3) | 0.2460 | 0.3465 | 0.5887 | 0.3207 | 0.4267 | 0.0001 |
+| Flow none (iter 2) | 0.2516 | 0.3521 | 0.5934 | 0.3283 | 0.4554 | 0.0579 |
+| GAN baseline (iter 1) | 0.3066 | 0.3824 | 0.6184 | 0.3066 | ~0 | 0.0454 |
+
+Key findings:
+1. **LR-anchor is the biggest single improvement**: CRPS 0.2424 → 0.2218 (−8.5%)
+2. **Cumulative 27.7% CRPS reduction** from GAN baseline (0.3066 → 0.2218)
+3. **Val loss 50% lower** than standard flow (0.001034 vs 0.002068) — velocity field is much simpler
+4. **Mult constraint still helps**: 0.2265 → 0.2218 (−2.1%), consistent with prior iterations
+5. **Lower spread** (0.23 vs 0.41) — expected since starting closer to HR means less inter-member variance needed
+6. **All pointwise metrics improved**: MSE −5.7%, RMSE −2.9%, MAE −9.9% vs CA+mult
+
+Training: 87.1 min, best val=0.001034. 100 epochs, noise_std=0.5.
+
+**Ending commit**: (pending)
+**Ending time**: 2026-05-03 08:22 EDT
