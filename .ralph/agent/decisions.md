@@ -71,3 +71,21 @@
 - **Reasoning**: Inspired by CDSI (2603.03838) which starts from LR field. Standard flow matching transports from N(0,I) to HR — the model must reconstruct the entire image. LR-anchor reduces transport distance since bicubic LR is already close to HR (SSIM~0.98). Val loss dropped 50% (0.001034 vs 0.002068), CRPS improved 8.5% (0.2218 vs 0.2424). The simpler velocity field also needs fewer Euler steps.
 - **Reversibility**: High — new model directory, old models preserved
 - **Timestamp**: 2026-05-03T12:22:00Z
+
+## DEC-009
+- **Decision**: CRPS energy loss as auxiliary training objective (NEGATIVE RESULT)
+- **Chosen Option**: velocity_MSE + 0.1 * CRPS_energy for t > 0.5, where CRPS = 0.5*(|x1-y| + |x2-y|) - 0.5*|x1-x2|
+- **Confidence**: 60 (uncertain, novel direction)
+- **Alternatives Considered**: (1) Lower CRPS weight (0.01), (2) MAE-only CRPS (no spread term), (3) Train longer with existing CA loss
+- **Reasoning**: CRPS is the evaluation metric but was never directly optimized. Energy CRPS is differentiable and decomposes into accuracy + diversity terms. However, the spread reward term (-0.5*|x1-x2|) dominated the gradient, causing the model to over-diversify (spread 0.47 vs 0.23 for CA) at the cost of accuracy (MAE 0.328 vs 0.285). Net effect: CRPS worsened from 0.222 to 0.253.
+- **Reversibility**: High — separate model directory, iter 5 model preserved
+- **Timestamp**: 2026-05-03T16:16:00Z
+
+## DEC-010
+- **Decision**: Eval-time noise_std must match training noise_std
+- **Chosen Option**: Do NOT override noise_std at eval without retraining
+- **Confidence**: 99
+- **Alternatives Considered**: Eval-time noise_std sweep as cheap hyperparameter tuning
+- **Reasoning**: The velocity field is calibrated for the training noise distribution. Using noise_std=0.3 at eval on model trained with 0.5 produces catastrophic CRPS=0.603 (3× worse). The ODE solver diverges because the velocity field expects different noise magnitudes. Any noise_std change requires full retraining.
+- **Reversibility**: N/A — this is a finding, not a code change
+- **Timestamp**: 2026-05-03T16:16:00Z

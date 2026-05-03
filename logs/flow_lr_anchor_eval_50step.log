@@ -1,0 +1,9 @@
+[2026-05-03T11:49:49.903] error: couldn't chdir to `/workspace': No such file or directory: going to /tmp instead
+[2026-05-03T11:49:49.905] error: couldn't chdir to `/workspace': No such file or directory: going to /tmp instead
+Loaded flow_best.pth, euler_steps=50, n_members=10, constraint=mult, solver=euler, lr_anchor=True, noise_std=0.5
+Test samples: 10000
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+[2026-05-03T12:16:04.013] error: *** STEP 13126997.2 ON node3402 CANCELLED AT 2026-05-03T12:16:04 DUE TO TIME LIMIT ***
+INFO:    Terminating squashfuse_ll after timeout
+INFO:    Timeouts can be caused by a running background process
+srun: error: node3402: task 0: Terminated

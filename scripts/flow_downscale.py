@@ -252,6 +252,8 @@ def train(args):
     device = torch.device('cuda')
     constraint_aware = getattr(args, 'constraint_aware', False)
     constraint_weight = getattr(args, 'constraint_weight', 0.1)
+    crps_loss_enabled = getattr(args, 'crps_loss', False)
+    crps_weight = getattr(args, 'crps_weight', 0.1)
     lr_anchor = getattr(args, 'lr_anchor', False)
     noise_std = getattr(args, 'noise_std', 0.5)
     print(f"Training flow matching model on {device}")
@@ -259,7 +261,9 @@ def train(args):
           f"channels={args.channels}, euler_steps={args.euler_steps}")
     if lr_anchor:
         print(f"LR-anchor mode: noise_std={noise_std}")
-    if constraint_aware:
+    if crps_loss_enabled:
+        print(f"CRPS-aware training: weight={crps_weight}")
+    elif constraint_aware:
         print(f"Constraint-aware training: weight={constraint_weight}")
 
     # Data
@@ -332,9 +336,37 @@ def train(args):
                 v_pred = model(x_t, t, cond)
                 loss = F.mse_loss(v_pred, v_target)
 
-                # Constraint-aware auxiliary loss for t > 0.5
+                # Auxiliary loss for t > 0.5
                 aux_loss_val = 0.0
-                if constraint_aware:
+                if crps_loss_enabled:
+                    mask = (t > 0.5).float()
+                    if mask.sum() > 0:
+                        remaining = (1.0 - t_expand)
+                        # Prediction 1: from current forward pass
+                        x_hat_1 = x_t + v_pred * remaining
+                        x_hat_1c = apply_constraint_differentiable(x_hat_1, lr_input)
+
+                        # Prediction 2: different noise realization
+                        if lr_anchor:
+                            x0_2 = cond + noise_std * torch.randn_like(hr_target)
+                        else:
+                            x0_2 = torch.randn_like(hr_target)
+                        x_t_2 = (1 - t_expand) * x0_2 + t_expand * hr_target
+                        v_pred_2 = model(x_t_2, t, cond)
+                        x_hat_2 = x_t_2 + v_pred_2 * remaining
+                        x_hat_2c = apply_constraint_differentiable(x_hat_2, lr_input)
+
+                        # CRPS energy form: E|X-y| - 0.5*E|X-X'|
+                        mae_term = 0.5 * (
+                            torch.abs(x_hat_1c - hr_target).mean(dim=(1, 2, 3)) +
+                            torch.abs(x_hat_2c - hr_target).mean(dim=(1, 2, 3))
+                        )
+                        spread_term = 0.5 * torch.abs(x_hat_1c - x_hat_2c).mean(dim=(1, 2, 3))
+                        crps_per_sample = mae_term - spread_term
+                        aux_loss = (crps_per_sample * mask).sum() / mask.sum()
+                        loss = loss + crps_weight * aux_loss
+                        aux_loss_val = aux_loss.item()
+                elif constraint_aware:
                     mask = (t > 0.5).float()
                     if mask.sum() > 0:
                         # One-step prediction to t=1
@@ -361,7 +393,7 @@ def train(args):
 
         scheduler.step()
         avg_train = train_loss / n_batches
-        avg_aux = train_aux_loss / n_batches if constraint_aware else 0
+        avg_aux = train_aux_loss / n_batches if (constraint_aware or crps_loss_enabled) else 0
 
         # Validation
         model.eval()
@@ -389,7 +421,7 @@ def train(args):
 
         elapsed = time.time() - t_start
         if (epoch + 1) % 10 == 0 or epoch == 0:
-            aux_str = f" aux={avg_aux:.6f}" if constraint_aware else ""
+            aux_str = f" aux={avg_aux:.6f}" if (constraint_aware or crps_loss_enabled) else ""
             print(f"Epoch {epoch+1:3d}/{args.epochs} | "
                   f"train={avg_train:.6f}{aux_str} val={avg_val:.6f} | "
                   f"lr={scheduler.get_last_lr()[0]:.2e} | "
@@ -418,6 +450,7 @@ def train(args):
     torch.save({'min_val': min_val, 'max_val': max_val,
                 'channels': channels, 'euler_steps': args.euler_steps,
                 'constraint_aware': constraint_aware,
+                'crps_loss': crps_loss_enabled,
                 'lr_anchor': lr_anchor, 'noise_std': noise_std},
                save_dir / 'flow_config.pth')
 
@@ -488,6 +521,9 @@ def evaluate(args):
 
     lr_anchor = config.get('lr_anchor', False)
     noise_std = config.get('noise_std', 1.0)
+    if args.eval_noise_std is not None:
+        print(f"Overriding noise_std: {noise_std} -> {args.eval_noise_std}")
+        noise_std = args.eval_noise_std
 
     model = FlowUNet(channels=channels).to(device)
     ckpt = 'flow_best.pth' if (save_dir / 'flow_best.pth').exists() else 'flow_last.pth'
@@ -624,10 +660,16 @@ if __name__ == '__main__':
                         help='Enable constraint-aware auxiliary loss during training')
     parser.add_argument('--constraint-weight', type=float, default=0.1,
                         help='Weight for constraint-aware auxiliary loss')
+    parser.add_argument('--crps-loss', action='store_true',
+                        help='Enable CRPS-aware auxiliary loss (replaces constraint-aware)')
+    parser.add_argument('--crps-weight', type=float, default=0.1,
+                        help='Weight for CRPS auxiliary loss')
     parser.add_argument('--lr-anchor', action='store_true',
                         help='Start ODE from LR + noise instead of pure noise')
     parser.add_argument('--noise-std', type=float, default=0.5,
                         help='Noise scale for LR-anchor mode')
+    parser.add_argument('--eval-noise-std', type=float, default=None,
+                        help='Override noise_std at eval time (default: use training value)')
     args = parser.parse_args()
 
     if args.mode in ('train', 'both'):

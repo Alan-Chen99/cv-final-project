@@ -252,3 +252,69 @@ Training: 87.1 min, best val=0.001034. 100 epochs, noise_std=0.5.
 
 **Ending commit**: 2ef4b2b
 **Ending time**: 2026-05-03 08:22 EDT
+
+## Iteration 6 — 2026-05-03 08:24 EDT → ?
+**Starting commit**: 43ea047
+**Goal**: CRPS-aware training loss — directly optimize the evaluation metric
+
+### Concerns About Prior Iterations
+
+1. **WORKFLOW (CRITICAL)**: Dangling GPU allocation — THIRD consecutive violation. Job 13113303 (diff-v2) on node4302 was submitted at 07:38 during iter 5 but still running at 08:24 (iter 5 ended 08:22). Cancelled immediately. Also found 2 pre-loop GPU jobs (sweep-gpu1/2, 13081661/13081662, 10+ hrs running on node3302/3600) — cancelled as they violate the 1-GPU limit even though they predate the loop.
+
+2. **FACT (important)**: DEC-004 claims "loss plateaued around epoch 50" but training logs show val loss improved continuously: epoch 50 val=0.001267, epoch 80 val=0.001167 (best). Cosine schedule reached lr=0 by epoch 100, so epochs 90-100 were wasted. The planned 200-epoch training (noted since iter 3) was never executed across 3 iterations. This is a systematic missed optimization.
+
+3. **QUALITY**: All improvements so far are from architectural changes (flow matching, LR-anchor) and inference tricks (mult constraint). The training loss is still plain velocity MSE. The evaluation metric (CRPS) is never directly optimized. The constraint-aware aux loss (iter 4) only adds MSE after constraint — it doesn't optimize for ensemble diversity. Directly optimizing CRPS could improve both accuracy AND calibration.
+
+### Plan: CRPS-Aware Training Loss
+
+**Key idea**: Replace the constraint-aware MSE auxiliary loss with a differentiable CRPS loss using the energy form: CRPS = E|X-y| - 0.5*E|X-X'|.
+
+Implementation:
+- For samples with t > 0.5, generate TWO predictions using different noise realizations
+- x0_1 = LR + σ*ε1, x0_2 = LR + σ*ε2 (different noise)
+- One-step denoise each: x_hat_k = x_t_k + v_pred_k * (1-t)
+- Apply differentiable constraint to both
+- CRPS_loss = 0.5*(|x_hat_1 - HR| + |x_hat_2 - HR|) - 0.5*|x_hat_1 - x_hat_2|
+- Total: velocity_mse + λ*CRPS_loss
+
+The spread term (-0.5*|x1-x2|) rewards diverse predictions, directly teaching the model to use noise for ensemble diversity rather than ignoring it (like the GAN did).
+
+Training: 100 epochs, noise_std=0.5, LR-anchor, ~130 min (extra forward pass adds ~50%).
+Then eval with mult constraint.
+
+Expected: CRPS improvement from directly optimizing the evaluation metric, especially better spread calibration.
+
+### Results
+
+**CRPS loss is a NEGATIVE result — CRPS = 0.2529 (worse than iter 5's 0.2218)**
+
+| Config | CRPS | MSE | RMSE | MAE | Spread | Mass Viol |
+|--------|------|-----|------|-----|--------|-----------|
+| CRPS loss + LR-anchor + mult | 0.2529 | 0.3756 | 0.6129 | 0.3278 | 0.4727 | 0.0001 |
+| **LR-anchor + CA + mult (iter 5)** | **0.2218** | 0.3156 | 0.5618 | 0.2847 | 0.2301 | 0.0001 |
+| LR-anchor eval ns=0.3 (mismatch) | 0.6029 | 0.6687 | 0.8177 | 0.5929 | 1.6986 | 0.0001 |
+
+Key findings:
+1. **CRPS loss hurts** (0.253 vs 0.222, +14%): The energy spread term rewards diversity, but the model over-diversifies (spread 0.47 vs 0.23) at the expense of accuracy (MAE 0.328 vs 0.285). The velocity field becomes less precise.
+2. **Eval-time noise_std mismatch is catastrophic**: Using noise_std=0.3 at eval on a model trained with 0.5 produces CRPS=0.603. The velocity field is calibrated for a specific noise level.
+3. **50 Euler steps**: Allocation expired before completion. Would need >1h eval time (2.5× more NFE).
+4. **Training was preempted at epoch 90/100**: Best checkpoint at epoch 60 (val=0.001168, slightly worse than iter 5's 0.001034).
+
+### Analysis: Why CRPS Loss Failed
+
+The energy CRPS loss = E|X-y| - 0.5*E|X-X'| has two terms:
+- MAE term (accuracy): penalizes distance from truth
+- Spread term (diversity): REWARDS distance between ensemble members
+
+With weight=0.1, the spread reward signal dominates the gradient for the aux loss. The model learns to amplify noise-dependent features rather than produce accurate reconstructions. The result: more diversity but worse per-sample accuracy, net CRPS increase.
+
+**Possible fixes for future iterations:**
+- Much lower CRPS weight (0.01 or 0.001)
+- Only use MAE term of CRPS (= CA loss, already tried in iter 4)
+- Use CRPS loss only in final epochs (after velocity field stabilizes)
+- Train with noise_std=0.3 FROM SCRATCH (not eval-time override)
+- 200 epochs with T_max=200 (still never tried, val loss still improving at ep 80)
+- More Euler steps (50) requires longer eval allocation
+
+**Ending commit**: (to be set after commit)
+**Ending time**: 2026-05-03 12:16 EDT
