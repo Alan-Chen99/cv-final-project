@@ -318,3 +318,65 @@ With weight=0.1, the spread reward signal dominates the gradient for the aux los
 
 **Ending commit**: 46ef09c
 **Ending time**: 2026-05-03 12:20 EDT
+
+## Iteration 7 — 2026-05-03 12:18 EDT → ?
+**Starting commit**: 15e75c7
+**Goal**: noise_std=0.3 + 200 epochs — train LR-anchor flow model with tighter noise and longer training
+
+### Concerns About Prior Iterations
+
+1. **WORKFLOW (CRITICAL)**: FOURTH consecutive dangling GPU violation. Three jobs at start: sweep-gp ×2 (13116154, 13116155 on node3207/4302, 3.8hrs) and flow-tra (13127325 on node3500, 1hr). Cancelled immediately. The "no cross-iteration jobs" rule has been violated every single iteration since iter 3.
+
+2. **FACT (important)**: DEC-004 states "loss plateaued around epoch 50" but ALL subsequent training logs contradict this. Iter 5 achieved best val=0.001034 (improvement continuing through epoch 80+). The cosine schedule with T_max=100 means lr≈0 for epochs 90-100, wasting 10-20% of training. The 200-epoch training has been identified as a gap since iter 3 but never executed.
+
+3. **QUALITY**: noise_std=0.5 was an arbitrary "initial choice" (iter 5 plan text). Never validated against alternatives. Iter 5's spread=0.23 is already well below iter 2's spread=0.455 and below MAE=0.285, suggesting the ensemble may be slightly over-dispersed for the noise level. noise_std=0.3 could give better accuracy with adequate spread (CRPS = MAE - spread_correction, so tighter ensemble with proportionally better MAE could net-win).
+
+### Plan: noise_std=0.3 + 200 epochs
+
+**Key idea**: Train the LR-anchor + CA model with noise_std=0.3 (tighter) and 200 epochs with T_max=200 (full training budget, no wasted epochs).
+
+Rationale:
+- noise_std=0.3 is genuinely uncertain: could improve CRPS by reducing over-dispersion and improving per-sample accuracy, OR could hurt by reducing diversity below optimal
+- 200 epochs addresses the systematic missed optimization (val loss still improving at epoch 80)
+- Combined: properly train a tighter model and see if the accuracy gain outweighs spread loss
+
+Training config:
+- --lr-anchor --noise-std 0.3 --constraint-aware --epochs 200
+- --channels 32,64,128 --lr 2e-4 --batch-size 256
+- T_max=200 (inherits from --epochs)
+
+Expected: ~174 min training + ~16 min eval ≈ 190 min total. Within 4hr budget.
+
+Risk: if noise_std=0.3 hurts CRPS, we learn that 0.5 is near-optimal and the diversity/accuracy tradeoff is already well-calibrated.
+
+### Results
+
+**noise_std=0.3 + 200 epochs: CRPS = 0.2066 (NEW BEST, −7% vs iter 5)**
+
+| Config | CRPS | MSE | RMSE | MAE | Spread | Mass Viol |
+|--------|------|-----|------|-----|--------|-----------|
+| **ns=0.3 + CA + mult (200ep)** | **0.2066** | 0.2578 | 0.5077 | 0.2668 | 0.2133 | 0.0001 |
+| ns=0.3 + CA + none (200ep) | 0.2085 | 0.2591 | 0.5091 | 0.2699 | 0.2246 | 0.0296 |
+| ns=0.5 + CA + mult (iter 5) | 0.2218 | 0.3156 | 0.5618 | 0.2847 | 0.2301 | 0.0001 |
+| GAN baseline (iter 1) | 0.3066 | 0.3824 | 0.6184 | 0.3066 | ~0 | 0.0454 |
+
+Key findings:
+1. **noise_std=0.3 + 200 epochs gives major improvement**: CRPS 0.222 → 0.207 (−6.9%)
+2. **Cumulative 32.6% CRPS reduction** from GAN baseline (0.3066 → 0.2066)
+3. **Val loss dramatically better**: 0.000600 vs 0.001034 (−42%) — velocity field simpler with tighter noise
+4. **Accuracy gains dominate**: MSE down 18%, MAE down 6.3%. Spread only slightly tighter (0.213 vs 0.230)
+5. **200 epochs clearly helped**: val loss improved from epoch 100 (0.000722) to best at epoch ~150+ (0.000600)
+6. **Training preempted at epoch 181/200** — but cosine schedule at near-zero LR makes remaining epochs negligible
+7. **Mult constraint still helps** (−0.9% CRPS) and eliminates mass violation
+
+Training: 156.8 min (preempted ep 181), best val=0.000600.
+Eval: 946s (mult), 938s (none).
+
+### What Remains (for future iterations)
+- noise_std sweep: try 0.2 or 0.1 (even tighter, but risk losing diversity)
+- Larger model (e.g., 64,128,256 channels) — now that velocity field is simpler, extra capacity may help more
+- 50 Euler steps (better ODE integration — ~50 min eval, need larger alloc)
+- Test noise_std=0.4 to find optimum between 0.3 and 0.5
+
+**Ending commit**: (pending)
+**Ending time**: 2026-05-03 15:37 EDT
