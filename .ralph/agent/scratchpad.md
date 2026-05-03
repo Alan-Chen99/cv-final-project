@@ -1,7 +1,8 @@
 # Scratchpad — Constrained Downscaling with CRPS
 
-## Iteration 1 — 2026-05-02 21:55 EDT → 2026-05-03 00:18 EDT
+## Iteration 1 — 2026-05-02 21:55 EDT → 2026-05-03 00:20 EDT
 **Starting commit**: 01644d4
+**Ending commit**: aa62f54
 **Goal**: Set up baselines for 32×32→128×128 ERA5 TCW downscaling, evaluate CRPS
 
 ### Understanding
