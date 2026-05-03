@@ -17,3 +17,21 @@
 - **Reasoning**: Timing test shows ~96 min per GAN model at 200 epochs on L40S. Two models = ~192 min, fits within 4hr iteration. Using paper's exact hyperparameters ensures fair comparison.
 - **Reversibility**: High — can retrain with different settings
 - **Timestamp**: 2026-05-02T22:10:00Z
+
+## DEC-003
+- **Decision**: Use conditional flow matching instead of fixing GAN diversity or DDPM
+- **Chosen Option**: Flow matching with small UNet, Euler ODE inference
+- **Confidence**: 85
+- **Alternatives Considered**: (1) Increase GAN adv_factor to fix collapse — risky, unstable training; (2) DDPM — more complex, slower inference (1000 steps vs 20); (3) Consistency models — too complex for first attempt
+- **Reasoning**: Flow matching is the simplest generative framework for diverse samples: no variance schedule (unlike DDPM), fast inference (20 Euler steps), and linear interpolation training objective. Any model with calibrated spread should beat CRPS=0.307 baseline.
+- **Reversibility**: High — can try other approaches in subsequent iterations
+- **Timestamp**: 2026-05-03T04:30:00Z
+
+## DEC-004
+- **Decision**: Train flow model for 100 epochs (not 200) with AMP
+- **Chosen Option**: 100 epochs, ~87 min training
+- **Confidence**: 80
+- **Alternatives Considered**: 200 epochs (~180 min, might not fit in GPU alloc)
+- **Reasoning**: Loss plateaued around epoch 50 (val=0.0025), cosine schedule reaches near-zero LR by epoch 100. 200 epochs would give marginal improvement. 100 epochs fits in 3h GPU allocation with room for eval.
+- **Reversibility**: High — can train longer in next iteration
+- **Timestamp**: 2026-05-03T04:35:00Z

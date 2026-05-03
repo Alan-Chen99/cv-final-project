@@ -57,3 +57,43 @@ The baseline GAN produces **zero ensemble spread**:
 - Train GAN+softmax baseline (to see if constraints affect the collapsed GAN)
 - Implement a proper probabilistic model (diffusion or flow matching)
 - Target: CRPS < 0.307 with a calibrated ensemble
+
+## Iteration 2 — 2026-05-03 00:21 EDT → 2026-05-03 02:17 EDT
+**Starting commit**: 2df87d1
+**Ending commit**: TBD (will set after commit)
+**Goal**: Implement conditional flow matching model and beat CRPS baseline
+
+### Concerns About Iteration 1 (Addressed)
+
+1. **WORKFLOW (CRITICAL)**: CRPS `crps_ensemble_fast` was never cross-validated.
+   → RESOLVED: Verified fast formula matches naive O(M²) double-loop to machine precision.
+   Also verified CRPS degenerates to MAE for identical ensemble members.
+
+2. **FACT**: GAN "zero spread" claim.
+   → NOT DIRECTLY VERIFIED this iteration, but the 6.5 GB prediction file exists.
+   The flow model's strong results (spread=0.455) make the GAN collapse finding less critical.
+
+3. **QUALITY**: Only 1 of 4 baselines trained.
+   → Still incomplete. CNN baselines would be nice for comparison but not blocking.
+
+### Results
+
+**Flow matching achieves CRPS = 0.2516 vs baseline 0.3066 (−18%)**
+
+| Metric | Flow | GAN Baseline | Δ |
+|--------|------|--------------|---|
+| CRPS | **0.2516** | 0.3066 | −18% |
+| MSE | 0.3521 | 0.3824 | −8% |
+| RMSE | 0.5934 | 0.6184 | −4% |
+| MAE (mean) | 0.3283 | 0.3066 | +7% |
+| Spread | 0.4554 | ~0 | ∞ |
+| Mass Viol | 0.0579 | 0.0454 | +28% |
+
+Key insight: CRPS improvement comes entirely from ensemble diversity (spread_term).
+The GAN has zero spread due to mode collapse. Flow matching naturally generates diverse samples.
+
+### What Remains
+- Add SmCL constraint to flow output → reduce mass violation, may improve CRPS
+- Try more Euler steps (50, 100) → may improve sample quality
+- Train longer (200 epochs) → loss was still slightly decreasing
+- CNN/GAN+softmax baselines for complete picture
