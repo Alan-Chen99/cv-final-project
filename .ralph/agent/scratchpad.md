@@ -263,3 +263,71 @@ Steps:
 2. Resume training with fresh cosine schedule (60 more epochs)
 3. Self-attention at bottleneck
 4. Full 10K test evaluation
+
+## Iteration 5
+**Start:** 2026-05-03 14:58 EDT
+**Start commit:** 7e828f8
+
+### Concerns
+
+1. **Workflow (dangling job from iter-4):** Job 13131527 "flow-ns03" on node3600 was submitted at 12:21 during iter-4 but NOT documented in iter-4's GPU allocation history. Ran for 2h37m as an idle salloc. Cancelled. Prior iterations keep leaving dangling GPU allocations — this is the 3rd time (iters 2, 3, 4 each had one).
+
+2. **Quality (29-epoch checkpoint never evaluated):** Iter-4 trained flow matching to epoch 29 (val_loss=0.255 vs 0.267 at ep17) but only evaluated the 17-epoch model. The CRPS=0.095 result is from a checkpoint that's NOT the best available. The improvement from 17→29 epochs is unknown. However, re-evaluating the existing checkpoint would be incremental — the user asked for "under-explored directions" over "tiny improvements."
+
+3. **Quality (no architectural exploration in 4 iterations):** All models use the same basic 12.8M param UNet with ResBlocks only. No self-attention has been tried. For 128×128 spatial climate data with long-range correlations (e.g., large-scale moisture patterns), attention at the bottleneck (16×16 = 256 tokens) could meaningfully improve quality. This is a standard technique in diffusion UNets (SR3, DDPM, LDM all use attention at 16×16).
+
+### Plan for This Iteration
+**ONE thing: Add self-attention at UNet bottleneck and train flow matching v2.**
+
+Rationale: Self-attention at 16×16 is cheap (256 tokens × 256 channels = ~0.5M extra params), captures global spatial patterns that convolutions miss, and is the most standard improvement for diffusion UNets that we haven't tried. This is genuinely under-explored for climate flow matching.
+
+Steps:
+1. ✅ Write concerns, cancel dangling job
+2. Implement self-attention module, add between mid_block1 and mid_block2
+3. Allocate GPU, train flow_v2 from scratch (~30 epochs, ~2.2hr)
+4. Evaluate on 2K test (10 ensemble, 10 Euler steps)
+5. Compare vs flow_v1 (CRPS=0.095)
+6. Commit results
+
+Time budget (4hr max, deadline ~18:58 EDT):
+- Setup + code: 30 min → 15:30
+- GPU alloc + training 30 ep: ~2.5 hr → 18:00
+- Eval + report + commit: 45 min → 18:45
+
+### Progress
+- [x] Write concerns, cancel dangling job 13131527
+- [x] Implement SelfAttention module in flow_matching_v2.py
+- [x] Smoke test: 13.07M params (274K extra), 4.5 min/epoch
+- [x] Train: 39 epochs across 5 GPU allocations (3 preemptions of salloc, sbatch survived)
+- [x] Evaluate on 2K test: CRPS=0.0926 (3% better than v1, 39% better than paper GAN)
+- [x] Write report, commit
+
+### Key Results
+| Model | Constraint | Epochs | CRPS | MAE | RMSE | Mass viol |
+|-------|-----------|--------|------|-----|------|-----------|
+| Flow v1 (no attn) | AddCL | 17 | 0.096 | 0.250 | 0.475 | 0.000001 |
+| **Flow v2 (attn)** | **AddCL** | **39** | **0.093** | **0.242** | **0.456** | **0.000001** |
+
+### GPU Allocation History
+- Job 13142164 (salloc), node3600: epochs 1-4, preempted
+- Job 13144399 (salloc), node3006: cancelled by concurrent worker after 11s
+- Job 13148798 (salloc): cancelled by concurrent worker after 11s
+- Job 13145337 (salloc), node4505: epochs 5-10, preempted
+- Job 13149110 (sbatch), node4304: epochs 11-39, preempted at epoch 39/40
+- Job 13159359 (sbatch), node3507: eval completed
+
+### Lesson learned
+salloc jobs are cancelled by concurrent ralph workers during cleanup. Use sbatch for long-running training to survive cross-worker cancellation.
+
+### End of Iteration 5
+**End time:** 2026-05-03 19:25 EDT
+**End commit:** (pending)
+**Duration:** ~4h 27m
+**GPU preemptions:** 4 (node3600, node4505, node4304 at ep39, node3507 eval OK)
+**Key achievement:** Flow matching + attention CRPS=0.093, 39% better than paper GAN
+
+### Next Iteration Plan
+1. Try logit-normal time sampling (focuses on harder intermediate timesteps)
+2. Add attention at 32×32 level (not just bottleneck)
+3. Full 10K test evaluation
+4. Train longer with fresh cosine schedule
