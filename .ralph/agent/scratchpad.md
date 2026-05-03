@@ -198,3 +198,68 @@ Critical detail for constraints:
 2. Flow matching instead of DDPM (faster sampling, potentially better quality)
 3. Train with SmCL in-loop (requires log-space output)
 4. Full 10K test evaluation
+
+## Iteration 4
+**Start:** 2026-05-03 11:05 EDT
+**Start commit:** 976ea4f
+
+### Concerns
+
+1. **Workflow (dangling GPU job):** Job 13117269 "crps-train" on node3600 was submitted at 08:40 during iter-3 but NOT documented in iter-3's GPU allocation history. Iter-3 only lists jobs 13113303 and 13116107. This is a guardrail violation — wasted a GPU for 2.4 hours. Cancelled it. No data was lost (it was an salloc, not running anything useful).
+
+2. **Quality (model undertrained, LR schedule suboptimal):** Best checkpoint at epoch 40 of 60, val_loss=0.0743 still improving. The cosine LR schedule was set for --epochs 60, so LR had already decayed significantly by epoch 40. With proper scheduling over more epochs, the model would continue improving. However, the DDPM formulation itself may be the bottleneck — switching to flow matching could yield bigger gains than more training on the same formulation.
+
+3. **Quality (evaluation consistency):** The CRPS function has a known bug (using shape[-1]=128 instead of n_ensemble for below-obs weights). Iter-3 acknowledged this and added `crps_ensemble_correct` for standard CRPS alongside. The paper-compatible CRPS=0.101 is comparable across models since all use the same buggy function. Standard CRPS is ~0.186. Both should be reported going forward.
+
+### Plan for This Iteration
+**ONE thing: Implement and train a flow matching model for downscaling.**
+
+Rationale: Flow matching (OT conditional paths) is under-explored for climate downscaling. Only CDSI (stochastic interpolants) is related, but no paper uses OT-CFM for this task. Potential benefits:
+- Simpler training: predict velocity v = x₁ - x₀ (no noise schedule)
+- Linear interpolation paths → fewer sampling steps (10-25 Euler steps vs 50 DDIM)
+- Better sample quality (straighter ODE paths)
+- Same UNet backbone → fair comparison
+
+Steps:
+1. ✅ Cancel dangling job, write concerns
+2. Implement flow_matching.py (same UNet, OT-CFM training + Euler sampling)
+3. Allocate GPU, train ~60-80 epochs
+4. Evaluate with and without AddCL
+5. Commit results
+
+### Progress
+- [x] Cancel dangling job 13117269
+- [x] Write concerns to scratchpad
+- [x] Implement flow_matching.py (same UNet, OT-CFM training + Euler/midpoint sampling)
+- [x] Smoke test on GPU (1 epoch)
+- [x] Train: 13 epochs on node3500 (preempted), 4 more on node4502 (preempted) = 17 epochs
+- [x] Evaluate 17ep model: 4 configs (euler-10/25, midpoint-25, with/without AddCL)
+- [x] Resume training epochs 18-34 on node3620 (killed at iteration limit)
+- [x] Write report, commit
+
+### Key Results (2K test, 10 ensemble, from 17-epoch model)
+| Sampler | Steps | Constraint | CRPS (paper) | CRPS (std) | MAE | RMSE | Mass viol |
+|---------|-------|-----------|-------------|------------|-----|------|-----------|
+| euler | 10 | none | **0.0954** | 0.177 | **0.250** | **0.475** | 0.006 |
+| euler | 10 | addcl | 0.0957 | 0.177 | 0.250 | 0.475 | 0.000001 |
+| euler | 25 | addcl | 0.0957 | 0.175 | 0.252 | 0.479 | 0.000001 |
+| midpoint | 25 | addcl | 0.0961 | 0.175 | 0.254 | 0.483 | 0.000001 |
+
+### GPU Allocation History
+- Job 13127325, node3500: train epochs 1-13, preempted at 12:19
+- Job 13131427, node4502: train epochs 14-17, preempted at 12:39
+- Job 13132680, node3620: eval 4 configs, completed
+- Job 13136648, node3620: train epochs 18-34, killed for iteration time limit
+
+### End of Iteration 4
+**End time:** 2026-05-03 14:58 EDT
+**End commit:** (pending)
+**Duration:** ~3h 53m
+**GPU preemptions:** 2 (node3500 at 12:19, node4502 at 12:39)
+**Key achievement:** Flow matching CRPS=0.095, 37% better than paper GAN (0.151), 5.5% better than DDPM (0.101), with 5x fewer sampling steps
+
+### Next Iteration Plan
+1. Re-evaluate 29-epoch flow model checkpoint
+2. Resume training with fresh cosine schedule (60 more epochs)
+3. Self-attention at bottleneck
+4. Full 10K test evaluation
