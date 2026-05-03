@@ -236,11 +236,27 @@ def apply_constraint(hr, lr_32, constraint_type='none', eps=1e-6):
 
 # ── Training ──────────────────────────────────────────────────────────────────
 
+def apply_constraint_differentiable(hr, lr_32, eps=1e-6):
+    """Differentiable mult constraint for use in training loss.
+
+    Uses softplus instead of clamp for smooth gradients.
+    """
+    y = F.softplus(hr, beta=10)  # smooth positive approximation
+    sum_y = F.avg_pool2d(y, kernel_size=4)  # (B, 1, 32, 32)
+    ratio = lr_32 / (sum_y + eps)
+    ratio_up = ratio.repeat_interleave(4, dim=2).repeat_interleave(4, dim=3)
+    return y * ratio_up
+
+
 def train(args):
     device = torch.device('cuda')
+    constraint_aware = getattr(args, 'constraint_aware', False)
+    constraint_weight = getattr(args, 'constraint_weight', 0.1)
     print(f"Training flow matching model on {device}")
     print(f"Args: epochs={args.epochs}, bs={args.batch_size}, lr={args.lr}, "
           f"channels={args.channels}, euler_steps={args.euler_steps}")
+    if constraint_aware:
+        print(f"Constraint-aware training: weight={constraint_weight}")
 
     # Data
     train_loader, min_val, max_val = load_data(args.data_dir, args.batch_size, 'train')
@@ -262,11 +278,25 @@ def train(args):
     best_val_loss = float('inf')
     save_dir = Path(args.save_dir)
     save_dir.mkdir(parents=True, exist_ok=True)
+    start_epoch = 0
+
+    # Resume from checkpoint if available
+    ckpt_path = save_dir / 'flow_checkpoint.pth'
+    if ckpt_path.exists():
+        ckpt = torch.load(ckpt_path, weights_only=False)
+        model.load_state_dict(ckpt['model'])
+        optimizer.load_state_dict(ckpt['optimizer'])
+        scheduler.load_state_dict(ckpt['scheduler'])
+        scaler.load_state_dict(ckpt['scaler'])
+        start_epoch = ckpt['epoch'] + 1
+        best_val_loss = ckpt['best_val_loss']
+        print(f"Resumed from epoch {start_epoch}, best_val={best_val_loss:.6f}")
 
     t_start = time.time()
-    for epoch in range(args.epochs):
+    for epoch in range(start_epoch, args.epochs):
         model.train()
         train_loss = 0.0
+        train_aux_loss = 0.0
         n_batches = 0
 
         for lr_input, hr_target in train_loader:
@@ -294,6 +324,22 @@ def train(args):
                 v_pred = model(x_t, t, cond)
                 loss = F.mse_loss(v_pred, v_target)
 
+                # Constraint-aware auxiliary loss for t > 0.5
+                aux_loss_val = 0.0
+                if constraint_aware:
+                    mask = (t > 0.5).float()
+                    if mask.sum() > 0:
+                        # One-step prediction to t=1
+                        remaining = (1.0 - t_expand)
+                        x_hat = x_t + v_pred * remaining
+                        # Apply differentiable constraint
+                        x_constrained = apply_constraint_differentiable(x_hat, lr_input)
+                        # Reconstruction loss (masked to t > 0.5 samples)
+                        per_sample = ((x_constrained - hr_target) ** 2).mean(dim=(1, 2, 3))
+                        aux_loss = (per_sample * mask).sum() / mask.sum()
+                        loss = loss + constraint_weight * aux_loss
+                        aux_loss_val = aux_loss.item()
+
             optimizer.zero_grad()
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
@@ -302,10 +348,12 @@ def train(args):
             scaler.update()
 
             train_loss += loss.item()
+            train_aux_loss += aux_loss_val
             n_batches += 1
 
         scheduler.step()
         avg_train = train_loss / n_batches
+        avg_aux = train_aux_loss / n_batches if constraint_aware else 0
 
         # Validation
         model.eval()
@@ -330,10 +378,20 @@ def train(args):
 
         elapsed = time.time() - t_start
         if (epoch + 1) % 10 == 0 or epoch == 0:
+            aux_str = f" aux={avg_aux:.6f}" if constraint_aware else ""
             print(f"Epoch {epoch+1:3d}/{args.epochs} | "
-                  f"train={avg_train:.6f} val={avg_val:.6f} | "
+                  f"train={avg_train:.6f}{aux_str} val={avg_val:.6f} | "
                   f"lr={scheduler.get_last_lr()[0]:.2e} | "
                   f"{elapsed/60:.1f}min")
+
+        # Save resumable checkpoint every epoch
+        torch.save({
+            'epoch': epoch, 'model': model.state_dict(),
+            'optimizer': optimizer.state_dict(),
+            'scheduler': scheduler.state_dict(),
+            'scaler': scaler.state_dict(),
+            'best_val_loss': best_val_loss,
+        }, save_dir / 'flow_checkpoint.pth')
 
         # Checkpoint best
         if avg_val < best_val_loss:
@@ -347,7 +405,8 @@ def train(args):
 
     # Save normalization stats
     torch.save({'min_val': min_val, 'max_val': max_val,
-                'channels': channels, 'euler_steps': args.euler_steps},
+                'channels': channels, 'euler_steps': args.euler_steps,
+                'constraint_aware': constraint_aware},
                save_dir / 'flow_config.pth')
 
 
@@ -355,16 +414,17 @@ def train(args):
 
 @torch.no_grad()
 def generate_ensemble(model, lr_input, n_members, n_steps, device,
-                      constraint='none'):
-    """Generate ensemble predictions via Euler ODE integration.
+                      constraint='none', solver='euler'):
+    """Generate ensemble predictions via ODE integration.
 
     Args:
         model: trained FlowUNet
         lr_input: (B, 1, 32, 32) normalized LR
         n_members: number of ensemble members
-        n_steps: Euler integration steps
+        n_steps: integration steps
         device: torch device
         constraint: 'none', 'softmax', or 'mult'
+        solver: 'euler' (1st order) or 'heun' (2nd order, 2x NFE)
 
     Returns:
         (B, M, 1, 128, 128) ensemble predictions (normalized)
@@ -378,9 +438,17 @@ def generate_ensemble(model, lr_input, n_members, n_steps, device,
         x = torch.randn(B, 1, 128, 128, device=device)  # Start from noise
 
         for step in range(n_steps):
-            t = torch.full((B,), step * dt, device=device)
-            v = model(x, t, cond)
-            x = x + v * dt
+            t_cur = torch.full((B,), step * dt, device=device)
+            v1 = model(x, t_cur, cond)
+
+            if solver == 'heun':
+                # Heun's method: x_next = x + dt/2 * (v1 + v2)
+                x_euler = x + v1 * dt
+                t_next = torch.full((B,), (step + 1) * dt, device=device)
+                v2 = model(x_euler, t_next, cond)
+                x = x + 0.5 * dt * (v1 + v2)
+            else:
+                x = x + v1 * dt
 
         x = apply_constraint(x, lr_input, constraint)
         all_members.append(x)
@@ -405,8 +473,9 @@ def evaluate(args):
     model.load_state_dict(torch.load(save_dir / ckpt, weights_only=False))
     model.eval()
     constraint = getattr(args, 'constraint', 'none')
+    solver = getattr(args, 'solver', 'euler')
     print(f"Loaded {ckpt}, euler_steps={euler_steps}, n_members={args.n_members}, "
-          f"constraint={constraint}")
+          f"constraint={constraint}, solver={solver}")
 
     # Load test data (normalized)
     test_loader, _, _ = load_data(args.data_dir, args.eval_batch_size, 'test')
@@ -421,7 +490,7 @@ def evaluate(args):
     for i, (lr_input, hr_target) in enumerate(test_loader):
         lr_input = lr_input.to(device)
         ensemble = generate_ensemble(model, lr_input, args.n_members, euler_steps,
-                                     device, constraint=constraint)
+                                     device, constraint=constraint, solver=solver)
         # Denormalize
         ensemble = ensemble * (max_val - min_val) + min_val
         hr_denorm = hr_target * (max_val - min_val) + min_val
@@ -527,6 +596,12 @@ if __name__ == '__main__':
     parser.add_argument('--n-members', type=int, default=10)
     parser.add_argument('--constraint', choices=['none', 'softmax', 'mult'],
                         default='none', help='Post-hoc conservation constraint')
+    parser.add_argument('--solver', choices=['euler', 'heun'], default='euler',
+                        help='ODE solver for inference')
+    parser.add_argument('--constraint-aware', action='store_true',
+                        help='Enable constraint-aware auxiliary loss during training')
+    parser.add_argument('--constraint-weight', type=float, default=0.1,
+                        help='Weight for constraint-aware auxiliary loss')
     args = parser.parse_args()
 
     if args.mode in ('train', 'both'):

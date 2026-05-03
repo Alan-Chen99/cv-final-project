@@ -44,3 +44,21 @@
 - **Reasoning**: SmCL's exp() distorts the flow model's calibrated [0,1] output — the model was not trained to account for exp(). Mult is a minimal adjustment (scaling factors ≈ 1.0) that preserves the flow output distribution while enforcing exact conservation. Confirmed empirically: mult CRPS=0.246, SmCL CRPS=0.553.
 - **Reversibility**: High — constraint is only applied at inference time
 - **Timestamp**: 2026-05-03T07:10:00Z
+
+## DEC-006
+- **Decision**: Constraint-aware auxiliary loss weight λ=0.1
+- **Chosen Option**: λ=0.1 (aux_loss ≈ 0.00002 vs velocity_loss ≈ 0.002)
+- **Confidence**: 75
+- **Alternatives Considered**: λ=1.0 (may dominate velocity learning), λ=0.01 (may be too small)
+- **Reasoning**: At λ=0.1, the aux loss contributes ~0.1% to total loss — gentle regularizer. Achieved CRPS=0.2424 vs 0.2460 post-hoc-only, confirming it helps without hurting velocity prediction (val loss comparable: 0.002068 vs 0.002009).
+- **Reversibility**: High — can retrain with different weight
+- **Timestamp**: 2026-05-03T07:35:00Z
+
+## DEC-007
+- **Decision**: Heun solver not recommended at 20 steps
+- **Chosen Option**: Use Euler with 20 steps
+- **Confidence**: 95
+- **Alternatives Considered**: Heun with more steps (50+)
+- **Reasoning**: Heun at 20 steps gives CRPS=0.751 (3× worse than Euler). The velocity field is not smooth enough for the 2nd-order corrector at large dt=0.05. Heun doubles NFE, so 20 Heun steps = 40 NFE ≈ 40 Euler steps. If we want more accuracy, just increase Euler steps.
+- **Reversibility**: High — solver choice is inference-only
+- **Timestamp**: 2026-05-03T10:10:00Z

@@ -1,0 +1,24 @@
+[2026-05-03T03:41:31.053] error: couldn't chdir to `/workspace': No such file or directory: going to /tmp instead
+[2026-05-03T03:41:31.055] error: couldn't chdir to `/workspace': No such file or directory: going to /tmp instead
+[03:41:36] === Attempt 1/5 (Sun May  3 03:41:36 EDT 2026) ===
+[03:41:49] Training flow matching model on cuda
+[03:41:49] Args: epochs=100, bs=256, lr=0.0002, channels=32,64,128, euler_steps=20
+[03:41:49] Constraint-aware training: weight=0.1
+[03:41:49] Train: 40000 samples, Val: 10000 samples
+[03:41:49] Normalization: min=0.0444, max=130.8358
+[03:41:49] Model params: 2,341,185
+[03:42:43] Epoch   1/100 | train=0.079192 aux=0.001858 val=0.012625 | lr=2.00e-04 | 0.9min
+[03:50:33] Epoch  10/100 | train=0.004574 aux=0.000049 val=0.004633 | lr=1.95e-04 | 8.7min
+[03:59:16] Epoch  20/100 | train=0.003319 aux=0.000038 val=0.003135 | lr=1.81e-04 | 17.4min
+[04:07:58] Epoch  30/100 | train=0.003090 aux=0.000033 val=0.002987 | lr=1.59e-04 | 26.1min
+[04:16:41] Epoch  40/100 | train=0.002454 aux=0.000029 val=0.002810 | lr=1.31e-04 | 34.9min
+[04:25:23] Epoch  50/100 | train=0.002702 aux=0.000027 val=0.002839 | lr=1.00e-04 | 43.6min
+[04:34:06] Epoch  60/100 | train=0.002620 aux=0.000026 val=0.002601 | lr=6.91e-05 | 52.3min
+[04:42:49] Epoch  70/100 | train=0.002183 aux=0.000024 val=0.002521 | lr=4.12e-05 | 61.0min
+[04:51:32] Epoch  80/100 | train=0.002731 aux=0.000024 val=0.002327 | lr=1.91e-05 | 69.7min
+[05:00:16] Epoch  90/100 | train=0.002343 aux=0.000023 val=0.002638 | lr=4.89e-06 | 78.4min
+[05:08:59] Epoch 100/100 | train=0.002387 aux=0.000023 val=0.002279 | lr=0.00e+00 | 87.2min
+[05:08:59] 
+[05:08:59] Training complete in 87.2 min. Best val loss: 0.002068
+[05:08:59] Saved to models/flow_constrained
+[05:09:00] === Training finished at Sun May  3 05:09:00 EDT 2026 ===

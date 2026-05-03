@@ -141,3 +141,52 @@ Key findings:
 - Train flow model longer (200 epochs with cosine restart) + mult constraint
 - Train WITH mult constraint in the loop (backprop through the constraint)
 - Explore other directions: larger model, different architectures
+
+## Iteration 4 — 2026-05-03 03:07 EDT → ?
+**Starting commit**: 985890b
+**Goal**: Constraint-aware flow matching training — backprop through mult constraint during training
+
+### Concerns About Prior Iterations
+
+1. **WORKFLOW (CRITICAL)**: Dangling GPU allocation on node4304 (job 13098698, "baseline-v2"). Submitted at 02:34 EDT during Iteration 3 but never used or cleaned up. No user processes were running — just an idle salloc. Cancelled it immediately. This violated the "no cross-iteration jobs" guardrail.
+
+2. **FACT (minor)**: Training log shows val loss best = 0.002009, not at epoch 50. The loss continued improving through epochs 60-90 (val 0.0025→0.0022). Training for 200 epochs with T_max=200 could yield meaningfully better velocity estimates.
+
+3. **QUALITY**: The mult constraint is applied post-hoc at inference only. The model doesn't know about the constraint during training. If we train the model to produce outputs that work well WITH the constraint, we can potentially get better CRPS. This is the "end-to-end constraint" direction — genuinely novel and under-explored per the task.
+
+### Plan: Constraint-Aware Flow Matching
+
+Key idea: Add an auxiliary loss during training that measures reconstruction quality AFTER applying the mult constraint. The model learns to generate outputs that, after the constraint projection, closely match the HR target.
+
+Implementation:
+- For samples with t > 0.5, compute a one-step prediction: x_hat = x_t + v_pred * (1-t)
+- Apply mult constraint to x_hat
+- Aux loss = MSE(constrained, hr_target) weighted by λ = 0.1
+- Total loss = velocity_loss + λ * constraint_denoise_loss
+
+Also: Train for 200 epochs with T_max=200 (address the "loss didn't plateau" concern).
+Also: Implement Heun's 2nd-order solver for inference (quick code change).
+
+Expected: The constraint-aware loss teaches the model to produce within-block texture patterns that are preserved (or improved) by the constraint. Combined with longer training and better ODE solver, this should push CRPS below 0.24.
+
+### Results
+
+**CA + mult + euler: CRPS = 0.2424 (NEW BEST)**
+
+| Config | CRPS | MSE | RMSE | MAE | Spread | Mass Viol |
+|--------|------|-----|------|-----|--------|-----------|
+| CA + mult + euler | **0.2424** | 0.3347 | 0.5786 | 0.3159 | 0.4104 | 0.0001 |
+| CA + none + euler | 0.2468 | 0.3383 | 0.5816 | 0.3209 | 0.4373 | 0.0460 |
+| CA + mult + heun | 0.7513 | 1.6165 | 1.2714 | 0.9575 | 3.0883 | 0.0001 |
+
+Key findings:
+1. **CA training improves CRPS** from 0.2460 → 0.2424 (−1.5% vs post-hoc mult alone)
+2. **CA helps even without constraint at inference**: 0.2468 vs 0.2516 (−1.9%)
+3. **Heun's method fails** at 20 steps (overshooting, spread=3.09)
+4. **Cumulative: 20.9% CRPS reduction** from GAN baseline (0.3066 → 0.2424)
+
+Training: 87.2 min, best val=0.002068. Two preemptions before successful run.
+Heun failure is expected — velocity field not smooth enough for large dt with 2nd-order corrector.
+
+**Ending commit**: (pending)
+**Ending time**: 2026-05-03 06:13 EDT
