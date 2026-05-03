@@ -250,5 +250,5 @@ Key findings:
 
 Training: 87.1 min, best val=0.001034. 100 epochs, noise_std=0.5.
 
-**Ending commit**: (pending)
+**Ending commit**: 2ef4b2b
 **Ending time**: 2026-05-03 08:22 EDT
