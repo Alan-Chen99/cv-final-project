@@ -98,7 +98,7 @@ The GAN has zero spread due to mode collapse. Flow matching naturally generates 
 - Train longer (200 epochs) → loss was still slightly decreasing
 - CNN/GAN+softmax baselines for complete picture
 
-## Iteration 3 — 2026-05-03 02:20 EDT → 2026-05-03 03:10 EDT
+## Iteration 3 — 2026-05-03 02:20 EDT → 2026-05-03 03:06 EDT
 **Starting commit**: fb44366
 **Goal**: Add SmCL constraint to flow model inference, evaluate impact on CRPS and mass violation
 
