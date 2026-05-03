@@ -139,3 +139,62 @@ Steps:
 **Duration:** ~4h 14m
 **GPU preemptions:** 3 (node4302 at 04:37, node1632 at 06:18, node4103 at 06:18)
 **Key achievement:** Diffusion CRPS=0.104 beats paper GAN CRPS=0.151 by 31%
+
+## Iteration 3
+**Start:** 2026-05-03 07:31 EDT
+**Start commit:** 54b472f
+
+### Concerns
+
+1. **CRPS function bug (Quality — tolerable):** `crps_ensemble` uses `fc.shape[-1]` (=128, image width) in the below-observation weights but `fc.shape[0]` (=n_ensemble) in the above-observation weights. This makes the function asymmetric — above-obs weights are ~164x larger than below-obs. HOWEVER: this is the paper's original code, and all reported numbers (paper GAN CRPS=0.151, our CNN numbers) use the same function. Comparisons are fair. Should compute correct CRPS alongside for reference but this doesn't invalidate the ranking.
+
+2. **Diffusion model undertrained (Quality):** Val loss was still improving at epoch 30 (0.1116→0.0787). The learning rate schedule is cosine annealing over the configured epoch count, so if we trained for `--epochs 50` but only got 30, the LR was still being annealed. More training should help — the question is how much.
+
+3. **No constraint layers on diffusion (Quality — gap):** The core research question (can constraint layers compose with diffusion models?) hasn't been tested. AddCL can be applied post-hoc without retraining: `corrected = pred + tile(lr - avgpool(pred))`. SmCL requires exp() so it only works if trained into the model. This is the most impactful direction to explore.
+
+### Plan for This Iteration
+**ONE thing: Apply constraint layers to the diffusion model and evaluate.**
+
+Approach:
+1. Implement AddCL as post-processing on diffusion HR output (no retraining needed)
+2. Resume training from epoch 30 → 60 (budget: ~2h at ~4.4 min/epoch)
+3. Evaluate at epoch 60 with: no constraint, AddCL, (maybe SmCL if time permits)
+4. Key metric: does CRPS improve with constraints? Does more training help?
+
+Critical detail for constraints:
+- Diffusion produces: `pred_hr = bilinear(LR) + sampled_residual`
+- AddCL correction: `pred_hr += tile(LR_original - avgpool4x4(pred_hr))`
+- This enforces: avgpool4x4(pred_hr) == LR_original (mass conservation)
+- LR_original is the 32x32 input, NOT the bilinear-upsampled version
+
+### Progress
+- [x] Write concerns to scratchpad
+- [x] Implement AddCL post-processing + correct CRPS function
+- [x] Smoke test on 100 samples: AddCL works, mass_viol → 0
+- [x] Resume training epoch 30→60 (1 preemption: node4302 at ep40, resumed on node1632)
+- [x] Eval 2K test: no constraint CRPS=0.1010, AddCL CRPS=0.1008, mass_viol=0.000001
+- [x] Write report, commit
+
+### Key Results
+| Model | Constraint | Epochs | CRPS | MAE | RMSE | Mass viol |
+|-------|-----------|--------|------|-----|------|-----------|
+| Diffusion v1 (iter-002) | none | 30 | 0.104 | 0.266 | 0.583 | ~0.007 |
+| Diffusion v1 (iter-003) | none | 60 | 0.101 | 0.262 | 0.576 | 0.003 |
+| Diffusion v1 (iter-003) | AddCL | 60 | 0.101 | 0.262 | 0.574 | 0.000001 |
+
+### GPU Allocation History
+- Job 13113303, node4302: training epochs 31-40, preempted at 08:25
+- Job 13116107, node1632: training epochs 39-60 + eval, completed
+
+### End of Iteration 3
+**End time:** 2026-05-03 11:02 EDT
+**End commit:** (pending)
+**Duration:** ~3h 31m
+**GPU preemptions:** 1 (node4302 at 08:25)
+**Key achievement:** Diffusion+AddCL CRPS=0.101 (33% better than paper GAN). AddCL enforces mass conservation for free.
+
+### Next Iteration Plan
+1. Try self-attention at UNet bottleneck (larger model)
+2. Flow matching instead of DDPM (faster sampling, potentially better quality)
+3. Train with SmCL in-loop (requires log-space output)
+4. Full 10K test evaluation

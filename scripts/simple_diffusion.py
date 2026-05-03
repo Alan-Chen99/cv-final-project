@@ -283,7 +283,7 @@ class SimpleUNet(nn.Module):
 # ---------- Data loading ----------
 
 def load_tcw4_data(basedir, split='train', normalize=True):
-    """Load TCW4 data and compute residuals."""
+    """Load TCW4 data and compute residuals. Returns (lr_up, residual, hr, lr_orig)."""
     inp = torch.load(f'{basedir}/data/era5_sr_data/{split}/input_{split}.pt', weights_only=False)
     tgt = torch.load(f'{basedir}/data/era5_sr_data/{split}/target_{split}.pt', weights_only=False)
 
@@ -297,15 +297,11 @@ def load_tcw4_data(basedir, split='train', normalize=True):
     # Residual = HR - LR_upsampled
     residual = hr - lr_up
 
-    if normalize:
-        # Compute normalization stats from training data
-        return lr_up, residual, hr
-
-    return lr_up, residual, hr
+    return lr_up, residual, hr, lr
 
 
 def crps_ensemble(observation, forecasts):
-    """CRPS for ensemble forecasts."""
+    """CRPS for ensemble forecasts (paper-compatible version with known bug for fair comparison)."""
     fc = forecasts.copy()
     fc.sort(axis=0)
     obs = observation
@@ -313,7 +309,7 @@ def crps_ensemble(observation, forecasts):
     crps = np.zeros_like(obs)
     for i in range(fc.shape[0]):
         below = fc_below[i, ...]
-        weight = ((i + 1) ** 2 - i ** 2) / fc.shape[-1] ** 2
+        weight = ((i + 1) ** 2 - i ** 2) / fc.shape[-1] ** 2  # paper uses shape[-1] here (bug)
         crps[below] += weight * (obs[below] - fc[i, ...][below])
     for i in range(fc.shape[0] - 1, -1, -1):
         above = ~fc_below[i, ...]
@@ -323,6 +319,36 @@ def crps_ensemble(observation, forecasts):
     return np.mean(crps)
 
 
+def crps_ensemble_correct(observation, forecasts):
+    """Correct CRPS: E|X-y| - 0.5*E|X-X'| using the standard formula."""
+    # forecasts: (M, ...), observation: (...)
+    M = forecasts.shape[0]
+    # E|X - y|
+    abs_diff = np.mean(np.abs(forecasts - observation[None, ...]), axis=0)
+    # E|X - X'| via sorted order statistics: sum_{i<j} |x_i - x_j| * 2/(M*(M-1))
+    fc_sorted = np.sort(forecasts, axis=0)
+    spread = 0.0
+    for i in range(M):
+        for j in range(i + 1, M):
+            spread += np.abs(fc_sorted[j] - fc_sorted[i])
+    spread = spread * 2.0 / (M * (M - 1)) if M > 1 else 0.0
+    crps = abs_diff - 0.5 * spread
+    return np.mean(crps)
+
+
+# ---------- Constraint layers ----------
+
+def apply_addcl(pred_hr, lr_orig, upsampling_factor=4):
+    """AddCL: additive correction so avgpool(pred_hr) == lr_orig.
+    pred_hr: (B, 1, 128, 128), lr_orig: (B, 1, 32, 32). Returns corrected HR."""
+    pool = torch.nn.AvgPool2d(kernel_size=upsampling_factor)
+    pooled = pool(pred_hr)  # (B, 1, 32, 32)
+    correction = lr_orig - pooled  # (B, 1, 32, 32)
+    # Tile correction to HR resolution
+    correction_hr = correction.repeat_interleave(upsampling_factor, dim=-2).repeat_interleave(upsampling_factor, dim=-1)
+    return pred_hr + correction_hr
+
+
 # ---------- Training ----------
 
 def train(args):
@@ -330,8 +356,8 @@ def train(args):
     basedir = args.basedir
 
     print("Loading data...")
-    lr_up_train, res_train, hr_train = load_tcw4_data(basedir, 'train')
-    lr_up_val, res_val, hr_val = load_tcw4_data(basedir, 'val')
+    lr_up_train, res_train, hr_train, _ = load_tcw4_data(basedir, 'train')
+    lr_up_val, res_val, hr_val, _ = load_tcw4_data(basedir, 'val')
 
     # Normalize residuals
     res_mean = res_train.mean()
@@ -382,6 +408,8 @@ def train(args):
         model.load_state_dict(ckpt['model'])
         start_epoch = ckpt['epoch'] + 1
         best_val_loss = ckpt['val_loss']
+        if 'optimizer' in ckpt:
+            optimizer.load_state_dict(ckpt['optimizer'])
         # Advance scheduler to correct position
         for _ in range(start_epoch):
             scheduler.step()
@@ -437,6 +465,7 @@ def train(args):
             best_val_loss = val_loss
             torch.save({
                 'model': model.state_dict(),
+                'optimizer': optimizer.state_dict(),
                 'epoch': epoch,
                 'val_loss': val_loss,
                 'args': vars(args),
@@ -456,7 +485,7 @@ def evaluate(args):
     stats = torch.load(os.path.join(args.save_dir, 'norm_stats.pt'), weights_only=False)
 
     # Load test data
-    lr_up, residual, hr = load_tcw4_data(basedir, args.split)
+    lr_up, residual, hr, lr_orig = load_tcw4_data(basedir, args.split)
     lr_up_norm = (lr_up - stats['lr_mean']) / stats['lr_std']
 
     # Load model
@@ -494,58 +523,76 @@ def evaluate(args):
     diffusion.posterior_mean_coef1 = diffusion.posterior_mean_coef1.to(device)
     diffusion.posterior_mean_coef2 = diffusion.posterior_mean_coef2.to(device)
 
-    print(f"Evaluating {n_samples} samples with {n_ensemble} ensemble members...")
+    use_constraint = args.constraint
+    print(f"Evaluating {n_samples} samples with {n_ensemble} ensemble members, constraint={use_constraint}...")
 
     # Generate ensemble predictions
     all_crps = []
+    all_crps_std = []
     all_mae = []
     all_rmse = []
+    all_mass_viol = []
 
     for start_idx in range(0, n_samples, batch_size):
         end_idx = min(start_idx + batch_size, n_samples)
         batch_lr = lr_up_norm[start_idx:end_idx].to(device)
-        batch_hr = hr[start_idx:end_idx].numpy()
-        batch_lr_up = lr_up[start_idx:end_idx].numpy()  # un-normalized for reconstruction
+        batch_hr = hr[start_idx:end_idx]  # keep as tensor
+        batch_lr_up = lr_up[start_idx:end_idx]
+        batch_lr_orig = lr_orig[start_idx:end_idx]  # (bs, 1, 32, 32)
         bs = batch_lr.shape[0]
 
         ensemble_preds = []
         for e in range(n_ensemble):
             with torch.no_grad():
-                # Sample from diffusion (DDIM for speed)
                 sampled_res_norm = diffusion.sample(
                     model, batch_lr,
                     shape=(bs, 1, 128, 128),
                     ddim_steps=args.ddim_steps,
                     eta=args.ddim_eta,
                 )
-                # Un-normalize residual
                 sampled_res = sampled_res_norm.cpu() * stats['res_std'] + stats['res_mean']
-                # Reconstruct HR = LR_up + residual
-                pred_hr = torch.from_numpy(batch_lr_up) + sampled_res
+                pred_hr = batch_lr_up + sampled_res
+
+                # Apply constraint layer
+                if use_constraint == 'addcl':
+                    pred_hr = apply_addcl(pred_hr, batch_lr_orig)
+
                 ensemble_preds.append(pred_hr.numpy())
 
         ensemble_preds = np.stack(ensemble_preds, axis=1)  # (bs, n_ensemble, 1, 128, 128)
 
+        pool = torch.nn.AvgPool2d(kernel_size=4)
         for i in range(bs):
-            gt = batch_hr[i, 0, ...]  # (128, 128)
+            gt = batch_hr[i, 0, ...].numpy()  # (128, 128)
             ens = ensemble_preds[i, :, 0, ...]  # (n_ensemble, 128, 128)
             ens_mean = ens.mean(axis=0)
 
             all_crps.append(crps_ensemble(gt, ens))
+            all_crps_std.append(crps_ensemble_correct(gt, ens))
             all_mae.append(np.mean(np.abs(gt - ens_mean)))
             all_rmse.append(np.mean((gt - ens_mean) ** 2))
+
+            # Mass violation: |avgpool(pred_mean) - lr_orig|
+            pred_mean_t = torch.from_numpy(ens_mean).unsqueeze(0).unsqueeze(0)
+            pooled = pool(pred_mean_t).squeeze()
+            lr_i = batch_lr_orig[i, 0, ...]
+            all_mass_viol.append(torch.mean(torch.abs(pooled - lr_i)).item())
 
         if (start_idx // batch_size) % 10 == 0:
             print(f"  Processed {end_idx}/{n_samples}...")
 
     crps = np.mean(all_crps)
+    crps_std = np.mean(all_crps_std)
     mae = np.mean(all_mae)
     rmse = np.sqrt(np.mean(all_rmse))
+    mass_viol = np.mean(all_mass_viol)
 
-    print(f"\nResults ({args.split}, {n_ensemble} ensemble members):")
-    print(f"  CRPS: {crps:.6f}")
-    print(f"  MAE:  {mae:.6f}")
-    print(f"  RMSE: {rmse:.6f}")
+    print(f"\nResults ({args.split}, {n_ensemble} ens, constraint={use_constraint}):")
+    print(f"  CRPS (paper): {crps:.6f}")
+    print(f"  CRPS (std):   {crps_std:.6f}")
+    print(f"  MAE:          {mae:.6f}")
+    print(f"  RMSE:         {rmse:.6f}")
+    print(f"  Mass viol:    {mass_viol:.6f}")
 
     return crps, mae, rmse
 
@@ -571,6 +618,8 @@ if __name__ == "__main__":
     parser.add_argument("--ddim_eta", type=float, default=1.0, help="DDIM stochasticity (0=deterministic, 1=DDPM-like)")
     parser.add_argument("--max_samples", type=int, default=None, help="Limit test samples")
     parser.add_argument("--split", default="test")
+    parser.add_argument("--constraint", default="none", choices=["none", "addcl"],
+                        help="Post-hoc constraint layer for eval")
     args = parser.parse_args()
 
     args.channel_mults_tuple = tuple(int(x) for x in args.channel_mults.split(','))
