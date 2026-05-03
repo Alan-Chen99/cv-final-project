@@ -188,5 +188,5 @@ Key findings:
 Training: 87.2 min, best val=0.002068. Two preemptions before successful run.
 Heun failure is expected — velocity field not smooth enough for large dt with 2nd-order corrector.
 
-**Ending commit**: (pending)
+**Ending commit**: 3b7272f
 **Ending time**: 2026-05-03 06:13 EDT
