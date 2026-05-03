@@ -316,5 +316,5 @@ With weight=0.1, the spread reward signal dominates the gradient for the aux los
 - 200 epochs with T_max=200 (still never tried, val loss still improving at ep 80)
 - More Euler steps (50) requires longer eval allocation
 
-**Ending commit**: (to be set after commit)
-**Ending time**: 2026-05-03 12:16 EDT
+**Ending commit**: 46ef09c
+**Ending time**: 2026-05-03 12:20 EDT
