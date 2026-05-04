@@ -510,5 +510,5 @@ Model: 5,218,721 params (2.2× ns03's 2,341,185).
 - Add attention at 32×32 resolution too (currently only at 16×16 bottleneck)
 - Combine with noise_std sweep (try 0.2 with attention model)
 
-**Ending commit**: (pending)
+**Ending commit**: 13bb816
 **Ending time**: 2026-05-04 00:22 EDT
