@@ -1,0 +1,19 @@
+Training flow matching model on cuda
+Args: epochs=200, bs=256, lr=0.0002, channels=48,96,192, euler_steps=20
+LR-anchor mode: noise_std=0.3
+Constraint-aware training: weight=0.1
+Train: 40000 samples, Val: 10000 samples
+Normalization: min=0.0444, max=130.8358
+Model params: 5,218,721
+Resumed from epoch 129, best_val=0.000589
+Epoch 130/200 | train=0.000636 aux=0.000015 val=0.000593 | lr=5.46e-05 | 1.5min
+Epoch 140/200 | train=0.000601 aux=0.000015 val=0.000687 | lr=4.12e-05 | 15.8min
+Epoch 150/200 | train=0.000612 aux=0.000015 val=0.000640 | lr=2.93e-05 | 30.2min
+Epoch 160/200 | train=0.000601 aux=0.000015 val=0.000595 | lr=1.91e-05 | 44.6min
+Epoch 170/200 | train=0.000613 aux=0.000015 val=0.000603 | lr=1.09e-05 | 59.0min
+Epoch 180/200 | train=0.000598 aux=0.000015 val=0.000638 | lr=4.89e-06 | 73.4min
+Epoch 190/200 | train=0.000614 aux=0.000014 val=0.000612 | lr=1.23e-06 | 87.8min
+Epoch 200/200 | train=0.000587 aux=0.000015 val=0.000624 | lr=0.00e+00 | 102.2min
+
+Training complete in 102.2 min. Best val loss: 0.000540
+Saved to models/flow_attn

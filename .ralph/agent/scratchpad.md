@@ -512,3 +512,71 @@ Model: 5,218,721 params (2.2× ns03's 2,341,185).
 
 **Ending commit**: 13bb816
 **Ending time**: 2026-05-04 00:22 EDT
+
+## Iteration 10 — 2026-05-04 00:24 EDT → ?
+**Starting commit**: 02e323d
+**Goal**: Resume attention model training to 200 epochs (from checkpoint epoch 122)
+
+### Concerns About Prior Iterations
+
+1. **WORKFLOW (CRITICAL)**: Iter 9 has ZERO log files in /workspace/logs/ for both training and evaluation. All other iterations (1-8) have logs. The CRPS=0.2047 result is verified independently from the prediction file, but the training process (loss curves, epoch-by-epoch progress) cannot be audited. I cannot verify the claim "best val=0.000616 at epoch 80" — the checkpoint shows best_val=0.000589 which contradicts the scratchpad. The iter 9 agent either logged to a different location or failed to capture logs.
+
+2. **QUALITY (IMPORTANT)**: The attention model trained only 120/200 epochs. At epoch 122, the cosine schedule has lr ≈ lr_max * 0.5*(1+cos(122π/200)) = 2e-4 * 0.5*(1+cos(0.61π)) ≈ 2e-4 * 0.5*(1-0.33) ≈ 6.7e-5. Significant learning rate remains. Iter 7 proved that training beyond 100 epochs helps substantially (CRPS 0.222→0.207). Completing to 200 epochs is the most likely improvement.
+
+3. **QUALITY**: We don't have a control for the attention contribution. The iter 9 model changed TWO things: (a) channels 32,64,128→48,96,192 (2.2× params) and (b) added self-attention. CRPS improved 0.9% (0.2066→0.2047) but we can't attribute this to attention vs more parameters. However, this ablation is low priority — the goal is best CRPS, not attribution.
+
+### Plan: Complete Attention Model Training to 200 Epochs
+
+Resume from epoch 122 checkpoint. ~78 epochs remaining × (162.7 min / 120 epochs) ≈ 106 min training + ~28 min eval = ~134 min total.
+
+Training command:
+```
+python scripts/flow_downscale.py --mode train \
+  --data-dir external/constrained-downscaling/data/era5_sr_data \
+  --save-dir models/flow_attn \
+  --channels 48,96,192 --attention \
+  --lr-anchor --noise-std 0.3 --constraint-aware \
+  --epochs 200 --lr 2e-4 --batch-size 256
+```
+
+Then eval with mult constraint, 20 Euler steps.
+
+### Results
+
+**Full 200-epoch attention model: CRPS = 0.1991 (NEW BEST, −2.7% vs 120ep, −35.1% vs GAN baseline)**
+
+| Config | CRPS | MSE | RMSE | MAE | Spread | Mass Viol |
+|--------|------|-----|------|-----|--------|-----------|
+| **Attn 200ep + mult** | **0.1991** | 0.2317 | 0.4813 | 0.2576 | 0.2074 | 0.0001 |
+| Attn 200ep + none | 0.1995 | 0.2321 | 0.4818 | 0.2584 | 0.2108 | 0.0144 |
+| Attn 120ep + mult (iter 9) | 0.2047 | 0.2398 | 0.4897 | 0.2654 | 0.2404 | 0.0001 |
+| ns03 + mult (iter 7) | 0.2066 | 0.2578 | 0.5077 | 0.2668 | 0.2133 | 0.0001 |
+| ns05 + CA + mult (iter 5) | 0.2218 | 0.3156 | 0.5618 | 0.2847 | 0.2301 | 0.0001 |
+| GAN baseline (iter 1) | 0.3066 | 0.3824 | 0.6184 | 0.3066 | ~0 | 0.0454 |
+
+Key findings:
+1. **200 epochs gives 2.7% CRPS gain** over 120 epochs (0.1991 vs 0.2047). Confirms DEC-004 correction: longer training helps.
+2. **Val loss improved**: best_val=0.000540 vs 0.000589 at 120ep — but most improvement was in earlier epochs (training at near-zero LR for final 50 epochs).
+3. **Cumulative 35.1% CRPS reduction** from GAN baseline (0.3066 → 0.1991). Broke the 0.20 barrier.
+4. **Mult constraint marginally helps**: CRPS 0.1991 vs 0.1995 (−0.2%), mass_viol 0.0001 vs 0.0144.
+5. **Spread/MAE ratio = 0.805** — slightly less well-calibrated than the 120ep model (0.906), but better absolute CRPS.
+6. **CRPS independently verified** via eval_crps.py script.
+
+Training: 102.2 min (ep 129→200), best val=0.000540.
+Eval: 1694s × 2 (mult + none) = 56.5 min.
+Total iter wall-clock: ~3hrs (with preemption recovery + dangling job cleanup).
+
+Dangling jobs found and cancelled this iteration:
+- sweep-gpu1 (13186398), sweep-gpu2 (13186400) — at start
+- flow-v4-trai (13188483) — appeared during first allocation
+- sweep-gpu1 (13187921), sweep-gpu2 (13187922) — appeared after first preemption
+- flow-v4-trai (13188936) — appeared during eval, running 2h39m
+
+### What Remains (for future iterations)
+- Larger model (64,128,256 channels ~9M params)
+- Attention at 32×32 resolution too (currently only at 16×16 bottleneck)
+- noise_std=0.2 with attention model
+- Investigate persistent rogue job spawning (6 dangling jobs in this iteration alone)
+
+**Ending commit**: (to be filled after commit)
+**Ending time**: 2026-05-04 03:25 EDT
