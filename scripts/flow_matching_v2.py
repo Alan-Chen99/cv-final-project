@@ -242,6 +242,18 @@ def apply_addcl(pred_hr, lr_orig, upsampling_factor=4):
     return pred_hr + correction_hr
 
 
+def apply_smcl(pred_hr, lr_orig, upsampling_factor=4):
+    """SmCL (Softmax Constraint): exp + multiplicative renorm.
+    Enforces non-negativity AND conservation: avgpool(out) == lr_orig, out >= 0."""
+    pool = torch.nn.AvgPool2d(kernel_size=upsampling_factor)
+    y = torch.exp(pred_hr)
+    pooled = pool(y)
+    # Multiplicative correction: scale so that block means match lr_orig
+    correction = lr_orig / (pooled + 1e-8)
+    correction_hr = correction.repeat_interleave(upsampling_factor, dim=-2).repeat_interleave(upsampling_factor, dim=-1)
+    return y * correction_hr
+
+
 # ---------- ODE Sampling ----------
 
 @torch.no_grad()
@@ -254,6 +266,23 @@ def euler_sample(model, condition, shape, steps=25):
         t = torch.full((shape[0],), i * dt, device=device)
         v = model(x, t, condition)
         x = x + v * dt
+    return x
+
+
+@torch.no_grad()
+def midpoint_sample(model, condition, shape, steps=25):
+    """Midpoint (2nd-order Runge-Kutta) ODE integration from noise (t=0) to data (t=1).
+    Uses 2 function evaluations per step (2*steps NFE total)."""
+    device = condition.device
+    x = torch.randn(shape, device=device)
+    dt = 1.0 / steps
+    for i in range(steps):
+        t = torch.full((shape[0],), i * dt, device=device)
+        t_mid = torch.full((shape[0],), (i + 0.5) * dt, device=device)
+        v1 = model(x, t, condition)
+        x_mid = x + v1 * (0.5 * dt)
+        v2 = model(x_mid, t_mid, condition)
+        x = x + v2 * dt
     return x
 
 
@@ -421,10 +450,11 @@ def evaluate(args):
     batch_size = args.eval_batch_size
     ode_steps = args.ode_steps
     use_constraint = args.constraint
-    sampler = euler_sample
+    sampler_name = getattr(args, 'sampler', 'euler')
+    sampler = midpoint_sample if sampler_name == 'midpoint' else euler_sample
 
     print(f"Evaluating {n_samples} samples, {n_ensemble} ensemble, "
-          f"{ode_steps} euler steps, constraint={use_constraint}...")
+          f"{ode_steps} {sampler_name} steps, constraint={use_constraint}...")
     print(f"Model epoch: {ckpt['epoch']+1}, val_loss: {ckpt['val_loss']:.6f}")
 
     all_crps = []
@@ -456,6 +486,8 @@ def evaluate(args):
 
                 if use_constraint == 'addcl':
                     pred_hr = apply_addcl(pred_hr, batch_lr_orig)
+                elif use_constraint == 'smcl':
+                    pred_hr = apply_smcl(pred_hr, batch_lr_orig)
 
                 ensemble_preds.append(pred_hr.numpy())
 
@@ -485,7 +517,7 @@ def evaluate(args):
     rmse = np.sqrt(np.mean(all_rmse))
     mass_viol = np.mean(all_mass_viol)
 
-    print(f"\nResults ({args.split}, {n_ensemble} ens, {ode_steps} euler steps, constraint={use_constraint}):")
+    print(f"\nResults ({args.split}, {n_ensemble} ens, {ode_steps} {sampler_name} steps, constraint={use_constraint}):")
     print(f"  CRPS (paper): {crps:.6f}")
     print(f"  CRPS (std):   {crps_std:.6f}")
     print(f"  MAE:          {mae:.6f}")
@@ -513,7 +545,8 @@ if __name__ == "__main__":
     parser.add_argument("--ode_steps", type=int, default=10)
     parser.add_argument("--max_samples", type=int, default=None)
     parser.add_argument("--split", default="test")
-    parser.add_argument("--constraint", default="none", choices=["none", "addcl"])
+    parser.add_argument("--constraint", default="none", choices=["none", "addcl", "smcl"])
+    parser.add_argument("--sampler", default="euler", choices=["euler", "midpoint"])
     args = parser.parse_args()
 
     args.channel_mults_tuple = tuple(int(x) for x in args.channel_mults.split(','))
