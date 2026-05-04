@@ -346,11 +346,22 @@ def train(args):
         model.load_state_dict(ckpt['model'])
         start_epoch = ckpt['epoch'] + 1
         best_val_loss = ckpt['val_loss']
-        if 'optimizer' in ckpt:
+        if 'optimizer' in ckpt and not args.finetune_lr:
             optimizer.load_state_dict(ckpt['optimizer'])
-        for _ in range(start_epoch):
-            scheduler.step()
-        print(f"Resumed from epoch {start_epoch}, best val loss: {best_val_loss:.6f}")
+        if args.finetune_lr:
+            # Fresh optimizer + cosine schedule for fine-tuning
+            ft_lr = args.finetune_lr
+            remaining = args.epochs - start_epoch
+            for pg in optimizer.param_groups:
+                pg['lr'] = ft_lr
+            scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(
+                optimizer, T_max=remaining)
+            print(f"Resumed from epoch {start_epoch}, FRESH schedule: "
+                  f"lr={ft_lr}, T_max={remaining}, best val loss: {best_val_loss:.6f}")
+        else:
+            for _ in range(start_epoch):
+                scheduler.step()
+            print(f"Resumed from epoch {start_epoch}, best val loss: {best_val_loss:.6f}")
 
     start_time = time.time()
 
@@ -474,13 +485,19 @@ def evaluate(args):
         bs = batch_lr.shape[0]
 
         ensemble_preds = []
+        use_tta = getattr(args, 'tta', False)
         for e in range(n_ensemble):
             with torch.no_grad():
+                # TTA: flip input horizontally for half the ensemble members
+                do_flip = use_tta and (e % 2 == 1)
+                cond = torch.flip(batch_lr, [-1]) if do_flip else batch_lr
                 sampled_res_norm = sampler(
-                    model, batch_lr,
+                    model, cond,
                     shape=(bs, 1, 128, 128),
                     steps=ode_steps,
                 )
+                if do_flip:
+                    sampled_res_norm = torch.flip(sampled_res_norm, [-1])
                 sampled_res = sampled_res_norm.cpu() * stats['res_std'] + stats['res_mean']
                 pred_hr = batch_lr_up + sampled_res
 
@@ -536,6 +553,8 @@ if __name__ == "__main__":
     parser.add_argument("--epochs", type=int, default=40)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--finetune_lr", type=float, default=None,
+                        help="Fresh LR + cosine schedule for fine-tuning after resume")
     parser.add_argument("--base_channels", type=int, default=64)
     parser.add_argument("--channel_mults", type=str, default="1,2,4")
     parser.add_argument("--attn_heads", type=int, default=4)
@@ -547,6 +566,8 @@ if __name__ == "__main__":
     parser.add_argument("--split", default="test")
     parser.add_argument("--constraint", default="none", choices=["none", "addcl", "smcl"])
     parser.add_argument("--sampler", default="euler", choices=["euler", "midpoint"])
+    parser.add_argument("--tta", action="store_true",
+                        help="Test-time augmentation: flip half of ensemble members")
     args = parser.parse_args()
 
     args.channel_mults_tuple = tuple(int(x) for x in args.channel_mults.split(','))
