@@ -713,5 +713,5 @@ Eval: 2 eval runs (~30 min each).
 - The best CRPS remains 0.1991 from iter 10 (non-augmented attention model, 200ep)
 - Next iteration should focus on report writing — ~5 hours remain before orchestration expires
 
-**Ending commit**: TBD
-**Ending time**: 2026-05-04 15:43 EDT
+**Ending commit**: ba04688
+**Ending time**: 2026-05-04 15:47 EDT
