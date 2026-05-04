@@ -747,5 +747,5 @@ Wrote comprehensive REPORT.md (260+ lines) covering:
 - Reproduction commands
 - Compute summary (~35h GPU time)
 
-**Ending commit**: (pending)
-**Ending time**: (pending)
+**Ending commit**: 21790eb
+**Ending time**: 2026-05-04 15:50 EDT
