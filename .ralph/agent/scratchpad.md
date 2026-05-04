@@ -403,3 +403,79 @@ Time budget (4hr max, deadline ~23:27 EDT):
 2. Try wider model (base_channels=96) for more capacity
 3. Try loss weighting (min-SNR or v-prediction)
 4. Full 10K test evaluation of v2
+
+## Iteration 7
+**Start:** 2026-05-04 00:33 EDT
+**Start commit:** c73bbdc
+
+### Concerns
+
+1. **Workflow (dangling GPU job — 4th occurrence):** Job 13186617 "flow-attn-resume" was running on node3302 (mit_normal_gpu, 4hr). Submitted at 00:29 EDT by prior iteration but NOT documented in iter-6's GPU allocation history. The salloc was unresponsive to srun. Cancelled. This is the 4th dangling job across iterations 2, 3, 4, and 6. Systematic failure.
+
+2. **Quality (no capacity scaling in 6 iterations):** All models use base_channels=64 (13M params). No wider or deeper architectures tried. The standard way to improve diffusion/flow model quality is to increase capacity. base_channels=96 would give ~29M params — 2.2x more capacity for finer detail. This is the most predictable untried improvement.
+
+3. **Quality (v2 trained only 39 epochs, never resumed):** Flow v2 (best, CRPS=0.093) was trained 39/40 epochs before preemption, with val_loss still decreasing. The next iteration plan from iter-5 explicitly called for "train longer with fresh cosine schedule" but iter-6 pursued CFG instead (which failed). The v2 model is undertrained.
+
+### Plan for This Iteration
+**ONE thing: Train a wider flow model (base_channels=96, ~29M params) with data augmentation (random H-flips) from scratch.**
+
+Rationale: Capacity scaling is the most under-explored direction in our history. All 6 iterations used the same 13M param model. A 2.2x wider model captures finer spatial details that the current architecture misses. H-flips provide free 2x data augmentation (TCW has no preferred horizontal orientation).
+
+Steps:
+1. ✅ Write concerns, cancel dangling job 13186617
+2. Create flow_matching_v4.py (wider model, H-flips)
+3. Allocate GPU (salloc on mit_preemptable)
+4. Smoke test 1 epoch to measure timing
+5. Train ~25-30 epochs (budget: ~3 hours)
+6. Evaluate on 2K test with AddCL
+7. Commit results
+
+Time budget (4hr max, deadline ~04:33 EDT):
+- Setup + code: 30 min → 01:03
+- GPU alloc + training: ~2.5 hr → 03:33
+- Eval + report + commit: 45 min → 04:18
+
+### Progress
+- [x] Write concerns, cancel dangling job 13186617
+- [x] Implement flow_matching_v4.py (wider model base_channels=96, H-flips)
+- [x] Allocate GPU via sbatch (salloc cancelled by concurrent worker)
+- [x] Train on node2644: 19/30 epochs, preempted at epoch 19 (val_loss=0.261)
+- [x] GPU eval failed — 3 attempts cancelled by concurrent ralph worker on node1620
+- [x] CPU eval (100 samples, 5 ens, 5 steps) for fair comparison
+- [x] Write report, commit
+
+### Key Results (CPU eval, 100 samples, 5 ensemble, 5 ODE steps, AddCL)
+| Model | Params | Epochs | CRPS (paper) | MAE | RMSE | Mass viol |
+|-------|--------|--------|-------------|-----|------|-----------|
+| Flow v2 (baseline) | 13M | 39 | 0.106 | 0.263 | 0.484 | 0.000001 |
+| **Flow v4 (wider)** | **28M** | **19** | **0.109** | **0.269** | **0.503** | **0.000001** |
+
+**Note:** These CPU-eval numbers are NOT comparable to prior GPU eval numbers (different ensemble/steps/sample count). For reference, v2's GPU eval was CRPS=0.093 (2K samples, 10 ens, 10 steps). The CPU eval above shows v4 is ~3% behind v2, but v4 only had 19 of 30 planned epochs due to preemption.
+
+### Analysis
+1. Wider model (28M vs 13M) needs more training to converge — val_loss at epoch 19 (0.261) is higher than v2 at epoch 39 (0.253)
+2. GPU eval repeatedly cancelled by concurrent ralph worker (node1620), forcing CPU-only eval on limited samples
+3. Result is inconclusive: v4 may surpass v2 with full 30 epochs, but was preempted
+4. Training rate: ~8 min/epoch (vs 4.5 min/epoch for v2) — 1.8x slower per epoch
+
+### GPU Allocation History
+- Job 13186617 (dangling salloc from iter-6), node3302: cancelled at start
+- Job 13188483 (salloc), cancelled by concurrent worker before starting
+- Job 13188936 (sbatch), node2644: epochs 1-19, preempted at 03:24
+- Job 13209062 (sbatch eval), cancelled by concurrent worker before starting
+- Job 13209123 (sbatch eval), node4106: cancelled mid-eval at 03:34
+- Job 13209844 (sbatch eval, mit_normal_gpu), cancelled before starting
+- Job 13209991 (salloc eval, mit_normal_gpu), cancelled before starting
+
+### End of Iteration 7
+**End time:** 2026-05-04 03:53 EDT
+**End commit:** 7f64991
+**Duration:** ~3h 20m
+**GPU preemptions:** 1 training + 4 eval cancellations (concurrent worker conflict)
+**Key achievement:** Wider model trained but inconclusive — needs full training + GPU eval
+
+### Next Iteration Plan
+1. Resume v4 training from epoch 19 → 30+ with fresh cosine schedule
+2. GPU eval of v4 (resolve concurrent worker conflict)
+3. If v4 doesn't beat v2, pivot: try attention at 32×32 level on v2 architecture
+4. Consider full 10K test eval for final reporting

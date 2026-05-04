@@ -1,13 +1,14 @@
 """
-Flow Matching v2: UNet + self-attention at bottleneck for 32x32 -> 128x128 downscaling.
+Flow Matching v4: Wider UNet (base_channels=96) + data augmentation for 32x32 -> 128x128.
 
-Changes from v1:
-  - Multi-head self-attention between mid_block1 and mid_block2 (at 16x16 resolution)
-  - ~0.8M extra parameters (256 channels, 4 heads)
+Changes from v2:
+  - Default base_channels=96 (~29M params vs 13M at 64)
+  - Random horizontal flip augmentation during training
+  - Same AttentionUNet architecture with self-attention at bottleneck
 
 Usage:
-  python scripts/flow_matching_v2.py --mode train --epochs 40 --batch_size 64
-  python scripts/flow_matching_v2.py --mode eval --n_ensemble 10 --split test
+  python scripts/flow_matching_v4.py --mode train --epochs 30 --batch_size 64
+  python scripts/flow_matching_v4.py --mode eval --n_ensemble 10 --split test
 """
 
 import argparse
@@ -71,14 +72,12 @@ class SelfAttention(nn.Module):
         B, C, H, W = x.shape
         h = self.norm(x).view(B, C, H * W)
         qkv = self.qkv(h).view(B, 3, self.num_heads, self.head_dim, H * W)
-        q, k, v = qkv.unbind(dim=1)  # each: (B, heads, head_dim, HW)
-        # Transpose to (B, heads, HW, head_dim) for attention
+        q, k, v = qkv.unbind(dim=1)
         q = q.permute(0, 1, 3, 2)
         k = k.permute(0, 1, 3, 2)
         v = v.permute(0, 1, 3, 2)
-        # Use PyTorch's efficient attention
-        out = F.scaled_dot_product_attention(q, k, v)  # (B, heads, HW, head_dim)
-        out = out.permute(0, 1, 3, 2).reshape(B, C, H * W)  # (B, C, HW)
+        out = F.scaled_dot_product_attention(q, k, v)
+        out = out.permute(0, 1, 3, 2).reshape(B, C, H * W)
         out = self.proj(out).view(B, C, H, W)
         return x + out
 
@@ -103,13 +102,9 @@ class Upsample(nn.Module):
 
 
 class AttentionUNet(nn.Module):
-    """UNet with self-attention at bottleneck for velocity prediction.
+    """UNet with self-attention at bottleneck for velocity prediction."""
 
-    Input: interpolated state (1 ch) + LR condition (1 ch) = 2 ch
-    Output: predicted velocity (1 ch)
-    """
-
-    def __init__(self, in_channels=2, out_channels=1, base_channels=64,
+    def __init__(self, in_channels=2, out_channels=1, base_channels=96,
                  channel_mults=(1, 2, 4), time_emb_dim=256, dropout=0.1,
                  attn_heads=4):
         super().__init__()
@@ -332,6 +327,11 @@ def train(args):
             lr_batch = lr_batch.to(device)
             res_batch = res_batch.to(device)
 
+            # Random horizontal flip augmentation (same flip for LR and residual)
+            if torch.rand(1).item() > 0.5:
+                lr_batch = torch.flip(lr_batch, [-1])
+                res_batch = torch.flip(res_batch, [-1])
+
             bs = lr_batch.shape[0]
             t = torch.rand(bs, device=device)
             x_0 = torch.randn_like(res_batch)
@@ -352,7 +352,7 @@ def train(args):
         train_loss /= len(train_loader)
         scheduler.step()
 
-        # Validation
+        # Validation (no augmentation)
         model.eval()
         val_loss = 0
         with torch.no_grad():
@@ -407,7 +407,7 @@ def evaluate(args):
         saved_mults = tuple(int(x) for x in saved_mults.split(','))
     model = AttentionUNet(
         in_channels=2, out_channels=1,
-        base_channels=saved_args.get('base_channels', 64),
+        base_channels=saved_args.get('base_channels', 96),
         channel_mults=saved_mults,
         time_emb_dim=256,
         dropout=0.0,
@@ -421,7 +421,6 @@ def evaluate(args):
     batch_size = args.eval_batch_size
     ode_steps = args.ode_steps
     use_constraint = args.constraint
-    sampler = euler_sample
 
     print(f"Evaluating {n_samples} samples, {n_ensemble} ensemble, "
           f"{ode_steps} euler steps, constraint={use_constraint}...")
@@ -446,7 +445,7 @@ def evaluate(args):
         ensemble_preds = []
         for e in range(n_ensemble):
             with torch.no_grad():
-                sampled_res_norm = sampler(
+                sampled_res_norm = euler_sample(
                     model, batch_lr,
                     shape=(bs, 1, 128, 128),
                     steps=ode_steps,
@@ -499,12 +498,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--mode", choices=["train", "eval"], required=True)
     parser.add_argument("--basedir", default="external/constrained-downscaling")
-    parser.add_argument("--save_dir", default="models/flow_v2")
+    parser.add_argument("--save_dir", default="models/flow_v4")
     parser.add_argument("--batch_size", type=int, default=64)
-    parser.add_argument("--epochs", type=int, default=40)
+    parser.add_argument("--epochs", type=int, default=30)
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--resume", action="store_true")
-    parser.add_argument("--base_channels", type=int, default=64)
+    parser.add_argument("--base_channels", type=int, default=96)
     parser.add_argument("--channel_mults", type=str, default="1,2,4")
     parser.add_argument("--attn_heads", type=int, default=4)
     # Eval args
