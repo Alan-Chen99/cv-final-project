@@ -1,0 +1,22 @@
+Loaded flow_best.pth, euler_steps=20, n_members=10, constraint=mult, solver=euler, lr_anchor=True, noise_std=0.3
+Test samples: 10000
+  Batch 10/79 (219s)
+  Batch 20/79 (435s)
+  Batch 30/79 (652s)
+  Batch 40/79 (868s)
+  Batch 50/79 (1085s)
+  Batch 60/79 (1301s)
+  Batch 70/79 (1518s)
+Generation done in 1693s
+
+========================================
+CRPS:            0.200203
+MSE:             0.234140
+RMSE:            0.483880
+MAE:             0.258880
+Ensemble Spread: 0.209365
+Mass Violation:  0.000131
+Ensemble Size:   10
+N Samples:       10000
+========================================
+Saved predictions to external/constrained-downscaling/data/era5_sr_data/prediction/flow_ema_mult_test_ensemble.pt

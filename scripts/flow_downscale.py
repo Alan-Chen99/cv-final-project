@@ -84,6 +84,44 @@ class SelfAttention(nn.Module):
         return x + self.proj(h)
 
 
+class EMA:
+    """Exponential Moving Average of model parameters."""
+
+    def __init__(self, model, decay=0.999):
+        self.decay = decay
+        self.shadow = {}
+        self.backup = {}
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                self.shadow[name] = param.data.clone()
+
+    @torch.no_grad()
+    def update(self, model):
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                self.shadow[name].mul_(self.decay).add_(param.data, alpha=1 - self.decay)
+
+    def apply_shadow(self, model):
+        self.backup = {}
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                self.backup[name] = param.data.clone()
+                param.data.copy_(self.shadow[name])
+
+    def restore(self, model):
+        for name, param in model.named_parameters():
+            if name in self.backup:
+                param.data.copy_(self.backup[name])
+        self.backup = {}
+
+    def state_dict(self):
+        return {'decay': self.decay, 'shadow': dict(self.shadow)}
+
+    def load_state_dict(self, state):
+        self.decay = state['decay']
+        self.shadow = state['shadow']
+
+
 class DownBlock(nn.Module):
     def __init__(self, in_ch, out_ch, time_dim):
         super().__init__()
@@ -312,6 +350,13 @@ def train(args):
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
     scaler = torch.amp.GradScaler('cuda')
 
+    # EMA
+    use_ema = getattr(args, 'ema', False)
+    ema_decay = getattr(args, 'ema_decay', 0.999)
+    ema = EMA(model, decay=ema_decay) if use_ema else None
+    if use_ema:
+        print(f"EMA enabled: decay={ema_decay}")
+
     # Training loop
     best_val_loss = float('inf')
     save_dir = Path(args.save_dir)
@@ -328,6 +373,8 @@ def train(args):
         scaler.load_state_dict(ckpt['scaler'])
         start_epoch = ckpt['epoch'] + 1
         best_val_loss = ckpt['best_val_loss']
+        if ema is not None and 'ema' in ckpt:
+            ema.load_state_dict(ckpt['ema'])
         print(f"Resumed from epoch {start_epoch}, best_val={best_val_loss:.6f}")
 
     # Save config early so eval works even if training is interrupted
@@ -426,6 +473,9 @@ def train(args):
             scaler.step(optimizer)
             scaler.update()
 
+            if ema is not None:
+                ema.update(model)
+
             train_loss += loss.item()
             train_aux_loss += aux_loss_val
             n_batches += 1
@@ -434,7 +484,9 @@ def train(args):
         avg_train = train_loss / n_batches
         avg_aux = train_aux_loss / n_batches if (constraint_aware or crps_loss_enabled) else 0
 
-        # Validation
+        # Validation (use EMA weights if enabled)
+        if ema is not None:
+            ema.apply_shadow(model)
         model.eval()
         val_loss = 0.0
         n_val = 0
@@ -466,21 +518,33 @@ def train(args):
                   f"lr={scheduler.get_last_lr()[0]:.2e} | "
                   f"{elapsed/60:.1f}min")
 
+        # Checkpoint best (EMA weights saved when EMA enabled)
+        if avg_val < best_val_loss:
+            best_val_loss = avg_val
+            torch.save(model.state_dict(), save_dir / 'flow_best.pth')
+
+        # Restore raw weights after EMA validation
+        if ema is not None:
+            ema.restore(model)
+
         # Save resumable checkpoint every epoch
-        torch.save({
+        ckpt_data = {
             'epoch': epoch, 'model': model.state_dict(),
             'optimizer': optimizer.state_dict(),
             'scheduler': scheduler.state_dict(),
             'scaler': scaler.state_dict(),
             'best_val_loss': best_val_loss,
-        }, save_dir / 'flow_checkpoint.pth')
+        }
+        if ema is not None:
+            ckpt_data['ema'] = ema.state_dict()
+        torch.save(ckpt_data, save_dir / 'flow_checkpoint.pth')
 
-        # Checkpoint best
-        if avg_val < best_val_loss:
-            best_val_loss = avg_val
-            torch.save(model.state_dict(), save_dir / 'flow_best.pth')
-
+    # Save final model (EMA weights if enabled)
+    if ema is not None:
+        ema.apply_shadow(model)
     torch.save(model.state_dict(), save_dir / 'flow_last.pth')
+    if ema is not None:
+        ema.restore(model)
     total_min = (time.time() - t_start) / 60
     print(f"\nTraining complete in {total_min:.1f} min. Best val loss: {best_val_loss:.6f}")
     print(f"Saved to {save_dir}")
@@ -609,19 +673,19 @@ def evaluate(args):
     gen_time = time.time() - t_start
     print(f"Generation done in {gen_time:.0f}s")
 
-    # Save predictions in baseline-compatible format: (N, M, 1, 1, H, W)
-    preds_save = preds.unsqueeze(2)             # (N, M, 1, 1, 128, 128)
-    targets_save = targets.unsqueeze(1)         # (N, 1, 1, 128, 128)
-    inputs_save = inputs.unsqueeze(1)           # (N, 1, 1, 32, 32)
-
-    pred_dir = Path(args.data_dir) / 'prediction'
-    pred_dir.mkdir(exist_ok=True)
-    pred_path = pred_dir / f'flow_{args.model_id}_test_ensemble.pt'
-    torch.save(preds_save, pred_path)
-    print(f"Saved predictions to {pred_path}")
-
-    # Compute metrics
+    # Compute metrics first (before save, which can fail on large files)
     compute_metrics(preds, targets, inputs)
+
+    # Save predictions in baseline-compatible format: (N, M, 1, 1, H, W)
+    try:
+        preds_save = preds.unsqueeze(2)             # (N, M, 1, 1, 128, 128)
+        pred_dir = Path(args.data_dir) / 'prediction'
+        pred_dir.mkdir(exist_ok=True)
+        pred_path = pred_dir / f'flow_{args.model_id}_test_ensemble.pt'
+        torch.save(preds_save, pred_path)
+        print(f"Saved predictions to {pred_path}")
+    except Exception as e:
+        print(f"Warning: Failed to save predictions: {e}")
 
 
 def compute_metrics(preds, targets, inputs):
@@ -713,6 +777,10 @@ if __name__ == '__main__':
                         help='Override noise_std at eval time (default: use training value)')
     parser.add_argument('--attention', action='store_true',
                         help='Add self-attention at bottleneck (16x16)')
+    parser.add_argument('--ema', action='store_true',
+                        help='Enable EMA of model weights during training')
+    parser.add_argument('--ema-decay', type=float, default=0.999,
+                        help='EMA decay rate (default: 0.999)')
     args = parser.parse_args()
 
     if args.mode in ('train', 'both'):

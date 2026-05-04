@@ -1,0 +1,9 @@
+Training flow matching model on cuda
+Args: epochs=200, bs=256, lr=0.0002, channels=48,96,192, euler_steps=20
+LR-anchor mode: noise_std=0.3
+Constraint-aware training: weight=0.1
+Train: 40000 samples, Val: 10000 samples
+Normalization: min=0.0444, max=130.8358
+Model params: 5,218,721
+EMA enabled: decay=0.999
+Resumed from epoch 187, best_val=0.000551

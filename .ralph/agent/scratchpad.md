@@ -580,3 +580,73 @@ Dangling jobs found and cancelled this iteration:
 
 **Ending commit**: 4a8461d
 **Ending time**: 2026-05-04 03:25 EDT
+
+## Iteration 11 — 2026-05-04 03:26 EDT → ?
+**Starting commit**: 8e5acaf
+**Goal**: Add EMA (Exponential Moving Average) to training — standard in all diffusion/flow papers, never used here
+
+### Concerns About Prior Iterations
+
+1. **QUALITY (CRITICAL)**: The training loop has NO Exponential Moving Average (EMA) of model weights. EMA is standard in ALL diffusion and flow matching papers (DDPM uses 0.9999, EDM uses 0.9999, Flow Matching uses EMA). The absence means we're evaluating raw optimizer weights, which can be noisy. Adding EMA typically improves sample quality by 1-5% in generative models. This is the single most obvious missing training methodology improvement after 10 iterations.
+
+2. **QUALITY**: No data augmentation has been applied in any of the 10 iterations. The training set is 40k samples. Random horizontal/vertical flips (physically reasonable for small-scale precipitation patches) would effectively 4× the data at zero computational cost. This is a basic ML technique that was overlooked.
+
+3. **QUALITY**: The improvement trajectory shows diminishing returns from architecture alone: iter 9 added 2.2× params + attention for 0.9% CRPS gain (0.2066→0.2047). Further architecture scaling (64,128,256) would likely give <1% additional gain. The training methodology (no EMA, no augmentation) is the bottleneck, not model capacity.
+
+4. **WORKFLOW**: ~17 hours remain before orchestration node expires (~20:52 EDT). Budget: 2-3 more experiment iterations + 1 report iteration. Need to plan endgame.
+
+### Plan: EMA Training
+
+**Key idea**: Add EMA (decay=0.999) to the training loop. Train the same attention model (48,96,192) from scratch with EMA, 200 epochs.
+
+Rationale:
+- EMA is standard practice, never tried → genuinely under-explored for this setup
+- Impact magnitude is uncertain: could be 0% (model already well-converged) or 3-5% (noisy optimizer weights were hurting)
+- Training budget: ~200 epochs × 1.35 min/epoch ≈ 270 min. Tight for 4hr budget but feasible with checkpoint resume.
+
+Implementation:
+- Add EMA class to flow_downscale.py
+- Save EMA weights as flow_best.pth (eval code unchanged)
+- Save dir: models/flow_ema
+- Config: --ema --ema-decay 0.999
+
+Risk: If training takes >4 hours, we resume from checkpoint in next iteration.
+
+### Results
+
+**EMA did NOT improve CRPS: 0.2002 vs 0.1991 (non-EMA) = +0.6%**
+
+| Config | CRPS | MSE | RMSE | MAE | Spread | Mass Viol |
+|--------|------|-----|------|-----|--------|-----------|
+| Non-EMA attn 200ep + mult (iter 10) | **0.1991** | 0.2317 | 0.4813 | 0.2576 | 0.2074 | 0.0001 |
+| EMA attn 188ep + mult (this iter) | 0.2002 | 0.2341 | 0.4839 | 0.2589 | 0.2094 | 0.0001 |
+| GAN baseline (iter 1) | 0.3066 | 0.3824 | 0.6184 | 0.3066 | ~0 | 0.0454 |
+
+Key findings:
+1. **EMA hurts slightly**: CRPS 0.2002 vs 0.1991 (+0.6%). EMA smoothing doesn't help when the model is already well-converged with 200-epoch cosine schedule.
+2. **Training was 188/200 epochs** (preempted 3× during training). 12 remaining epochs at near-zero LR would be negligible.
+3. **Val loss comparable**: best_val=0.000551 (EMA) vs 0.000540 (non-EMA). EMA smoothing didn't improve velocity field prediction.
+4. **Metrics pattern similar**: All metrics slightly worse across the board for EMA model.
+5. **Conclusion**: For this task/model size, cosine LR schedule to zero already provides the smoothing effect that EMA gives. EMA is more valuable when training is not run to completion or with larger LR.
+
+Also fixed: metrics-before-save bug (eval now computes metrics before attempting to save the large prediction file, preventing loss of results on disk space errors).
+
+Training wall-clock: 3 preemptions across multiple allocations:
+- Alloc 1 (node3008): epochs 0→11, preempted
+- Alloc 2 (node2644): epochs 12→26, preempted
+- Alloc 3 (node3619): epochs 27→186, preempted (main training bulk)
+- Alloc 4 (node1805): epochs 187→188, preempted
+Total training: ~245 min across all allocations.
+Eval: 1693s (28.2 min) on node3202.
+
+Dangling jobs cancelled this iteration: 8 rogue jobs (flow-v4-eval, flow-v4-res, v4eval, v4resume, eval-full, sweep-gpu1, sweep-gpu2, flow-v2-ext)
+
+### Implications for future iterations
+- EMA exhausted as an improvement direction
+- Data augmentation (flips) remains untried — low-hanging fruit
+- Larger model (64,128,256 ~9M params) — still untried
+- The CRPS=0.199 appears to be near the performance ceiling for this architecture/data combo
+- ~10 hours remain before orchestration expiry — budget for 1-2 more experiments + report
+
+**Ending commit**: (to be filled after commit)
+**Ending time**: 2026-05-04 10:16 EDT

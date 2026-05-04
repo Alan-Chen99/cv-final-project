@@ -1,0 +1,25 @@
+Training flow matching model on cuda
+Args: epochs=200, bs=256, lr=0.0002, channels=48,96,192, euler_steps=20
+LR-anchor mode: noise_std=0.3
+Constraint-aware training: weight=0.1
+Train: 40000 samples, Val: 10000 samples
+Normalization: min=0.0444, max=130.8358
+Model params: 5,218,721
+EMA enabled: decay=0.999
+Resumed from epoch 27, best_val=0.000920
+Epoch  30/200 | train=0.001023 aux=0.000027 val=0.000987 | lr=1.89e-04 | 4.3min
+Epoch  40/200 | train=0.000765 aux=0.000020 val=0.000789 | lr=1.81e-04 | 26.1min
+Epoch  50/200 | train=0.000754 aux=0.000019 val=0.000698 | lr=1.71e-04 | 40.4min
+Epoch  60/200 | train=0.000743 aux=0.000018 val=0.000722 | lr=1.59e-04 | 54.8min
+Epoch  70/200 | train=0.000671 aux=0.000017 val=0.000722 | lr=1.45e-04 | 69.3min
+Epoch  80/200 | train=0.000710 aux=0.000018 val=0.000663 | lr=1.31e-04 | 83.7min
+Epoch  90/200 | train=0.000662 aux=0.000017 val=0.000637 | lr=1.16e-04 | 98.1min
+Epoch 100/200 | train=0.000666 aux=0.000016 val=0.000613 | lr=1.00e-04 | 112.5min
+Epoch 110/200 | train=0.000647 aux=0.000016 val=0.000629 | lr=8.44e-05 | 126.9min
+Epoch 120/200 | train=0.000638 aux=0.000016 val=0.000606 | lr=6.91e-05 | 141.3min
+Epoch 130/200 | train=0.000604 aux=0.000015 val=0.000618 | lr=5.46e-05 | 155.7min
+Epoch 140/200 | train=0.000629 aux=0.000015 val=0.000640 | lr=4.12e-05 | 170.1min
+Epoch 150/200 | train=0.000616 aux=0.000015 val=0.000601 | lr=2.93e-05 | 184.6min
+Epoch 160/200 | train=0.000615 aux=0.000015 val=0.000641 | lr=1.91e-05 | 199.0min
+Epoch 170/200 | train=0.000605 aux=0.000015 val=0.000627 | lr=1.09e-05 | 213.5min
+Epoch 180/200 | train=0.000617 aux=0.000015 val=0.000559 | lr=4.89e-06 | 227.9min
