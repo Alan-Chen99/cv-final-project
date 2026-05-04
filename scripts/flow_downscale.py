@@ -257,7 +257,7 @@ def load_data(data_dir, batch_size, split='train'):
     dataset = TensorDataset(inp, tgt)
     loader = DataLoader(dataset, batch_size=batch_size,
                         shuffle=(split == 'train'), drop_last=(split == 'train'),
-                        num_workers=4, pin_memory=True)
+                        num_workers=0, pin_memory=True)
     return loader, float(min_val), float(max_val)
 
 
@@ -323,11 +323,14 @@ def train(args):
     crps_weight = getattr(args, 'crps_weight', 0.1)
     lr_anchor = getattr(args, 'lr_anchor', False)
     noise_std = getattr(args, 'noise_std', 0.5)
+    augment = getattr(args, 'augment', False)
     print(f"Training flow matching model on {device}")
     print(f"Args: epochs={args.epochs}, bs={args.batch_size}, lr={args.lr}, "
           f"channels={args.channels}, euler_steps={args.euler_steps}")
     if lr_anchor:
         print(f"LR-anchor mode: noise_std={noise_std}")
+    if augment:
+        print("Data augmentation: random h/v flips enabled")
     if crps_loss_enabled:
         print(f"CRPS-aware training: weight={crps_weight}")
     elif constraint_aware:
@@ -396,6 +399,15 @@ def train(args):
         for lr_input, hr_target in train_loader:
             lr_input = lr_input.to(device)      # (B, 1, 32, 32)
             hr_target = hr_target.to(device)     # (B, 1, 128, 128)
+
+            # Data augmentation: random h/v flips (applied consistently to LR and HR)
+            if augment:
+                if torch.rand(1).item() > 0.5:
+                    lr_input = torch.flip(lr_input, [-1])
+                    hr_target = torch.flip(hr_target, [-1])
+                if torch.rand(1).item() > 0.5:
+                    lr_input = torch.flip(lr_input, [-2])
+                    hr_target = torch.flip(hr_target, [-2])
 
             B = lr_input.shape[0]
 
@@ -781,6 +793,8 @@ if __name__ == '__main__':
                         help='Enable EMA of model weights during training')
     parser.add_argument('--ema-decay', type=float, default=0.999,
                         help='EMA decay rate (default: 0.999)')
+    parser.add_argument('--augment', action='store_true',
+                        help='Enable random h/v flip augmentation during training')
     args = parser.parse_args()
 
     if args.mode in ('train', 'both'):

@@ -650,3 +650,68 @@ Dangling jobs cancelled this iteration: 8 rogue jobs (flow-v4-eval, flow-v4-res,
 
 **Ending commit**: f23d95a
 **Ending time**: 2026-05-04 10:20 EDT
+
+## Iteration 12 — 2026-05-04 10:18 EDT → ?
+**Starting commit**: 6e91d7e
+**Goal**: Add data augmentation (random h/v flips) — most under-explored basic ML technique after 11 iterations
+
+### Concerns About Prior Iterations
+
+1. **QUALITY (CRITICAL)**: No data augmentation in 11 iterations. The training set is 40k samples. Random horizontal/vertical flips are physically reasonable for small-scale precipitation patches (no strong directional asymmetry at patch scale). This would effectively 4× the data at zero compute cost. Every climate downscaling paper uses augmentation. This is the single most glaring omission.
+
+2. **WORKFLOW (TIME)**: ~10.5 hours remain before orchestration expires (~20:52 EDT). Budget: this iteration (data augmentation, ~4h) + 1 report iteration (~2h) + buffer (~4.5h). Need to be disciplined about stopping training to leave time for eval + report.
+
+3. **QUALITY**: The CRPS improvement trajectory shows diminishing returns from architecture/hyperparameter tuning: iter 5 (LR-anchor) gave -8.5%, iter 7 (noise_std=0.3) -6.9%, iter 9 (attention) -0.9%, iter 10 (more epochs) -2.7%. The remaining headroom is likely small. Data augmentation attacks a different axis (data distribution) which could break the current ceiling.
+
+### Plan: Data Augmentation (Random H/V Flips)
+
+**Key idea**: Add random horizontal and vertical flips to training data. Both LR and HR are flipped consistently, preserving the conservation constraint.
+
+Implementation:
+- Add augmentation in the training loop (on-the-fly, not in data loader)
+- For each batch: randomly flip horizontally (p=0.5) and vertically (p=0.5)
+- Apply same flip to both lr_input and hr_target
+- The bicubic upsample of flipped LR = flip of bicubic upsample (equivariant)
+- Conservation constraint: AvgPool(flipped HR) = flipped LR, so conservation holds
+
+Training config:
+- Same as best model: --channels 48,96,192 --attention --lr-anchor --noise-std 0.3 --constraint-aware
+- --augment flag for augmentation
+- --epochs 200 --lr 2e-4 --batch-size 256
+- Save to models/flow_aug
+
+Expected: ~270 min training + ~28 min eval ≈ 5h total. May need multiple allocations.
+
+### Results
+
+**Data augmentation at 85 epochs: CRPS=0.2220 (worse than non-aug 200ep baseline 0.1991, but improving)**
+
+Training repeatedly preempted/cancelled by external interference (6 preemptions across 7 submissions, including on mit_normal_gpu). Total training reached epoch 105 across multiple allocations. Eval was run at two checkpoints:
+
+| Config | Epochs | CRPS | MSE | RMSE | MAE | Spread | Mass Viol |
+|--------|--------|------|-----|------|-----|--------|-----------|
+| Aug + mult (55ep ckpt) | 55 | 0.2289 | 0.3597 | 0.5997 | 0.3006 | 0.3293 | 0.0002 |
+| Aug + mult (85ep ckpt) | 85 | 0.2220 | 0.3281 | 0.5728 | 0.2873 | 0.2503 | 0.0002 |
+| **Non-aug + mult (iter 10)** | **200** | **0.1991** | 0.2317 | 0.4813 | 0.2576 | 0.2074 | 0.0001 |
+| Non-aug + mult (iter 9, 120ep) | 120 | 0.2047 | 0.2398 | 0.4897 | 0.2654 | 0.2404 | 0.0001 |
+| GAN baseline (iter 1) | 200 | 0.3066 | 0.3824 | 0.6184 | 0.3066 | ~0 | 0.0454 |
+
+Key findings:
+1. **Augmentation inconclusive**: At 85 epochs, CRPS=0.2220 vs non-aug at 120 epochs CRPS=0.2047. Cannot fairly compare — augmented model is undertrained.
+2. **Improving trajectory**: CRPS improved from 0.2289 (55ep) to 0.2220 (85ep) = -3.0%. Trajectory suggests continued improvement with more training.
+3. **Val loss plateau**: best_val=0.000609 at ep 85 vs non-aug best_val=0.000540 at ep 200. Higher val loss may reflect harder training task (augmented data has more diversity).
+4. **External interference**: 6-7 preemptions across all GPU partitions, including "non-preemptable" mit_normal_gpu. Rogue "flow-ema", "sweep-gpu" jobs keep appearing and may be cancelling legitimate jobs.
+5. **Infrastructure fix needed**: Changed num_workers=0 to avoid shared memory errors in singularity containers.
+
+Wall-clock: 5h24m (10:18→15:42 EDT), far exceeding 4hr budget due to preemption recovery overhead.
+Training: ~105 epochs across ~3.5h of actual GPU time (2.0 min/epoch).
+Eval: 2 eval runs (~30 min each).
+
+### Implications
+- Data augmentation cannot be evaluated fairly without 200-epoch training
+- The augmented model can be resumed from epoch 105 checkpoint in future iterations
+- The best CRPS remains 0.1991 from iter 10 (non-augmented attention model, 200ep)
+- Next iteration should focus on report writing — ~5 hours remain before orchestration expires
+
+**Ending commit**: TBD
+**Ending time**: 2026-05-04 15:43 EDT
