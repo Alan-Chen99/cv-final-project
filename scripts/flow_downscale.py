@@ -60,6 +60,30 @@ class ResBlock(nn.Module):
         return x + h
 
 
+class SelfAttention(nn.Module):
+    """Multi-head self-attention for spatial features at coarse resolutions."""
+
+    def __init__(self, channels, num_heads=4):
+        super().__init__()
+        self.num_heads = num_heads
+        self.head_dim = channels // num_heads
+        self.norm = nn.GroupNorm(8, channels)
+        self.qkv = nn.Conv2d(channels, channels * 3, 1)
+        self.proj = nn.Conv2d(channels, channels, 1)
+
+    def forward(self, x):
+        B, C, H, W = x.shape
+        h = self.norm(x)
+        qkv = self.qkv(h).reshape(B, 3, self.num_heads, self.head_dim, H * W)
+        q, k, v = qkv.unbind(1)  # each: (B, heads, head_dim, H*W)
+        q = q.permute(0, 1, 3, 2)  # (B, heads, H*W, head_dim)
+        k = k.permute(0, 1, 3, 2)
+        v = v.permute(0, 1, 3, 2)
+        h = F.scaled_dot_product_attention(q, k, v)  # (B, heads, H*W, head_dim)
+        h = h.permute(0, 1, 3, 2).reshape(B, C, H, W)
+        return x + self.proj(h)
+
+
 class DownBlock(nn.Module):
     def __init__(self, in_ch, out_ch, time_dim):
         super().__init__()
@@ -92,9 +116,10 @@ class FlowUNet(nn.Module):
     Output: (B, 1, 128, 128) — predicted velocity
     """
 
-    def __init__(self, channels=(32, 64, 128), time_dim=128):
+    def __init__(self, channels=(32, 64, 128), time_dim=128, use_attention=False):
         super().__init__()
         self.time_dim = time_dim
+        self.use_attention = use_attention
         c0, c1, c2 = channels
 
         # Time embedding
@@ -114,6 +139,8 @@ class FlowUNet(nn.Module):
 
         # Middle
         self.mid = ResBlock(c2, time_dim)
+        if use_attention:
+            self.mid_attn = SelfAttention(c2)
 
         # Decoder: 16 -> 32 -> 64 -> 128
         self.up2 = UpBlock(c2, c2, c2, time_dim)   # 16 -> 32
@@ -145,6 +172,8 @@ class FlowUNet(nn.Module):
 
         # Middle
         h = self.mid(h, t_emb)
+        if self.use_attention:
+            h = self.mid_attn(h)
 
         # Decoder
         h = self.up2(h, s2, t_emb)  # 32
@@ -274,7 +303,8 @@ def train(args):
 
     # Model
     channels = [int(c) for c in args.channels.split(',')]
-    model = FlowUNet(channels=channels).to(device)
+    use_attention = getattr(args, 'attention', False)
+    model = FlowUNet(channels=channels, use_attention=use_attention).to(device)
     n_params = sum(p.numel() for p in model.parameters())
     print(f"Model params: {n_params:,}")
 
@@ -299,6 +329,15 @@ def train(args):
         start_epoch = ckpt['epoch'] + 1
         best_val_loss = ckpt['best_val_loss']
         print(f"Resumed from epoch {start_epoch}, best_val={best_val_loss:.6f}")
+
+    # Save config early so eval works even if training is interrupted
+    torch.save({'min_val': min_val, 'max_val': max_val,
+                'channels': channels, 'euler_steps': args.euler_steps,
+                'constraint_aware': constraint_aware,
+                'crps_loss': crps_loss_enabled,
+                'lr_anchor': lr_anchor, 'noise_std': noise_std,
+                'use_attention': use_attention},
+               save_dir / 'flow_config.pth')
 
     t_start = time.time()
     for epoch in range(start_epoch, args.epochs):
@@ -451,7 +490,8 @@ def train(args):
                 'channels': channels, 'euler_steps': args.euler_steps,
                 'constraint_aware': constraint_aware,
                 'crps_loss': crps_loss_enabled,
-                'lr_anchor': lr_anchor, 'noise_std': noise_std},
+                'lr_anchor': lr_anchor, 'noise_std': noise_std,
+                'use_attention': use_attention},
                save_dir / 'flow_config.pth')
 
 
@@ -525,7 +565,8 @@ def evaluate(args):
         print(f"Overriding noise_std: {noise_std} -> {args.eval_noise_std}")
         noise_std = args.eval_noise_std
 
-    model = FlowUNet(channels=channels).to(device)
+    use_attention = config.get('use_attention', False)
+    model = FlowUNet(channels=channels, use_attention=use_attention).to(device)
     ckpt = 'flow_best.pth' if (save_dir / 'flow_best.pth').exists() else 'flow_last.pth'
     model.load_state_dict(torch.load(save_dir / ckpt, weights_only=False))
     model.eval()
@@ -670,6 +711,8 @@ if __name__ == '__main__':
                         help='Noise scale for LR-anchor mode')
     parser.add_argument('--eval-noise-std', type=float, default=None,
                         help='Override noise_std at eval time (default: use training value)')
+    parser.add_argument('--attention', action='store_true',
+                        help='Add self-attention at bottleneck (16x16)')
     args = parser.parse_args()
 
     if args.mode in ('train', 'both'):

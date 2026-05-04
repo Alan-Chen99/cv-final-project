@@ -445,3 +445,70 @@ Eval: 932s (mult 20step) + 932s (none 20step) + 2326s (mult 50step) = ~70 min.
 
 **Ending commit**: d4dc199
 **Ending time**: 2026-05-03 20:12 EDT
+
+## Iteration 9 — 2026-05-03 20:12 EDT → ?
+**Starting commit**: 10cf8f9
+**Goal**: Add self-attention at bottleneck + larger model to break CRPS=0.206 plateau
+
+### Concerns About Prior Iterations
+
+1. **QUALITY (CRITICAL)**: The FlowUNet has ZERO attention layers. All successful climate diffusion models (CorrDiff, WassDiff, GenDiff, ClimateDiffuse) use self-attention at coarse resolutions. The model relies entirely on local 3×3 convolutions to capture spatial structure. At the bottleneck (16×16), the receptive field may still not cover the full 128×128 output. Self-attention at 16×16 (256 tokens) is cheap and would allow global context flow through skip connections.
+
+2. **QUALITY**: Only 2.3M parameters with channels 32,64,128. The val loss continues to improve with longer training (iter 7: 0.000600, iter 8: 0.000398) but CRPS is flat (0.2066 vs 0.2065). This suggests the model can fit the velocity field better but the improved fit doesn't translate to better samples. The model likely needs more capacity to represent diverse velocity fields for different ensemble members.
+
+3. **WORKFLOW**: node1620 (job 13058147, running 28+ hours) — this is a CPU preemptable job, not a GPU. Need to verify it's not conflicting. It's likely from a prior session or different project. Not a GPU violation but worth noting.
+
+### Plan: Attention UNet with Larger Channels
+
+**Key idea**: Add self-attention at the bottleneck (16×16) and increase channels to 48,96,192 (~5M params, 2.2× current).
+
+Architecture changes:
+- New SelfAttention module: multi-head self-attention with GroupNorm, 4 heads
+- Applied after the mid ResBlock at 16×16 resolution
+- Channels: 48,96,192 (up from 32,64,128)
+
+Training config:
+- --lr-anchor --noise-std 0.3 --constraint-aware --epochs 200
+- --channels 48,96,192 --attention
+- --lr 2e-4 --batch-size 256
+- Save to models/flow_attn
+
+Expected training: ~250-340 min (2.25x slower per step). May need to resume if preempted.
+Expected eval: ~20 min with mult constraint.
+
+Risk: Training may not complete in one allocation. Checkpoint saving every epoch enables resumption.
+
+### Results
+
+**Attention UNet (48,96,192) + mult: CRPS = 0.2047 (NEW BEST — broke 0.206 plateau)**
+
+| Config | CRPS | MSE | RMSE | MAE | Spread | Mass Viol |
+|--------|------|-----|------|-----|--------|-----------|
+| **Attn 48,96,192 + mult (120ep)** | **0.2047** | 0.2398 | 0.4897 | 0.2654 | 0.2404 | 0.0001 |
+| ns03 + mult (iter 7) | 0.2066 | 0.2578 | 0.5077 | 0.2668 | 0.2133 | 0.0001 |
+| ns02 + mult (iter 8) | 0.2065 | 0.2662 | 0.5159 | 0.2688 | 0.2240 | 0.0001 |
+| ns05 + CA + mult (iter 5) | 0.2218 | 0.3156 | 0.5618 | 0.2847 | 0.2301 | 0.0001 |
+| GAN baseline (iter 1) | 0.3066 | 0.3824 | 0.6184 | 0.3066 | ~0 | 0.0454 |
+
+Key findings:
+1. **CRPS 0.2047 vs 0.2066 = −0.9%**: Broke the ns02/ns03 plateau at 0.206
+2. **Cumulative 33.2% CRPS reduction** from GAN baseline (0.3066 → 0.2047)
+3. **MSE improved significantly**: 0.2398 vs 0.2578 (−7.0%) — attention helps spatial accuracy
+4. **RMSE improved**: 0.4897 vs 0.5077 (−3.5%)
+5. **Better ensemble calibration**: spread/MAE = 0.906 vs 0.800 (ns03). Closer to 1.0 = better calibrated
+6. **Training was incomplete** (120/200 epochs due to preemption + time budget). Best val=0.000616 at epoch 80. Full 200 epochs could improve further.
+7. **Eval time 2.8x longer**: 1690s vs ~932s (ns03) — larger model costs more at inference
+
+Training: 1.5 min (preempted ep 1) + 162.7 min (resumed, reached ep 120) = 164.2 min total.
+Eval: 1690s (28.2 min) with mult constraint.
+Model: 5,218,721 params (2.2× ns03's 2,341,185).
+
+### What Remains (for future iterations)
+- Complete training to 200 epochs (resume from epoch 120 checkpoint)
+- Eval without constraint (to measure constraint impact)
+- Try even larger channels (64,128,256) — ~9M params
+- Add attention at 32×32 resolution too (currently only at 16×16 bottleneck)
+- Combine with noise_std sweep (try 0.2 with attention model)
+
+**Ending commit**: (pending)
+**Ending time**: 2026-05-04 00:22 EDT
