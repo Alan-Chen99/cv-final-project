@@ -27,14 +27,14 @@
 - **Reversibility**: High — can try other approaches in subsequent iterations
 - **Timestamp**: 2026-05-03T04:30:00Z
 
-## DEC-004
-- **Decision**: Train flow model for 100 epochs (not 200) with AMP
-- **Chosen Option**: 100 epochs, ~87 min training
-- **Confidence**: 80
-- **Alternatives Considered**: 200 epochs (~180 min, might not fit in GPU alloc)
-- **Reasoning**: Loss plateaued around epoch 50 (val=0.0025), cosine schedule reaches near-zero LR by epoch 100. 200 epochs would give marginal improvement. 100 epochs fits in 3h GPU allocation with room for eval.
-- **Reversibility**: High — can train longer in next iteration
-- **Timestamp**: 2026-05-03T04:35:00Z
+## DEC-004 (CORRECTED iter 8)
+- **Decision**: Train flow model for 200 epochs with AMP
+- **Chosen Option**: 200 epochs, ~170 min training
+- **Confidence**: 95
+- **Alternatives Considered**: 100 epochs (~87 min, but wastes 10-20% of epochs at near-zero LR)
+- **Reasoning**: ORIGINAL claim "loss plateaued around epoch 50" was FALSE. Iter 7 proved val loss improves continuously: epoch 100 val=0.000722, epoch 150+ val=0.000600 (−17%). With cosine schedule T_max=100, epochs 90-100 have near-zero LR (wasted). 200 epochs with T_max=200 gives full learning budget. Confirmed beneficial in iter 7 (CRPS 0.207 vs 0.222 with 100 epochs).
+- **Reversibility**: High — can train shorter if needed
+- **Timestamp**: 2026-05-03T19:45:00Z
 
 ## DEC-005
 - **Decision**: Use multiplicative constraint (not SmCL/softmax) for post-hoc conservation on flow model
@@ -89,3 +89,21 @@
 - **Reasoning**: The velocity field is calibrated for the training noise distribution. Using noise_std=0.3 at eval on model trained with 0.5 produces catastrophic CRPS=0.603 (3× worse). The ODE solver diverges because the velocity field expects different noise magnitudes. Any noise_std change requires full retraining.
 - **Reversibility**: N/A — this is a finding, not a code change
 - **Timestamp**: 2026-05-03T16:16:00Z
+
+## DEC-011
+- **Decision**: noise_std ∈ [0.2, 0.3] is the optimal range — further tuning has diminishing returns
+- **Chosen Option**: noise_std=0.3 remains the recommended default (marginally better pointwise metrics)
+- **Confidence**: 95
+- **Alternatives Considered**: noise_std=0.2 (CRPS identical 0.2065 vs 0.2066, slightly worse MSE), noise_std=0.1 (not tested, would likely under-disperse)
+- **Reasoning**: noise_std=0.2 gives val loss 33% better than 0.3 (0.000398 vs 0.000600) but identical CRPS. The simpler velocity field doesn't help because CRPS depends on both accuracy AND spread. The accuracy/diversity tradeoff is already optimized at noise_std=0.3.
+- **Reversibility**: High — just training config
+- **Timestamp**: 2026-05-04T00:09:00Z
+
+## DEC-012
+- **Decision**: 50 Euler steps not worth the cost for this model
+- **Chosen Option**: Keep 20 Euler steps as default
+- **Confidence**: 90
+- **Alternatives Considered**: 50 steps (CRPS 0.2056 vs 0.2065 = −0.4%, at 2.5× eval cost)
+- **Reasoning**: With LR-anchor, the ODE trajectory is very short (starting near HR). 20 steps gives dt=0.05 which is accurate enough. The marginal 0.4% CRPS gain from 50 steps is not justified by 2.5× eval cost. Better to invest compute in training improvements.
+- **Reversibility**: High — eval-only setting
+- **Timestamp**: 2026-05-04T00:09:00Z

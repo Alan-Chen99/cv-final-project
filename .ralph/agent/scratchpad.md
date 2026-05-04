@@ -380,3 +380,68 @@ Eval: 946s (mult), 938s (none).
 
 **Ending commit**: 06202dc
 **Ending time**: 2026-05-03 15:37 EDT
+
+## Iteration 8 — 2026-05-03 15:38 EDT → ?
+**Starting commit**: 6871a08
+**Goal**: noise_std=0.2 + 200 epochs — continue tightening noise to find optimum
+
+### Concerns About Prior Iterations
+
+1. **WORKFLOW (CRITICAL)**: FIFTH consecutive dangling GPU violation. Three PENDING GPU jobs at start: flow-v2 (13144284), sweep-gpu1 (13144287), sweep-gpu2 (13144288). Cancelled immediately. Every single iteration since iter 3 has found leftover jobs. The sweep-gpu jobs were training separate architectures (dvit, dunet) — a parallel effort not integrated into the main workflow.
+
+2. **WORKFLOW (MODERATE)**: Iter 7 eval logs for the ns03 model are missing from /workspace/logs/. The only ns03-related eval log (flow_lr_anchor_eval_ns03.log) shows CRPS=0.603 — which is the noise_std MISMATCH experiment from iter 6, not the actual ns03 model eval. However, I verified the saved prediction files on CPU: **CRPS=0.2066 confirmed** (matches claim exactly). Result is valid but the provenance trail is incomplete.
+
+3. **FACT (persistent)**: DEC-004 claims "loss plateaued around epoch 50" — noted as incorrect in FIVE consecutive iterations but never corrected. Iter 7 proved definitively that 200 epochs helps: best val=0.000600 at epoch ~150+, vs 0.000722 at epoch 100. The decision journal contains a known-false claim.
+
+### Plan: noise_std=0.2 + 200 epochs
+
+**Key idea**: Continue the noise_std sweep: 0.5 → 0.3 gave 7% CRPS improvement. Try 0.2 to see if further tightening helps or if we've hit diminishing returns.
+
+Rationale:
+- noise_std=0.3 gave spread=0.213, MAE=0.267. The spread/MAE ratio is 0.80 — if we tighten further, accuracy gains must outweigh diversity loss.
+- noise_std=0.2 means each ensemble member starts closer to the LR upsampled image. The velocity field becomes even simpler, but the ensemble may under-disperse.
+- This is genuinely uncertain: could improve CRPS by 3-5% (tighter ensemble + better accuracy) or worsen it (insufficient diversity).
+
+Training config:
+- --lr-anchor --noise-std 0.2 --constraint-aware --epochs 200
+- --channels 32,64,128 --lr 2e-4 --batch-size 256
+- Save to models/flow_ns02
+
+Expected: ~170 min training + ~16 min eval ≈ 186 min total.
+
+### Results
+
+**noise_std=0.2 matches ns03 — CRPS plateau at ~0.206**
+
+| Config | CRPS | MSE | RMSE | MAE | Spread | Mass Viol |
+|--------|------|-----|------|-----|--------|-----------|
+| ns02 + mult + 50step | **0.2056** | 0.2708 | 0.5204 | 0.2717 | 0.2670 | 0.0001 |
+| ns02 + mult + 20step | 0.2065 | 0.2662 | 0.5159 | 0.2688 | 0.2240 | 0.0001 |
+| ns02 + none + 20step | 0.2087 | 0.2675 | 0.5172 | 0.2720 | 0.2297 | 0.0296 |
+| **ns03 + mult (iter 7)** | **0.2066** | 0.2578 | 0.5077 | 0.2668 | 0.2133 | 0.0001 |
+| ns05 + CA + mult (iter 5) | 0.2218 | 0.3156 | 0.5618 | 0.2847 | 0.2301 | 0.0001 |
+| GAN baseline (iter 1) | 0.3066 | 0.3824 | 0.6184 | 0.3066 | ~0 | 0.0454 |
+
+Key findings:
+1. **noise_std=0.2 ≈ noise_std=0.3**: CRPS 0.2065 vs 0.2066 — essentially identical. We've hit a CRPS plateau.
+2. **50 Euler steps gives marginal gain**: CRPS 0.2056 vs 0.2065 (−0.4%) at 2.5× eval cost. Not worth it.
+3. **Val loss is 33% better** (0.000398 vs 0.000600) — velocity field is simpler with tighter noise, but doesn't translate to CRPS gain.
+4. **ns03 has slightly better pointwise metrics** (MSE 0.258 vs 0.266, MAE 0.267 vs 0.269). The tighter noise of ns02 trades slight accuracy for slightly more spread.
+5. **Mult constraint still helps** consistently (−1.1% CRPS, near-zero mass violation).
+6. **200 epochs completed fully** — no preemption during resume (was preempted once at epoch 37).
+
+Training: 26 min (run1, preempted) + 141.6 min (run2) = 167.6 min total. Best val=0.000398.
+Eval: 932s (mult 20step) + 932s (none 20step) + 2326s (mult 50step) = ~70 min.
+
+### Implications
+- The noise_std sweep is exhausted. noise_std ∈ [0.2, 0.3] gives nearly identical CRPS.
+- 50 Euler steps is not worth 2.5× eval cost for 0.4% gain.
+- **To break the CRPS=0.206 plateau, need fundamentally different approaches**:
+  - Larger model / attention layers (capacity, not noise tuning)
+  - Different architecture (DiT, SwinIR backbone)
+  - More training data or augmentation
+  - Multi-scale loss or perceptual loss
+  - More ensemble members (currently M=10)
+
+**Ending commit**: (pending)
+**Ending time**: 2026-05-03 20:09 EDT

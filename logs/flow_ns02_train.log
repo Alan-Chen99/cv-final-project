@@ -1,0 +1,37 @@
+Training flow matching model on cuda
+Args: epochs=200, bs=256, lr=0.0002, channels=32,64,128, euler_steps=20
+LR-anchor mode: noise_std=0.2
+Constraint-aware training: weight=0.1
+Train: 40000 samples, Val: 10000 samples
+Normalization: min=0.0444, max=130.8358
+Model params: 2,341,185
+
+--- Run 1: epochs 1-37 (preempted at epoch 37) ---
+Epoch   1/200 | train=0.006674 aux=0.000197 val=0.002279 | lr=2.00e-04 | 0.9min
+Epoch  10/200 | train=0.000776 aux=0.000026 val=0.000717 | lr=1.99e-04 | 8.7min
+Epoch  20/200 | train=0.000597 aux=0.000022 val=0.000575 | lr=1.95e-04 | 17.4min
+Epoch  30/200 | train=0.000528 aux=0.000020 val=0.000557 | lr=1.89e-04 | 26.0min
+PREEMPTED at epoch ~37, best_val=0.000510
+
+--- Run 2: resumed from epoch 37, completed 200 epochs ---
+Resumed from epoch 37, best_val=0.000510
+Epoch  40/200 | train=0.000525 aux=0.000019 val=0.000572 | lr=1.81e-04 | 2.6min
+Epoch  50/200 | train=0.000502 aux=0.000018 val=0.000468 | lr=1.71e-04 | 11.3min
+Epoch  60/200 | train=0.000472 aux=0.000018 val=0.000505 | lr=1.59e-04 | 19.9min
+Epoch  70/200 | train=0.000472 aux=0.000017 val=0.000494 | lr=1.45e-04 | 28.6min
+Epoch  80/200 | train=0.000456 aux=0.000017 val=0.000496 | lr=1.31e-04 | 37.3min
+Epoch  90/200 | train=0.000452 aux=0.000016 val=0.000473 | lr=1.16e-04 | 46.0min
+Epoch 100/200 | train=0.000434 aux=0.000016 val=0.000449 | lr=1.00e-04 | 54.7min
+Epoch 110/200 | train=0.000432 aux=0.000016 val=0.000449 | lr=8.44e-05 | 63.4min
+Epoch 120/200 | train=0.000444 aux=0.000016 val=0.000438 | lr=6.91e-05 | 72.1min
+Epoch 130/200 | train=0.000420 aux=0.000016 val=0.000399 | lr=5.46e-05 | 80.8min
+Epoch 140/200 | train=0.000428 aux=0.000015 val=0.000434 | lr=4.12e-05 | 89.5min
+Epoch 150/200 | train=0.000427 aux=0.000015 val=0.000467 | lr=2.93e-05 | 98.2min
+Epoch 160/200 | train=0.000437 aux=0.000015 val=0.000424 | lr=1.91e-05 | 106.9min
+Epoch 170/200 | train=0.000435 aux=0.000015 val=0.000426 | lr=1.09e-05 | 115.6min
+Epoch 180/200 | train=0.000427 aux=0.000015 val=0.000420 | lr=4.89e-06 | 124.3min
+Epoch 190/200 | train=0.000439 aux=0.000015 val=0.000420 | lr=1.23e-06 | 133.0min
+Epoch 200/200 | train=0.000426 aux=0.000015 val=0.000441 | lr=0.00e+00 | 141.6min
+
+Training complete in 141.6 min. Best val loss: 0.000398
+Saved to models/flow_ns02
