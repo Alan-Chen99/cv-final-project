@@ -648,5 +648,5 @@ Dangling jobs cancelled this iteration: 8 rogue jobs (flow-v4-eval, flow-v4-res,
 - The CRPS=0.199 appears to be near the performance ceiling for this architecture/data combo
 - ~10 hours remain before orchestration expiry — budget for 1-2 more experiments + report
 
-**Ending commit**: (to be filled after commit)
-**Ending time**: 2026-05-04 10:16 EDT
+**Ending commit**: f23d95a
+**Ending time**: 2026-05-04 10:20 EDT
