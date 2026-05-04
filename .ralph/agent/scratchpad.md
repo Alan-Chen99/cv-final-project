@@ -578,5 +578,5 @@ Dangling jobs found and cancelled this iteration:
 - noise_std=0.2 with attention model
 - Investigate persistent rogue job spawning (6 dangling jobs in this iteration alone)
 
-**Ending commit**: (to be filled after commit)
+**Ending commit**: 4a8461d
 **Ending time**: 2026-05-04 03:25 EDT
