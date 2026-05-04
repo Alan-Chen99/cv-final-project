@@ -443,5 +443,5 @@ Eval: 932s (mult 20step) + 932s (none 20step) + 2326s (mult 50step) = ~70 min.
   - Multi-scale loss or perceptual loss
   - More ensemble members (currently M=10)
 
-**Ending commit**: (pending)
-**Ending time**: 2026-05-03 20:09 EDT
+**Ending commit**: d4dc199
+**Ending time**: 2026-05-03 20:12 EDT
