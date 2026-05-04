@@ -544,3 +544,15 @@ Time budget (4hr max, deadline ~07:54 EDT):
 - Job 13215649 (sbatch "flow-ema"), node2804: preempted after loading
 - Job 13216236 (concurrent worker salloc), node3619: running flow_downscale.py (not our experiment)
 - Job 13218106 (sbatch eval), node1633: ALL 3 EVALS COMPLETED in 29 min
+
+### End of Iteration 8
+**End time:** 2026-05-04 06:10 EDT
+**End commit:** 0c45bad
+**Duration:** ~2h 16m
+**GPU preemptions:** 3 training preemptions + 4 concurrent worker cancellations
+**Key achievement:** Proper GPU eval of v4 — confirms v2 (CRPS=0.093) is best model
+
+### Next Iteration Plan
+1. Full 10K test evaluation of v2 (definitive result)
+2. Write comprehensive final report
+3. Consider if concurrent worker's flow_downscale.py produces better results
