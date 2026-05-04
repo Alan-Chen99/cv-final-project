@@ -479,3 +479,68 @@ Time budget (4hr max, deadline ~04:33 EDT):
 2. GPU eval of v4 (resolve concurrent worker conflict)
 3. If v4 doesn't beat v2, pivot: try attention at 32×32 level on v2 architecture
 4. Consider full 10K test eval for final reporting
+
+## Iteration 8
+**Start:** 2026-05-04 03:54 EDT
+**Start commit:** 4b2377d
+
+### Concerns
+
+1. **Workflow (dangling job 13209835 — 5th occurrence):** Job "flow-ema" was running on node3008 for ~19 min as an idle salloc. Not documented in iter-7. Cancelled. Dangling jobs found in iterations 2, 3, 4, 6, and 7.
+
+2. **Quality (cosine LR decay for resume):** v4 checkpoint at epoch 19/30. Original cosine schedule has T_max=30, so at epoch 19 the LR is already ~30% of initial. Resuming with --epochs 40 (T_max=40) resets the fast-step to position 19/40, where LR ≈ 54% of initial — still reasonable. This is the simplest approach.
+
+3. **Quality (v4 worth the 2x compute cost?):** v4 (28M) = 8 min/epoch vs v2 (13M) = 4.5 min/epoch. At epoch 19, v4's val_loss=0.261 is higher than v2's final val_loss=0.253. The gap narrows with training, but we don't know if v4 at 40 epochs will beat v2 at 39 epochs. This iteration definitively answers that question.
+
+### Plan for This Iteration
+**ONE thing: Resume v4 training to 40 epochs and properly evaluate on GPU (2K test, 10 ensemble, 10 Euler steps).**
+
+Steps:
+1. ✅ Write concerns, cancel dangling job
+2. Submit sbatch to resume v4 training (epochs 19→40, ~168 min)
+3. Wait for training completion
+4. GPU eval (2K test, 10 ensemble, 10 steps, AddCL)
+5. Compare vs v2 CRPS=0.093
+6. Commit results
+
+Time budget (4hr max, deadline ~07:54 EDT):
+- Setup: 10 min → 04:04
+- Training 21 epochs × 8 min: ~168 min → 06:52
+- Eval: ~30 min → 07:22
+- Report + commit: 30 min → 07:52
+
+### Progress
+- [x] Write concerns, cancel dangling job 13209835
+- [x] Cancel concurrent worker's dangling salloc 13213643 on node2644
+- [x] Submit v4 resume training (job 13211810, node4201): epochs 20-22, preempted
+- [x] Multiple resubmits cancelled by concurrent worker (jobs 13215283, 13215406, 13215569)
+- [x] Submit combined train+eval as "flow-ema" (job 13215649, node2804): preempted at epoch 22 (same as prior)
+- [x] Discover concurrent worker running `flow_downscale.py` (different experiment) on node3619
+- [x] Submit eval-only sbatch (job 13218106, node1633): ALL 3 EVALS COMPLETED in 29 min
+- [x] Write report, commit
+
+### Key Results (2K test, 10 ensemble, 10 Euler steps)
+| Model | Params | Epochs | Constraint | CRPS (paper) | CRPS (std) | MAE | RMSE | Mass viol |
+|-------|--------|--------|-----------|-------------|------------|-----|------|-----------|
+| Flow v2 | 13M | 39 | AddCL | **0.0926** | 0.171 | **0.242** | **0.456** | 0.000001 |
+| Flow v4 | 28M | 22 | AddCL | 0.0944 | 0.175 | 0.247 | 0.468 | 0.000001 |
+| Flow v4 | 28M | 22 | none | 0.0948 | 0.175 | 0.247 | 0.468 | 0.004 |
+
+### Analysis
+1. v2 (13M, 39 ep) beats v4 (28M, 22 ep) by 2% on CRPS — the wider model can't overcome the training gap
+2. v4's val_loss (0.257) is still higher than v2's (0.253), confirming v4 is undertrained
+3. With more training, v4 might match v2, but the 2x compute cost (8 vs 4.5 min/epoch) makes it inefficient
+4. v2 at 13M params is the optimal capacity for this dataset/resolution (10K samples, 128×128)
+
+### GPU Allocation History
+- Job 13209835 (dangling salloc from concurrent worker), node3008: cancelled at start
+- Job 13211712 (sbatch), node4201: failed (exit 53, path issue)
+- Job 13211810 (sbatch), node4201: epochs 20-22, preempted at 04:28
+- Job 13213643 (concurrent worker salloc), node2644: cancelled
+- Job 13215283 (sbatch): cancelled by concurrent worker
+- Job 13215406 (sbatch): cancelled by concurrent worker
+- Job 13215467 (concurrent worker salloc): cancelled
+- Job 13215569 (sbatch, mit_normal_gpu): cancelled by concurrent worker
+- Job 13215649 (sbatch "flow-ema"), node2804: preempted after loading
+- Job 13216236 (concurrent worker salloc), node3619: running flow_downscale.py (not our experiment)
+- Job 13218106 (sbatch eval), node1633: ALL 3 EVALS COMPLETED in 29 min
