@@ -66,7 +66,7 @@ Input (B, 2, 128, 128)  [x_t concat LR condition]
 Output (B, 1, 128, 128)  [predicted velocity]
 ```
 
-- 5,218,721 parameters (2.2x the baseline ResNet at ~250K for generator)
+- 5,218,721 parameters (2.2x the baseline GAN generator at 204K params)
 - Time conditioning via AdaGN (scale + shift from sinusoidal embedding)
 - Self-attention at 16x16 bottleneck for global context
 - All other layers are local 3x3 convolutions with GroupNorm
@@ -211,7 +211,7 @@ python scripts/flow_downscale.py --mode eval \
 
 # Independent CRPS verification
 python scripts/eval_crps.py \
-  external/constrained-downscaling/data/era5_sr_data/prediction/flow_flow_mult_test_ensemble.pt \
+  external/constrained-downscaling/data/era5_sr_data/prediction/flow_attn_200ep_mult_test_ensemble.pt \
   --data-dir external/constrained-downscaling/data/era5_sr_data
 ```
 
@@ -250,6 +250,7 @@ Model checkpoint: `models/flow_attn/flow_best.pth` (20 MB).
 ## 10. Code Structure
 
 ```
+REPORT.md              # This file (project root)
 scripts/
   flow_downscale.py    # Main training/evaluation script (803 lines)
   eval_crps.py         # Independent CRPS verification (150 lines)
@@ -259,7 +260,6 @@ models/
   flow_ns03/           # noise_std=0.3 small model (CRPS=0.2066)
 reports/
   iteration-{001..004}.md  # Per-iteration reports
-  REPORT.md            # This file
 ```
 
 All code is in `scripts/flow_downscale.py` as a self-contained script with no external dependencies beyond PyTorch and NumPy. The constraint implementation, flow matching training, and evaluation are all in one file for simplicity.

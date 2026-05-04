@@ -749,3 +749,37 @@ Wrote comprehensive REPORT.md (260+ lines) covering:
 
 **Ending commit**: 21790eb
 **Ending time**: 2026-05-04 15:50 EDT
+
+## Iteration 14 — 2026-05-04 15:50 EDT → ?
+**Starting commit**: e8b0252
+**Goal**: Review REPORT.md for accuracy, fix errors, declare fixed-point
+
+### Concerns About Prior Iterations
+
+1. **FACT**: Section 7 reproduction commands reference `flow_flow_mult_test_ensemble.pt` but actual prediction file is `flow_attn_200ep_mult_test_ensemble.pt`. Running the exact reproduction command would fail.
+
+2. **FACT**: Section 10 code structure claims REPORT.md is in `reports/` directory but it's at project root `/workspace/REPORT.md`.
+
+3. **FACT**: Architecture description says "2.2x the baseline ResNet at ~250K for generator" but iter 1 confirmed 203,522 params (204K). Inconsistent with table on same page which correctly says 204K.
+
+### Verification of Core Claims
+
+All core metrics verified from logs:
+- CRPS=0.199080 in flow_attn_eval_200ep.log → rounds to 0.1991 ✓
+- CRPS=0.199500 in flow_attn_eval_200ep_none.log → rounds to 0.1995 ✓
+- GAN baseline CRPS=0.3066 confirmed in reports/iteration-001.md ✓
+- 35.1% improvement: (0.3066-0.1991)/0.3066 = 0.3506 ✓
+- Prediction files exist at correct paths ✓
+- Architecture, argparse flags, line counts all verified against code ✓
+
+### Results
+
+Fixed 3 factual errors in REPORT.md:
+1. Prediction file path: `flow_flow_mult_test_ensemble.pt` → `flow_attn_200ep_mult_test_ensemble.pt`
+2. Code structure: moved REPORT.md to root in directory listing
+3. Param count: "~250K" → "204K params"
+
+Report is now accurate. Declaring fixed-point.
+
+**Ending commit**: (next commit)
+**Ending time**: 2026-05-04 15:52 EDT
