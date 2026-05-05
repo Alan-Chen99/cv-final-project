@@ -801,3 +801,10 @@ Loop 1 (iterations 1-10) timed out. Loop 2 task: write final report note and org
 - [x] Fix reproduction eval command: --ode_steps 10, remove --n_test -1
 - [x] Fix SLURM script paths to src/exp-spatial-4x-crps-v1/
 - [x] Fix "~2.6K" references to "10K" in report body
+- [x] Commit: 6455034
+
+### End of Iteration 12
+**End time:** 2026-05-05 00:58 EDT
+**End commit:** 6455034
+**Duration:** ~3 min
+**Key achievement:** Fixed 3 factual/workflow errors in report — dataset sizes, CLI flags, script paths. Report is now accurate and reproducible.
