@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-03 to 2026-05-05
 **Task:** 32x32 -> 128x128 spatial downscaling of TCW (total column water), CRPS metric
-**Dataset:** Harder et al. `era5_sr_data` — 10K train, ~2.6K val, ~2.6K test samples
+**Dataset:** Harder et al. `era5_sr_data` — 40K train, 10K val, 10K test samples
 **Commits:** 392e62e (base) to 080e2b4 (HEAD of research2 branch)
 
 ## Best Result
@@ -26,10 +26,11 @@ python src/exp-spatial-4x-crps-v1/flow_matching_v2.py --mode train --epochs 40 -
 Evaluate (requires GPU, ~15min on A100):
 ```bash
 python src/exp-spatial-4x-crps-v1/flow_matching_v2.py --mode eval \
-    --n_ensemble 10 --split test --n_test -1 --steps 10 --constraint addcl
+    --n_ensemble 10 --split test --ode_steps 10 --constraint addcl
 ```
 
 Expected output: `CRPS (paper): 0.0942`, `Mass violation: 0.000001`
+Note: omitting `--max_samples` evaluates all 10K test samples.
 
 ## All Results
 
@@ -73,13 +74,13 @@ CRPS values use the paper-compatible asymmetric formula from Harder et al. (see 
 
 SmCL causes NaN — incompatible with flow matching (exp() on physical-space values overflows).
 
-### Full test set (Flow v2, all ~2.6K samples)
+### Full test set (Flow v2, all 10K samples)
 
 | Sampler | Steps | Constraint | CRPS | MAE | RMSE | Mass viol |
 |---------|-------|-----------|------|-----|------|-----------|
 | Euler | 10 | AddCL | **0.0942** | 0.2466 | 0.4583 | 0.000001 |
 
-The 2K subset (first 2000 samples) gives slightly lower CRPS (0.093 vs 0.094) — the remaining ~600 samples are marginally harder.
+The 2K subset (first 2000 of 10K samples) gives slightly lower CRPS (0.093 vs 0.094) — the remaining 8000 samples are marginally harder on average.
 
 ## Architecture
 

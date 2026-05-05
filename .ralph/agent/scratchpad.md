@@ -779,6 +779,25 @@ Loop 1 (iterations 1-10) timed out. Loop 2 task: write final report note and org
 
 ### End of Iteration 11
 **End time:** 2026-05-05 00:55 EDT
-**End commit:** (this commit)
+**End commit:** 46ed4ed
 **Duration:** ~5 min
 **Key achievement:** Report written, code organized, clean diff to base commit
+
+## Iteration 12 (Loop 2) — Review & Fix Report Errors
+**Start:** 2026-05-05 00:55 EDT
+**Start commit:** 46ed4ed (HEAD)
+
+### Concerns
+
+1. **Fact: Dataset sizes wrong in report.** Report says "10K train, ~2.6K val, ~2.6K test" — verified actual sizes are 40K train, 10K val, 10K test. The "full 10K test" header was correct but body text contradicted it with "~2.6K".
+
+2. **Workflow: Reproduction commands use non-existent flags.** Report says `--n_test -1 --steps 10` — the actual CLI flags are `--max_samples` (omit for all samples) and `--ode_steps 10`. Running the documented commands would fail with `unrecognized arguments`.
+
+3. **Workflow: SLURM scripts reference old paths.** `eval_v2_full.sh` and `train_flow_v2.sh` both reference `scripts/flow_matching_v2.py` — file was moved to `src/exp-spatial-4x-crps-v1/flow_matching_v2.py` in iter-11 but scripts weren't updated.
+
+### Progress
+- [x] Write concerns
+- [x] Fix dataset sizes in report: 40K/10K/10K
+- [x] Fix reproduction eval command: --ode_steps 10, remove --n_test -1
+- [x] Fix SLURM script paths to src/exp-spatial-4x-crps-v1/
+- [x] Fix "~2.6K" references to "10K" in report body

@@ -20,13 +20,13 @@ COMMON="--mode eval --n_ensemble 10 --eval_batch_size 32 --ode_steps 10 --sample
 echo "=========================================="
 echo "=== Full test: Euler 10, AddCL ==="
 echo "=========================================="
-python scripts/flow_matching_v2.py $COMMON --constraint addcl
+python src/exp-spatial-4x-crps-v1/flow_matching_v2.py $COMMON --constraint addcl
 echo ""
 
 echo "=========================================="
 echo "=== Full test: Euler 10, none ==="
 echo "=========================================="
-python scripts/flow_matching_v2.py $COMMON --constraint none
+python src/exp-spatial-4x-crps-v1/flow_matching_v2.py $COMMON --constraint none
 echo ""
 
 echo "=== FULL EVAL DONE: $(date) ==="

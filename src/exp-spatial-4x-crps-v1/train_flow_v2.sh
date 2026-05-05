@@ -11,5 +11,5 @@ source /home/chenxy/orcd/scratch/venvs/research2/bin/activate
 cd /home/chenxy/repos/workspace/research2
 
 echo "[$(date)] Starting flow v2 training on $(hostname)"
-python -u scripts/flow_matching_v2.py --mode train --epochs 40 --batch_size 64 --resume
+python -u src/exp-spatial-4x-crps-v1/flow_matching_v2.py --mode train --epochs 40 --batch_size 64 --resume
 echo "[$(date)] Training finished with exit code $?"
