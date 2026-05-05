@@ -85,6 +85,7 @@ hats:
       On `work.interrupted`: the prior agent didn't signal an event; if work cannot continue, declare fixed-point.
 
       Publish `work.iteration` if ANY change is made, publish `work.fixed-point` otherwise.
+      Fixed-point means ONLY `.ralph/` changes (scratchpad, memories, decisions). Doc updates, report updates, or any other file changes count as iteration, not fixed-point.
 
   # Summarizer is forced to complete the loop, potentially declare failure
   # Without this, loop by definition will always declare "success" which is not honest
