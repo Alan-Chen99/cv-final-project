@@ -35,6 +35,8 @@ core:
     - "Avoid polling: use /long-running-commands skill"
     - "Within an iteration, hold compute resources with `salloc`. Avoid talking to nodes you did not allocate. `scancel` all allocations before the next iteration."
     - "Do not send jobs to nodes not created by you — They are working on unrelated tasks."
+    - "Track ALL files in git — scratchpad, notes, intermediate results, everything. You can always delete later; untracked files are invisible to future iterations."
+    - "Allocations: generate a 2-word random prefix at the start of each run (e.g. `shuf -n2 /usr/share/dict/words | tr '\\n' '-' | tr '[:upper:]' '[:lower:]'`). Use this prefix for all salloc job names, temp dirs, and output files. Scope: one prefix per run chain (worker→worker→...→worker→summarizer). Persist the prefix in scratchpad.md. If you find dangling allocations matching your chain's prefix, they're yours — safe to kill."
 
 # Note: topics such as `build.done` and `review.done` are special-cased for evidence in ralph-orchestrator;
 # Detection is fragile though, so not used here
