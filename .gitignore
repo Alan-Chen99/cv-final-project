@@ -13,3 +13,5 @@ wheels/
 logs/
 models/
 scripts/*.sh.disabled
+models/
+logs/
