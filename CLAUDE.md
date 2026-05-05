@@ -76,12 +76,37 @@ These directions exploit the gap between the two disconnected lineages (see [not
 6. **Spatiotemporal extension**: Harder et al.'s FlowConvGRU was a first attempt at joint spatial-temporal SR. Video diffusion (STVD) is a more capable framework for this. Conservation constraints across time frames remain unexplored.
 7. **Extreme events**: WassDiff shows standard diffusion underestimates extremes. Wasserstein regularization or tail-aware losses could combine with hard constraints that already help in coastal/mountainous regions.
 
-# Downloaded data and weights (not in git)
+# Pool data (not in git)
 
-Located on `/home/chenxy/orcd/pool/datasets/` (pool disk, not HOME).
+Located on `/home/chenxy/orcd/pool/datasets/` (pool disk). Data MUST go here, never in `/workspace` or worktrees. Symlink into worktrees as needed.
+
+## Pool layout and access rules
+
+```
+pool/datasets/
+  era5_sr_data/        # 4 GB  — shared, read-only to agents
+  era5_sr_temporal/    # 12 GB — shared, read-only to agents
+  gendiff/             # shared, read-only to agents
+  wassdiff/            # shared, read-only to agents
+  corrdiff/            # shared, read-only to agents
+  <branch>/            # per-branch workspace (write-only to that branch)
+    predictions/
+    models/
+    ...
+```
+
+**Rules:**
+- **Read**: any agent can read from any path under `pool/datasets/`.
+- **Write**: agents may only write to `pool/datasets/<own-branch>/`. Create the directory if it doesn't exist.
+- **Missing shared data**: if a dataset is not in pool, download it to `pool/datasets/<own-branch>/` — not to the top-level shared dirs. Two branches downloading the same dataset concurrently will produce two copies; this is accepted overhead.
+- **After merge**: branch-specific paths persist in pool and remain accessible from master or other branches.
+
+## Shared datasets
 
 | Path | Size | Contents |
 |---|---|---|
+| `era5_sr_data/` | 4 GB | ERA5 TCW 4x SR dataset (40K/10K/10K, 32x32->128x128). Source: [Google Drive](https://drive.google.com/file/d/1IENhP1-aTYyqOkRcnmCIvxXkvUW2Qbdx) |
+| `era5_sr_temporal/` | 12 GB | ERA5 TCW temporal SR dataset |
 | `gendiff/weights/diffusion.pt` | 372 MB | GenDiff EDM diffusion checkpoint (from Git LFS) |
 | `gendiff/weights/unet.pt` | 372 MB | GenDiff UNet checkpoint (from Git LFS) |
 | `wassdiff/weights/wassdiff.pth` | 938 MB | WassDiff NCSN++ checkpoint (from HuggingFace YuhaoL/WassDiff) |

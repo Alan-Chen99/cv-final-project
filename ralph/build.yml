@@ -80,7 +80,7 @@ hats:
       - [ ] decisions.md, memories.md, scratchpad.md are populated
       - [ ] all changes committed or discarded: clean git when you leave
       - [ ] starting and ending commit, starting and ending wall-clock written to scratchpad.md
-      - [ ] CRITICAL: No dangling jobs. Check `ps -auxf`. `TaskStop` all tasks still alive. Not doing so causes the harness to hang indefinitely.
+      - [ ] CRITICAL: No dangling background commands. (This is NOT about GPU jobs from salloc/srun — it is about local bash commands auto-backgrounded by Claude Code's timeout.) Run `ps auxf` without any grep or filtering, and read the FULL output. Kill every process you don't recognize as essential (sleep, find, python, cp, mv, timeout, etc.) via `kill <pid>`. Not doing so causes the harness to hang indefinitely.
 
       On `work.interrupted`: the prior agent didn't signal an event; if work cannot continue, declare fixed-point.
 
