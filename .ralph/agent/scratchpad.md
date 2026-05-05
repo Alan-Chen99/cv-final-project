@@ -822,3 +822,15 @@ The user requests:
 - GAN baseline CRPS=0.3066: reproducible by running baseline code
 - Earlier iterations (2-6, 8): model dirs exist but may have been overwritten; mark as non-reproducible from weights
 - Valid commit for all scripts: 0433093 (last verified iteration)
+
+### Results
+
+Completed cleanup in one commit (75b1144):
+1. Created `notes/2026-05-02-flow-matching-downscaling.md` — self-contained note with full method, results, and reproducibility documentation
+2. Removed from git: REPORT.md, PROMPT.md, TASK_SUMMARY.md, reports/*, logs/*, models/flow_ns03/flow_config.pth, ralph/build.yml, auxiliary scripts
+3. Kept in git (new since 2d03959): note, scripts/flow_downscale.py, scripts/eval_crps.py, .ralph/*, .gitignore update
+4. Model weights remain on disk (not deleted), logs remain on disk (untracked)
+5. Added logs/ and models/ to .gitignore
+
+**Ending commit**: 75b1144
+**Ending time**: 2026-05-05 00:30 EDT
