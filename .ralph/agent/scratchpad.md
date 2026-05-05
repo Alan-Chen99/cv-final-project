@@ -89,6 +89,6 @@ The cross-comparison says research2's best = 0.171 (unbiased on 2K). In standard
 - Use Gneiting M² CRPS formula throughout (standard energy CRPS)
 
 ### End of Iteration 1
-**End**: 2026-05-05 17:30 EDT, commit: TBD (will update after commit)
+**End**: 2026-05-05 17:35 EDT, commit: f52047f
 **Duration**: ~1h 16min
 **GPU time**: ~40min training + ~15min eval = ~55min on L40S
