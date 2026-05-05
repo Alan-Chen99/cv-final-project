@@ -19,3 +19,12 @@ When time is about to end: stop, and write a report file tracked in git. Have su
 You should start with baseline (the methods in existing papers) and report these too.
 
 </request>
+
+<request added="start of loop2" from="user" commit="973f5c3" time="2026-05-05 00:21 EDT">
+
+Now: move the report to ./notes, make it self contained.
+Compared to `2d03959`, it should be one note added in `./notes` and important and useful code if any. generally all else removed, EXCEPT .ralph which will still stay in git after this step. Do not delete trained weights or other intermediates.
+
+All results in your note must document reproduction, and a valid commit up to HEAD that can be used with all needed scripts. Any metric that you cannot reproduce with the model weights here must be marked as such. Do not re-train: just ignore the results, if lost.
+
+</request>
