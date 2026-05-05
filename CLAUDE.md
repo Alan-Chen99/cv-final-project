@@ -96,6 +96,9 @@ IMPORTANT: prior agent notes MUST be taken as CONTEXT ONLY. Verify all claims be
 | 2026-04-27 | Foundation Models vs Task-Specific Downscaling: Two Disconnected Lineages | [notes/2026-04-27-foundation-models-vs-downscaling.md](notes/2026-04-27-foundation-models-vs-downscaling.md) |
 | 2026-04-29 | Paper Code, Weights & Compute Survey | [notes/2026-04-29-paper-code-weights-compute.md](notes/2026-04-29-paper-code-weights-compute.md) |
 | 2026-05-02 | CV Final Project Outline | [notes/2026-05-02-cv-project-outline.md](notes/2026-05-02-cv-project-outline.md) |
+| 2026-05-02 | Constrained Flow Matching for Climate Downscaling (research branch report) | [notes/2026-05-02-flow-matching-downscaling.md](notes/2026-05-02-flow-matching-downscaling.md) |
+| 2026-05-05 | Spatial 4x CRPS Experiment (research2 branch report) | [notes/2026-05-05-spatial-4x-crps-experiment.md](notes/2026-05-05-spatial-4x-crps-experiment.md) |
+| 2026-05-05 | Cross-Comparison: Flow Matching Experiments | [notes/2026-05-05-cross-comparison.md](notes/2026-05-05-cross-comparison.md) |
 
 # Papers
 
