@@ -783,3 +783,42 @@ Report is now accurate. Declaring fixed-point.
 
 **Ending commit**: 0433093
 **Ending time**: 2026-05-04 15:52 EDT
+
+---
+
+# Loop 2 — Cleanup and Final Note
+
+## Iteration 15 (Loop 2, Iter 1) — 2026-05-05
+**Starting commit**: ceeaa5c
+**Goal**: Move REPORT.md to ./notes as self-contained note, clean up tracked files
+
+### Plan
+
+The user requests:
+1. Move REPORT.md to `./notes/` as a self-contained note
+2. Keep only: the note, important code, and .ralph in git (vs base commit 2d03959)
+3. Don't delete trained weights or intermediates (they stay on disk, just not tracked)
+4. Document reproducibility — mark unreproducible metrics
+
+**Files to KEEP in git (new since 2d03959):**
+- `notes/2026-05-02-flow-matching-downscaling.md` — the report, moved and made self-contained
+- `scripts/flow_downscale.py` — main training/eval code (803 lines)
+- `scripts/eval_crps.py` — independent CRPS verification (150 lines)
+- `.ralph/agent/*` — orchestration state (explicitly kept per instructions)
+
+**Files to REMOVE from git tracking (git rm):**
+- `REPORT.md` — replaced by note in ./notes/
+- `PROMPT.md`, `TASK_SUMMARY.md` — orchestration artifacts
+- `reports/iteration-{001..004}.md` — per-iteration reports (absorbed into note)
+- `logs/*.log` — training/eval logs (stay on disk, not needed in git)
+- `models/flow_ns03/flow_config.pth` — small config (stay on disk)
+- `ralph/build.yml` — orchestration config
+- `scripts/eval_all.py`, `scripts/eval_aug*.sh`, `scripts/run_baselines.sh`, `scripts/train_*.sh` — auxiliary scripts
+
+**Reproducibility status:**
+- CRPS=0.1991 (best): weights at `models/flow_attn/flow_best.pth` ✓, predictions at `flow_attn_200ep_mult_test_ensemble.pt` ✓
+- CRPS=0.2066 (ns03): weights at `models/flow_ns03/flow_best.pth` ✓
+- CRPS=0.2002 (EMA): weights at `models/flow_ema/flow_best.pth` ✓
+- GAN baseline CRPS=0.3066: reproducible by running baseline code
+- Earlier iterations (2-6, 8): model dirs exist but may have been overwritten; mark as non-reproducible from weights
+- Valid commit for all scripts: 0433093 (last verified iteration)
