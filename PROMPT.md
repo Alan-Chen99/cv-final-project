@@ -13,8 +13,9 @@ Use the correct energy CRPS: `CRPS = E|X−y| − 0.5·E|X−X'|`. The `constrai
 Most iterations should spend ~2hrs to try models, tune parameters, research papers, and then 2hrs as the final run to get result (only do if useful; likely, after the first couple iterations).
 In general, choose under-explored / uncertain directions to attempt, rather than applying techniques that will likely help but by a very tiny amount. There are no penalties if you did very poorly for a iteration.
 
+MUST: Review loss graph, output samples, metrics, etc visually to guide research. Check key graphs and outputs into git.
 MUST: Each iteration finishes in 4hrs. All jobs in that iteration is stopped and cleanedup before you emit the result.
-MUST: You have up to **one** gpu node to use at any given time. This is not enforced externally: you must keep track yourself.
+MUST: You have up to **one** gpu node to use at any given time. I have a limit of 2 "normal" and 4 "preemptable"; Check squeue to decide to use normal or preemptable. This is not enforced externally: you must keep track yourself.
 
 Claude Code runs on **node1627** (CPU, preemptable — may be killed without notice, with very low probability; you do not need to account for this). GPU nodes must be allocated separately via `srun`/`salloc` on a GPU partition. The orchestration node (node1627) job expires at approximately **2026-05-07 10:00 EDT** (48h limit, started ~2026-05-05 10:00 EDT). Check `squeue --me` for remaining time. Avoid killing node1627 or nodes that are not spawned by you.
 
@@ -22,7 +23,9 @@ When time is about to end: stop, and write a report file tracked in git. Have su
 
 MUST: Agents should aim to finish all exploration/training by the **40-hour mark** (~8hr remaining on the allocation). After 40hr elapsed (approximately **2026-05-07 02:00 EDT**), no more new ideas or new training jobs. Instead, the remaining time must be spent on: evaluation of existing models, organizing data/artifacts, and writing and revising reports.
 
-You should start with baseline (the methods in existing papers) and report these too.
+Starting research direction (You change course dynamically to do better on the metric):
+Start by running best general image downscaling model(s) available zero-shot, evaluate. Evaluate other zero shot methods.
+Then, finetune general image models and evaluate.
 
 ### Prior findings
 
