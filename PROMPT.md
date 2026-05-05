@@ -21,3 +21,14 @@ When time is about to end: stop, and write a report file tracked in git. Have su
 You should start with baseline (the methods in existing papers) and report these too.
 
 </request>
+
+<request added="loop2, after loop1 timed out" from="user" commit="b26345a" time="2026-05-04 22:42 EDT">
+
+Request has been interrupted. Your task right now: write the report file with your findings.
+git diff to `392e62e` should be one note added in `./notes` and important and useful code if any. generally all else removed, EXCEPT .ralph which will still stay in git after this step. If keep, code and scripts move to `./src/exp-spatial-4x-crps-v1*`
+
+All results in your note must document reproduction, and a valid commit up to HEAD that can be used with all needed scripts. Any metric that you cannot reproduce with the model weights here must be marked as such. Do not re-train: just ignore the results, if lost.
+
+A turn that modified files other than `./ralph` is not fix-point; review and revise next turn.
+
+</request>
