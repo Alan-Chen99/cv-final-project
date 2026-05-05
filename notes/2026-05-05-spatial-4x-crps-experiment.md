@@ -3,7 +3,7 @@
 **Date:** 2026-05-03 to 2026-05-05
 **Task:** 32x32 -> 128x128 spatial downscaling of TCW (total column water), CRPS metric
 **Dataset:** Harder et al. `era5_sr_data` — 40K train, 10K val, 10K test samples
-**Commits:** 392e62e (base) to 080e2b4 (HEAD of research2 branch)
+**Commits:** 392e62e (base) onward on research2 branch
 
 ## Best Result
 
@@ -69,10 +69,11 @@ CRPS values use the paper-compatible asymmetric formula from Harder et al. (see 
 | Euler | 20 | 20 | AddCL | 0.0926 | 0.2444 | 0.4588 | 0.000001 |
 | Midpoint | 10 | 20 | AddCL | 0.0931 | 0.2467 | 0.4626 | 0.000001 |
 | Midpoint | 20 | 40 | AddCL | 0.0931 | 0.2471 | 0.4631 | 0.000001 |
-| Euler | 10 | 10 | none | 0.0926 | 0.2424 | 0.4558 | 0.004 |
-| Midpoint | 10 | 20 | none | 0.0931 | 0.2467 | 0.4624 | 0.004 |
+| Euler | 10 | 10 | none | 0.0926 | 0.2424 | 0.4554 | 0.0036 |
+| Midpoint | 10 | 20 | none | 0.0931 | 0.2467 | 0.4624 | 0.0035 |
 
 SmCL causes NaN — incompatible with flow matching (exp() on physical-space values overflows).
+Note: "Euler 10, none" row is from a separate eval run (`logs/flow_v2_eval.log`); all other rows from a single sweep (`logs/eval_v2_sweep_13221125.log`).
 
 ### Full test set (Flow v2, all 10K samples)
 

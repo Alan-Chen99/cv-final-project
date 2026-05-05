@@ -808,3 +808,38 @@ Loop 1 (iterations 1-10) timed out. Loop 2 task: write final report note and org
 **End commit:** 6455034
 **Duration:** ~3 min
 **Key achievement:** Fixed 3 factual/workflow errors in report — dataset sizes, CLI flags, script paths. Report is now accurate and reproducible.
+
+## Iteration 13 (Loop 2) — Final Review
+**Start:** 2026-05-05 01:02 EDT
+**Start commit:** 8c04168 (HEAD)
+
+### Concerns
+
+1. **Workflow: `scripts/gpu_run.py` change leaks into diff.** Requirement says diff to 392e62e should be "note + src code + .ralph" only. The `PYTHONUNBUFFERED=1` line added to `gpu_run.py` is a general infrastructure change, not experiment output. Reverted.
+
+2. **Fact: Eval sweep table RMSE for "Euler 10, none" is wrong.** Report said 0.4558, but `logs/flow_v2_eval.log` shows 0.455367 → rounds to 0.4554. Also this row is from a May 3 eval, not the May 4 sweep — now noted in report.
+
+3. **Fact: Report HEAD commit reference is stale.** Said "080e2b4 (HEAD)" but HEAD keeps changing. Changed to "onward on research2 branch" to avoid staleness.
+
+### Verification
+- All commits referenced in report exist: f4285e1 ✓, b26345a ✓, 0c45bad ✓
+- Model weights exist: models/flow_v2/best_flow.pt (157MB) ✓, norm_stats.pt ✓
+- CLI flags match code: --ode_steps ✓, --max_samples ✓
+- SLURM script paths match src/exp-spatial-4x-crps-v1/ ✓
+- Full 10K CRPS 0.094177 → report rounds to 0.0942 and 0.094 ✓
+- 2K sweep values verified against logs/eval_v2_sweep_13221125.log ✓
+- Diff to 392e62e: notes/ + src/exp-*/ + .ralph only ✓
+
+### Progress
+- [x] Revert scripts/gpu_run.py to base state
+- [x] Fix RMSE and mass_viol values for "Euler 10, none" row
+- [x] Add provenance note for mixed-source eval sweep
+- [x] Update HEAD commit reference to stable form
+- [x] Verify all report claims against logs
+- [x] Commit
+
+### End of Iteration 13
+**End time:** 2026-05-05 01:10 EDT
+**End commit:** (pending)
+**Duration:** ~8 min
+**Key achievement:** Final review pass — fixed RMSE error, cleaned gpu_run.py from diff, verified all report claims against logs.
