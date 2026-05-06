@@ -573,3 +573,66 @@ Fair comparison on SAME 100 test samples (indices 0-99), both on CPU:
 - Model capacity WAS the bottleneck — wider model helps despite fewer epochs
 
 **End:** 2026-05-06 17:15 EDT
+
+## Iteration 9
+**Start:** 2026-05-06 17:13 EDT, commit e31abaf
+**Run prefix:** hroi-guye
+
+### Orientation
+- Best model: UNet v2 wide96 (28.4M, base_channels=96), val_loss 0.243, trained 25ep
+- CPU eval (100 samples): wide96 CRPS 0.177 vs base64 CRPS 0.180 (1.8% better)
+- GPU eval on 10K test NOT yet completed — iter-8's sbatch was stuck in QOSMaxGRESPerUser
+- ~8.8hr before 40hr mark (~02:00 EDT). Still time for one more experiment if eval finishes quickly.
+- GPU queue congested: 2 other jobs using mit_normal_gpu slots, preemptable also backed up
+
+### Concerns (3+)
+
+1. **Workflow:** Iter-8 submitted GPU eval but it NEVER ran (stuck in queue). The sbatch job 13448200 was cancelled in this iteration. The CPU 100-sample eval gave a rough estimate but is noisy (5% gap vs GPU 10K numbers for base64). We MUST get the definitive 10K GPU eval before reporting.
+
+2. **Quality:** The wide96 model was trained with cosine LR T_max=40 but killed at epoch 25. LR was already ~0.000031 at termination — effectively zero for the last ~5 epochs. A properly-scheduled T_max=25 run would keep LR higher and likely train better. This is a low-hanging improvement IF we have time after eval.
+
+3. **Quality:** We have ~8.8hr before the 40hr cutoff. After eval (~25min GPU), there's time for one more training run (wide96 with T_max=25, ~2.5hr). But only if the GPU allocation comes through promptly. If queue wait eats too much time, should pivot to reporting.
+
+4. **Fact:** The 40hr mark is approximate (~02:00 EDT). The orchestration node job started ~2026-05-05 10:00 EDT. 40hr = 2026-05-07 02:00 EDT. Current: 17:13 EDT May 6 = ~31hr elapsed. So 9hr remain before 40hr cutoff.
+
+### Plan for this iteration
+**ONE thing:** Get definitive GPU eval of wide96 on 10K test with midpoint_5_addcl and euler_10_addcl.
+
+### GPU eval results (10K test, 10 ensemble, node3008)
+
+Sbatch job 13452309 (hroi-guye-eval), ran 18:21-19:51 EDT.
+
+**Wide96 (28.4M params, 25 epochs, base_channels=96):**
+
+| Config | CRPS | RMSE | MAE | Mass Viol | Time |
+|--------|------|------|-----|-----------|------|
+| **midpoint_5_addcl** | **0.167641** | 0.450211 | 0.243972 | 0.000001 | 2708s |
+| euler_10_addcl | 0.169800 | 0.444653 | 0.240314 | 0.000001 | 2711s |
+
+**Comparison: all research3 models (10K test, midpoint_5_addcl, 10 ensemble):**
+
+| Model | Params | Epochs | CRPS | RMSE | MAE | Key change |
+|-------|--------|--------|------|------|-----|-----------|
+| **UNet v2 wide96** | 28.4M | 25 | **0.1676** | 0.450 | 0.244 | 96ch, wider |
+| UNet v2 base64 | 13.1M | 40 | 0.1709 | 0.461 | 0.249 | 64ch baseline |
+| UNet v2 base64 (euler) | 13.1M | 40 | 0.1731 | 0.455 | 0.245 | euler solver |
+| UNet v2 fine-tuned | 13.1M | 30 | 0.177 | 0.474 | 0.251 | logit→uniform |
+| UNet v2 logit-normal | 13.1M | 26 | 0.179 | 0.498 | 0.257 | logit-normal t |
+| U-ViT | 16.5M | 200 | 0.194 | 0.533 | 0.274 | pure transformer |
+| DiT | 14.6M | 200 | 0.195 | 0.540 | 0.276 | pure transformer |
+| GAN baseline | 204K | — | 0.307 | 0.618 | 0.307 | original paper |
+
+**Key findings:**
+1. **Wide96 is the new best: CRPS 0.1676** — 1.9% better than base64 (0.1709)
+2. All metrics improved: RMSE -2.4%, MAE -2.0%
+3. CPU eval prediction was accurate: predicted ~0.168, actual 0.1676
+4. Midpoint solver still beats Euler for CRPS (0.1676 vs 0.1698) at same NFE
+5. Model capacity WAS the bottleneck — confirmed by GPU eval
+6. Wide96 achieves this despite 37% fewer epochs (25 vs 40) and suboptimal LR schedule (T_max=40 vs 25)
+
+**Next directions (for future iterations):**
+- Wide96 with T_max=25 (proper LR schedule) — likely better
+- More epochs for wide96 (val_loss still decreasing at epoch 25)
+- Even wider? Diminishing returns likely at 2hr budget
+
+**End:** 2026-05-06 19:55 EDT

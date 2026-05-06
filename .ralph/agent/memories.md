@@ -4,9 +4,9 @@
 
 ## Decisions
 
-### mem-1778098643-2090
-> Wider UNet v2 (base_channels=96, 28.4M params) achieves val_loss 0.2432 in 25ep vs base (base_channels=64, 13.1M) val_loss 0.2518 in 40ep — 3.4% better despite 37% fewer epochs. Model capacity was the bottleneck for the base model. ~5.9 min/ep on L40S with AMP (vs ~3.5 for base). Checkpoint at pool/datasets/research3/models/unet_wide96_amp/best_flow.pt. CRPS not yet evaluated.
-<!-- tags: flow-matching, architecture, capacity | created: 2026-05-06 -->
+### mem-1778111794-9bd1
+> Wide96 UNet v2 (base_channels=96, 28.4M params, 25ep) achieves CRPS 0.1676 on 10K test (midpoint_5_addcl, 10 ensemble) — 1.9% better than base64 (0.1709). Also RMSE 0.450 (vs 0.461), MAE 0.244 (vs 0.249). Model capacity was the bottleneck. Trained with cosine LR T_max=40 but killed at ep25 (suboptimal schedule). Checkpoint at pool/datasets/research3/models/unet_wide96_amp/best_flow.pt.
+<!-- tags: flow-matching, architecture, capacity, crps | created: 2026-05-06 -->
 
 ### mem-1778084896-80d9
 > Midpoint ODE solver (2nd-order RK) with 5 steps improves CRPS by 1.3% over Euler 10 steps for flow matching inference at same NFE cost (10 evaluations). Tested on UNet v2 with 10K test, 10 ensemble. midpoint_5_addcl CRPS=0.1709 vs euler_10_addcl CRPS=0.1731. More midpoint steps (10) don't help further. SmCL constraint produces NaN on residual models (exp overflow). TTA hurts when model not trained with augmentation.
