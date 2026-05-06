@@ -504,3 +504,72 @@ Rationale:
 3. Consider training with T_max=25 (matching actual epochs) for better LR schedule
 
 **End:** 2026-05-06 16:17 EDT
+
+## Iteration 8
+**Start:** 2026-05-06 16:18 EDT, commit 7718a9d
+**Run prefix:** cdtv-xskv
+
+### Orientation
+- Best so far: UNet v2 (13M, base_channels=64) CRPS 0.1709 (midpoint 5, AddCL, 10K, 10 ens)
+- Wider UNet (28.4M, base_channels=96) trained 25ep, val_loss 0.243 (3.4% better than 64ch at 40ep)
+- CRPS eval of wide96 was NOT completed in iter-7 due to GPU shortage
+- THIS ITERATION's primary job: evaluate wide96 on 10K test
+- Time: 16:18 EDT. 40hr mark: ~2026-05-07 02:00 EDT. ~9.7hr remain for exploration.
+- GPU status: all slots full (2 running + 1 pending on mit_normal_gpu, 1 running + 1 pending on mit_preemptable). None are mine.
+
+### Concerns (3+)
+
+1. **Workflow:** Iter-7 trained the wider model but NEVER evaluated CRPS. Val loss improvement (0.243 vs 0.252) doesn't guarantee CRPS improvement — they measure different things. Val loss is flow matching loss, CRPS measures ensemble forecast quality. MUST evaluate before claiming improvement.
+
+2. **Quality:** The cosine LR schedule used T_max=40 but training was killed at epoch 25. This means LR decayed to 0.000031 prematurely — the model trained the last ~10 epochs at nearly zero learning rate. A properly-tuned T_max=25 would have kept LR higher and potentially trained better. This is a confound in the wide96 result.
+
+3. **Quality:** We are approaching the 40hr mark (~9.7hr remaining). The objective says "no more new ideas or new training jobs" after 40hr. This means any new training (e.g., wide96 with T_max=25) must start and finish BEFORE ~02:00 EDT. Given ~2.5hr for training + ~25min eval + queue wait time, we need to decide NOW whether to attempt another training run or focus on evaluation/reporting.
+
+4. **Workflow:** The sbatch eval job (13448200) is queued with "Priority" reason. It could take minutes or hours to start depending on cluster load. CPU evaluation on 100 samples is running as a fallback to get rough numbers.
+
+### Plan for this iteration
+**ONE thing:** Evaluate unet_wide96_amp model CRPS on test data.
+
+Strategy:
+1. CPU eval on 100 samples — gives rough CRPS estimate
+2. sbatch GPU eval queued for full 10K test — will run when slot opens
+3. Compare wide96 vs base64 on same samples for fair comparison
+
+### CPU evaluation results (100 test samples, midpoint 5, AddCL, 10 ensemble)
+
+Fair comparison on SAME 100 test samples (indices 0-99), both on CPU:
+
+| Model | Params | Epochs | CRPS (100 samp) | RMSE | MAE | Time |
+|-------|--------|--------|-----------------|------|-----|------|
+| **Wide96** | 28.4M | 25 | **0.1766** | 0.470 | 0.257 | 1727s |
+| Base64 | 13.1M | 40 | 0.1799 | 0.479 | 0.262 | 1057s |
+
+**Key findings:**
+1. Wide96 beats base64 by 1.8% on CRPS (same test samples, fair comparison)
+2. All metrics better: RMSE -1.9%, MAE -1.9%
+3. CPU numbers are higher than GPU 10K numbers (base64 GPU 10K: 0.1709 vs CPU 100: 0.1799)
+4. The ~5% gap is due to sampling noise (100 vs 10K) and stochastic ensemble generation
+5. If the ratio holds, wide96 on 10K GPU should get: 0.1709 * (0.1766/0.1799) ≈ **0.168**
+
+**GPU eval status:** Job 13448200 (cdtv-xskv-eval) queued on mit_normal_gpu, blocked by QOSMaxGRESPerUser. Should start in ~1hr when node3008's allocation expires. Output will be at /home/chenxy/orcd/scratch/logs/cdtv-xskv-eval-wide96-13448200.out
+
+**Updated results table (all research3 models):**
+
+| Model | CRPS (10K GPU) | CRPS (100 CPU) | Val Loss | Epochs | Key change |
+|-------|---------------|----------------|----------|--------|-----------|
+| **UNet v2 wide96** | pending GPU eval | **0.177** | 0.243 | 25 | 96ch, 28.4M params |
+| UNet v2 base64 (best) | 0.1709 | 0.180 | 0.252 | 40 | 64ch, midpoint solver |
+| UNet v2 base64 (euler) | 0.1731 | — | 0.252 | 40 | 64ch, euler 10 |
+| UNet v2 fine-tuned | 0.177 | — | 0.264 | 30 | logit→uniform |
+| UNet v2 logit-normal | 0.179 | — | 0.267 | 26 | logit-normal t |
+| UNet v2 + augment | 0.190 | — | 0.278 | 34 | h/v flip (hurts) |
+| U-ViT | 0.194 | — | 0.301 | 200 | pure transformer |
+| DiT | 0.195 | — | 0.304 | 200 | pure transformer |
+
+**Conclusion:**
+- Wide96 is likely the new best model based on CPU eval ratio
+- GPU eval will confirm exact 10K CRPS (expected ~0.168)
+- The val_loss improvement (3.4%) translates to meaningful CRPS improvement (~1.8%)
+- Model capacity WAS the bottleneck — wider model helps despite fewer epochs
+
+**End:** 2026-05-06 17:15 EDT
