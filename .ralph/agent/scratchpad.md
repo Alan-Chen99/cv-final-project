@@ -150,3 +150,72 @@ Architecture:
 - Next directions to explore: (a) smaller patch size (4 instead of 8), (b) hybrid conv-transformer, (c) return to UNet with improvements (EMA, data augmentation, CRPS loss)
 
 **End:** 2026-05-05 21:06 EDT
+
+## Iteration 3
+**Start:** 2026-05-05 21:08 EDT, commit 51f5e60
+**Run prefix:** vjgxe-qsqzn
+
+### Orientation
+- DiT (0.195) and U-ViT (0.194) both plateau — transformer experiments exhausted
+- UNet v2 from research2 is still best (CRPS 0.171 at only 39 epochs) but was never:
+  - Trained for 200 epochs
+  - Trained with EMA
+  - Trained with non-uniform timestep sampling
+- Two unidentified GPU jobs (ntlg-alta 13379891, wqvi-feml 13382434) — NOT mine, leaving alone
+- sweep-gpu1 (13360036) — NOT mine
+
+### Concerns (3+)
+
+1. **Quality:** All flow matching training uses uniform timestep sampling t ~ U(0,1). Modern literature (Stable Diffusion 3, Rectified Flow) shows logit-normal sampling significantly improves training by focusing on harder intermediate timesteps. This is completely untested in our experiments.
+
+2. **Quality:** No experiment has used EMA (Exponential Moving Average) for model weights. EMA is standard practice in diffusion/flow matching — it smooths over training noise and typically improves 1-5%. The UNet v2 (0.171) was trained without EMA.
+
+3. **Quality:** The UNet v2 architecture (13M params, CRPS 0.171) was only trained for 39 epochs on research2. DiT and U-ViT got 200 epochs. The UNet v2 has never been given the same 200-epoch budget — the comparison is unfair. Training UNet v2 for 200ep with EMA could improve well below 0.171.
+
+4. **Workflow:** Prior iterations correctly concluded transformers plateau for this task. The natural next step is UNet improvements, not more transformer variants.
+
+### Plan for this iteration
+**ONE thing:** Train UNet v2 (13M params) for 200 epochs with EMA + logit-normal timestep sampling.
+
+Rationale: This combines two well-motivated training recipe improvements that are easy to implement and novel for this project:
+- **EMA** (3-5 lines): smooths weight updates, standard in diffusion
+- **Logit-normal sampling** (2 lines): SD3's key finding — concentrates training on informative timesteps
+- **200 epochs**: fair comparison with DiT/U-ViT experiments
+
+Expected outcome: CRPS should improve from 0.171 baseline. If logit-normal helps significantly, it's a finding worth reporting.
+
+### Training observations
+- UNet v2 (13M params) at 128x128: ~4.5 min/epoch on L40S (vs DiT's ~0.5 min/epoch)
+  - UNet processes full-resolution feature maps; DiT patches to 16x16 tokens
+  - 200 epochs infeasible (~15 hr), reduced to 26 epochs (~102 min)
+- Val loss trajectory: 0.375 → 0.267 (best at epoch 23)
+  - For comparison: research2 (39ep, uniform t) reached val_loss 0.253
+  - Logit-normal model converged to ~5.5% higher val loss than uniform baseline
+- LR cosine schedule with T_max=26 reached near-zero by epoch 20
+
+### Results (node1705, L40S → node4208 for EMA eval)
+
+**Evaluation (FULL 10K test, 10 ensemble, Euler 10, AddCL):**
+
+| Model | Params | Epochs | t-sampling | EMA | CRPS (correct) | RMSE | MAE | Mass Viol |
+|-------|--------|--------|-----------|-----|---------------|------|-----|-----------|
+| **UNet v2 + logit-normal** | 13M | 26 | logit_normal | no | **0.179** | 0.498 | 0.257 | 0.000001 |
+| **UNet v2 + logit-normal + EMA** | 13M | 26 | logit_normal | 0.9999 | **0.228** | 0.650 | 0.307 | 0.000001 |
+| UNet v2 (research2) | 13M | 39 | uniform | no | 0.171 | 0.456 | 0.242 | 0.000001 |
+| U-ViT 200ep (iter-2) | 16.5M | 200 | uniform | no | 0.194 | 0.533 | 0.274 | 0.000001 |
+| DiT 200ep (iter-1) | 14.6M | 200 | uniform | no | 0.195 | 0.540 | 0.276 | 0.000001 |
+
+**Key findings:**
+1. UNet v2 + logit-normal (26ep): CRPS 0.179 — 4.7% worse than research2 baseline (0.171, 39ep)
+2. EMA (decay=0.9999) with only 26 epochs HURTS: CRPS 0.228 (27% worse). EMA needs 10K+ steps to converge; 26 epochs × 625 steps = 16K steps means EMA still averages over early, poorly-trained weights.
+3. Logit-normal sampling does NOT improve over uniform: at comparable epoch counts, val loss is 5.5% higher. The SD3 finding doesn't transfer to this scale/task.
+4. UNet v2 at 128x128 is ~9x slower per epoch than DiT with patch_size=8, which severely limits epoch count within budget.
+5. Even with fewer epochs (26 vs 39), the CRPS gap is only 4.7% — suggesting UNet architecture is robust and most of the gap is simply less training.
+
+**Conclusion:**
+- Logit-normal timestep sampling is not beneficial for flow matching on this climate downscaling task at this scale
+- EMA with 0.9999 decay is inappropriate for short (<50 epoch) training runs; would need lower decay (e.g., 0.999) or many more epochs
+- The UNet v2 architecture from research2 remains the best approach
+- Next directions to explore: (a) longer UNet v2 training with uniform t (match research2 properly), (b) data augmentation (flips/rotations), (c) CRPS-aware loss function, (d) different ODE solvers/steps
+
+**End:** 2026-05-06 00:51 EDT

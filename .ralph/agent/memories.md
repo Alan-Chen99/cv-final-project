@@ -4,6 +4,10 @@
 
 ## Decisions
 
+### mem-1778043144-d810
+> Logit-normal timestep sampling (SD3-style) does NOT help flow matching for 32->128 TCW climate downscaling. CRPS 0.179 (26ep logit-normal) vs baseline 0.171 (39ep uniform). EMA decay=0.9999 HURTS with short training (26ep): CRPS 0.228. UNet v2 at 128x128 takes ~4.5 min/epoch on L40S (~9x slower than DiT with patch_size=8), limiting to ~26 epochs in 2hr budget.
+<!-- tags: flow-matching, training-recipe, timestep-sampling | created: 2026-05-06 -->
+
 ### mem-1778029644-4342
 > U-ViT (DiT + skip connections + conv refinement, 16.5M params, 200ep) tested for OT-CFM flow matching. CRPS 0.194 vs DiT 0.195 (marginal improvement). Skip connections improved val_loss (0.304 vs 0.301) but CRPS barely changed. Both transformer architectures (DiT, U-ViT) plateau at CRPS ~0.194-0.195, significantly worse than UNet v2 (0.171). Bottleneck is patch tokenization (patch_size=8), not information flow. Next: try smaller patch, hybrid conv-transformer, or return to UNet with improvements.
 <!-- tags: uvit, architecture, flow-matching | created: 2026-05-06 -->

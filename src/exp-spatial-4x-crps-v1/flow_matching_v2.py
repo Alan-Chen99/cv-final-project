@@ -11,6 +11,7 @@ Usage:
 """
 
 import argparse
+import copy
 import math
 import os
 import time
@@ -181,6 +182,41 @@ class AttentionUNet(nn.Module):
         return self.final_conv(F.silu(self.final_norm(h)))
 
 
+# ---------- EMA ----------
+
+class EMA:
+    """Exponential Moving Average of model parameters."""
+    def __init__(self, model, decay=0.9999):
+        self.decay = decay
+        self.shadow = copy.deepcopy(model)
+        self.shadow.eval()
+        for p in self.shadow.parameters():
+            p.requires_grad_(False)
+
+    @torch.no_grad()
+    def update(self, model):
+        for s_param, m_param in zip(self.shadow.parameters(), model.parameters()):
+            s_param.data.mul_(self.decay).add_(m_param.data, alpha=1 - self.decay)
+
+    def state_dict(self):
+        return self.shadow.state_dict()
+
+    def load_state_dict(self, state_dict):
+        self.shadow.load_state_dict(state_dict)
+
+
+# ---------- Timestep sampling ----------
+
+def sample_timesteps_uniform(batch_size, device):
+    return torch.rand(batch_size, device=device)
+
+
+def sample_timesteps_logit_normal(batch_size, device, mean=0.0, std=1.0):
+    """Logit-normal distribution (from SD3). Concentrates on intermediate t."""
+    u = torch.randn(batch_size, device=device) * std + mean
+    return torch.sigmoid(u)
+
+
 # ---------- Data loading ----------
 
 def load_tcw4_data(basedir, split='train'):
@@ -336,6 +372,20 @@ def train(args):
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-5)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
 
+    # EMA
+    use_ema = getattr(args, 'use_ema', False)
+    ema_decay = getattr(args, 'ema_decay', 0.9999)
+    ema = None
+
+    # Timestep sampling
+    t_sampling = getattr(args, 't_sampling', 'uniform')
+    t_logit_mean = getattr(args, 't_logit_mean', 0.0)
+    t_logit_std = getattr(args, 't_logit_std', 1.0)
+    print(f"Timestep sampling: {t_sampling}" +
+          (f" (mean={t_logit_mean}, std={t_logit_std})" if t_sampling == 'logit_normal' else ''))
+    if use_ema:
+        print(f"EMA enabled: decay={ema_decay}")
+
     best_val_loss = float('inf')
     start_epoch = 0
 
@@ -363,6 +413,18 @@ def train(args):
                 scheduler.step()
             print(f"Resumed from epoch {start_epoch}, best val loss: {best_val_loss:.6f}")
 
+    # Initialize EMA after potential resume
+    if use_ema:
+        ema = EMA(model, decay=ema_decay)
+        if args.resume and os.path.exists(ckpt_path) and 'ema' in ckpt:
+            ema.load_state_dict(ckpt['ema'])
+            print("Loaded EMA state from checkpoint")
+
+    def _sample_t(bs, dev):
+        if t_sampling == 'logit_normal':
+            return sample_timesteps_logit_normal(bs, dev, t_logit_mean, t_logit_std)
+        return sample_timesteps_uniform(bs, dev)
+
     start_time = time.time()
 
     for epoch in range(start_epoch, args.epochs):
@@ -373,7 +435,7 @@ def train(args):
             res_batch = res_batch.to(device)
 
             bs = lr_batch.shape[0]
-            t = torch.rand(bs, device=device)
+            t = _sample_t(bs, device)
             x_0 = torch.randn_like(res_batch)
             t_expand = t[:, None, None, None]
             x_t = (1 - t_expand) * x_0 + t_expand * res_batch
@@ -387,12 +449,15 @@ def train(args):
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
 
+            if ema is not None:
+                ema.update(model)
+
             train_loss += loss.item()
 
         train_loss /= len(train_loader)
         scheduler.step()
 
-        # Validation
+        # Validation (always uniform t for comparability)
         model.eval()
         val_loss = 0
         with torch.no_grad():
@@ -415,13 +480,27 @@ def train(args):
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save({
+            save_dict = {
                 'model': model.state_dict(),
                 'optimizer': optimizer.state_dict(),
                 'epoch': epoch,
                 'val_loss': val_loss,
                 'args': vars(args),
-            }, os.path.join(args.save_dir, 'best_flow.pt'))
+            }
+            if ema is not None:
+                save_dict['ema'] = ema.state_dict()
+            torch.save(save_dict, os.path.join(args.save_dir, 'best_flow.pt'))
+
+    # Save final EMA separately for evaluation
+    if ema is not None:
+        torch.save({
+            'model': ema.state_dict(),
+            'epoch': args.epochs - 1,
+            'val_loss': val_loss,
+            'args': vars(args),
+            'is_ema': True,
+        }, os.path.join(args.save_dir, 'best_flow_ema.pt'))
+        print(f"Saved EMA model to {args.save_dir}/best_flow_ema.pt")
 
     print(f"\nTraining complete. Best val loss: {best_val_loss:.6f}")
     print(f"Total time: {(time.time() - start_time)/60:.1f} min")
@@ -558,6 +637,14 @@ if __name__ == "__main__":
     parser.add_argument("--base_channels", type=int, default=64)
     parser.add_argument("--channel_mults", type=str, default="1,2,4")
     parser.add_argument("--attn_heads", type=int, default=4)
+    # EMA
+    parser.add_argument("--use_ema", action="store_true")
+    parser.add_argument("--ema_decay", type=float, default=0.9999)
+    # Timestep sampling
+    parser.add_argument("--t_sampling", default="uniform",
+                        choices=["uniform", "logit_normal"])
+    parser.add_argument("--t_logit_mean", type=float, default=0.0)
+    parser.add_argument("--t_logit_std", type=float, default=1.0)
     # Eval args
     parser.add_argument("--n_ensemble", type=int, default=10)
     parser.add_argument("--eval_batch_size", type=int, default=32)
