@@ -118,5 +118,5 @@ Finetuning actually made SwinIR WORSE than zero-shot (0.285 vs 0.279). Confirms 
 - The residual formulation itself is sound; the bottleneck is model capacity and training recipe
 - Alternative direction: try to use the research2 model directly if weights exist on this branch
 
-**End:** 2026-05-06 06:48 EDT
-**End commit:** (pending)
+**End:** 2026-05-06 06:50 EDT
+**End commit:** 8290f26
