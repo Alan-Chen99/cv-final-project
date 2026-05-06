@@ -256,4 +256,4 @@ Implemented minibatch OT coupling with GPU-based cost matrix + CPU Hungarian alg
 - Best model for now: flow_residual (9.1M, 100ep) with 20 Euler steps + AddCL → CRPS 0.232
 
 **End:** 2026-05-06 14:32 EDT
-**End commit:** (pending)
+**End commit:** 65471f4
