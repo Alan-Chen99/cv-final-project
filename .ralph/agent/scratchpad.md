@@ -262,3 +262,98 @@ This is a proper scoring rule: rewards accuracy AND calibrated spread.
 
 **Ending time:** 11:13 EDT
 **Ending commit:** 370dc74
+
+## Iteration 5 — 2026-05-06 11:14 EDT
+**Starting commit:** 0658fa6
+**Run prefix:** abif-qkbf
+
+### Current State
+- Time: ~25hr elapsed. ~15hr to 40hr mark (2026-05-07 02:00 EDT). Good budget.
+- GPU: no active allocation from this branch. Several other branch jobs running.
+- squeue: 2 normal used (limit 2), 2 preemptable GPU + 1 CPU (limit 4). Can allocate 1 preemptable.
+- Best CRPS: 0.183 (multi-head SwinIR, ceiling confirmed across 3 experiments)
+- Target: OT-CFM CRPS=0.171
+
+### Concerns (3+ problems)
+
+1. **Quality: Multi-head CRPS ceiling at 0.183 — fundamentally limited.** Three experiments (direct, residual, unfrozen) all converge to identical CRPS=0.183. The K independent heads sharing features produce unstructured pixel-level diversity (spread=0.272 > MAE=0.250). This architecture cannot produce calibrated, structured uncertainty.
+
+2. **Workflow: Never combined SwinIR backbone with flow matching.** The two strongest approaches discovered so far — SwinIR deterministic (MAE=0.250) and OT-CFM stochastic (CRPS=0.171) — have never been combined. CorrDiff (the state of the art in climate downscaling) uses exactly this two-stage approach: deterministic mean + diffusion residuals.
+
+3. **Quality: Flow matching produces fundamentally different diversity than multi-head.** Multi-head learns K fixed functions from shared features → unstructured diversity. Flow matching learns the full residual distribution → can sample arbitrary K with spatially structured diversity. This is the key difference that could break the 0.183 ceiling.
+
+### Direction: CorrDiff-style Residual Flow Matching
+
+**Architecture:**
+1. Frozen finetuned SwinIR → deterministic mean prediction (MAE=0.250)
+2. Precompute residuals: r = hr_true - swinir_pred on training data
+3. Train FlowUNet on residuals, conditioned on LR (bicubic upsampled)
+4. At inference: sample_k = swinir_pred + flow_residual_k
+
+**Why this should work:**
+- CorrDiff principle: separating mean from stochastic detail is the right decomposition
+- Residual distribution is simpler than full HR → easier to learn with small model
+- Flow matching produces continuous distribution, not K discrete points
+- Can sample any K at test time (not limited to training-time K)
+
+**FlowUNet config:**
+- channels=(64,128,256) with attention at 16x16 → 9.1M params
+- Standard Gaussian noise source
+- 20 Euler steps at inference
+- EMA decay=0.999
+
+### Training Log
+- 11:20 — GPU allocation: tried preemptable (Priority wait), then normal (QOSMaxCpuPerUserLimit), then preemptable H100 → node2640
+- 11:24 — Precompute SwinIR predictions: train/val/test residuals. Stats: mean≈0, std=0.0035, range[-0.28, 0.35]
+- 11:26 — Training started: 9.1M params, BS=64, LR=2e-4, cosine T_max=49
+- 13:26 — Training complete: 184 epochs in 120.4 min (H100), best val=0.001588
+- 13:26 — Eval attempt on node2640 hung (other users' CPU processes saturating node)
+- 13:48 — Cancelled node2640, got A100 on node2319
+- 13:53 — Eval started (with PYTHONUNBUFFERED=1)
+- 14:15 — Eval complete (20 steps): CRPS=0.212, MAE=0.264
+- 14:17 — Eval with 50 steps started
+- 15:10 — Eval complete (50 steps): CRPS=0.207, MAE=0.266
+- 15:12 — GPU cancelled
+
+### Results: Residual Flow Matching (10K test)
+| Method | CRPS | MAE | RMSE | Spread | Mass Viol |
+|--------|------|-----|------|--------|-----------|
+| ResFlow 20 steps | 0.212 | 0.264 | 0.488 | 0.208 | 0.015 |
+| ResFlow 50 steps | 0.207 | 0.266 | 0.492 | 0.249 | 0.015 |
+| ResFlow 20 + AddCL | 0.212 | 0.263 | 0.488 | 0.203 | 0.000001 |
+| ResFlow 50 + AddCL | 0.207 | 0.265 | 0.491 | 0.244 | 0.000001 |
+| Multi-Head K=8 (iter 2) | **0.183** | 0.250 | 0.482 | 0.272 | 0.005 |
+| OT-CFM (research2) | **0.171** | 0.247 | 0.458 | — | 0.000001 |
+
+### Analysis: Negative Result — Gaussian-Source Flow on Concentrated Residuals Fails
+
+**The residual flow matching approach produces CRPS=0.207-0.212, significantly worse than multi-head SwinIR (0.183).**
+
+**Root cause: Source-target distribution mismatch.**
+- Residual std = 0.0035 in normalized space
+- Gaussian source std = 1.0
+- Compression ratio: ~285x
+- The flow must learn to compress N(0,1) to N(0, 0.0035) — an extremely long transport path
+- Even small velocity field errors accumulate over this large transport, biasing the output
+
+**Evidence of mean corruption:**
+- SwinIR deterministic MAE = 0.250
+- After adding flow residuals: MAE = 0.264 (+6%)
+- The flow adds biased residuals that corrupt the mean
+- Ensemble mean of (swinir_pred + flow_residual) should be ≈ swinir_pred if flow is accurate, but it's not
+
+**50 vs 20 steps: minimal improvement (0.207 vs 0.212)**
+- More steps increase spread (0.249 vs 0.208) but worsen MAE (0.266 vs 0.264)
+- The issue is not ODE accuracy but model accuracy
+
+### Key Insight
+CorrDiff works because the residual distribution has reasonable variance relative to the noise source. In our case, the SwinIR predictions are too accurate — the residuals are tiny. Standard flow matching from N(0,1) cannot accurately model such concentrated targets.
+
+### Implications for Next Iterations
+1. **If using flow on residuals: MUST use LR-anchored source** — start from small noise (std=0.01), not N(0,1). Short transport path.
+2. **Or train flow on full HR distribution** (like OT-CFM does), using SwinIR backbone features as conditioning
+3. **Or try noise-conditioned SwinIR** — inject noise directly into the SwinIR forward pass
+4. **The multi-head approach (CRPS=0.183) remains the best SwinIR-based result**
+
+**Ending time:** 15:12 EDT
+**Ending commit:** (to be filled after commit)

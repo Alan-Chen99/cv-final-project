@@ -41,3 +41,17 @@
 - **Independent evaluation:** not needed — clear empirical result
 - **Framing Biases:** Only tested with frozen backbone. With unfrozen backbone, residual mode could behave differently since the gradient paths differ.
 - **Timestamp:** 2026-05-06T12:58:00Z
+
+## DEC-004: CorrDiff-style Residual Flow Matching — Negative Result
+- **Decision:** Tested flow matching on SwinIR residuals (CorrDiff-style two-stage: deterministic SwinIR + flow on residuals). Clear negative result.
+- **Chosen Option:** Gaussian-source flow matching on precomputed residuals
+- **Confidence:** 95 (empirically validated, CRPS=0.207-0.212 vs multi-head 0.183)
+- **Alternatives Considered:**
+  - LR-anchored source (small noise → residual): NOT tested, would solve the transport distance problem
+  - Flow on full HR (like OT-CFM): already proven at CRPS=0.171 on research2
+  - Noise-conditioned SwinIR: NOT tested
+- **Reasoning:** The source-target mismatch (N(0,1) → N(0, 0.0035)) makes the flow transport path ~285x the target scale. Velocity field errors accumulate, biasing the output. The flow corrupts SwinIR's mean (MAE 0.250 → 0.264) rather than adding calibrated diversity. This approach fundamentally doesn't work with standard Gaussian source when residuals are highly concentrated.
+- **When to re-evaluate:** If LR-anchored source (start from noise std≈residual_std) is tested, results may be very different
+- **Independent evaluation:** not-started
+- **Framing Biases:** Assumed CorrDiff analogy transfers directly, but CorrDiff's residuals have much larger variance relative to noise source. The SwinIR predictions are too accurate for this approach.
+- **Timestamp:** 2026-05-06T19:12:00Z
