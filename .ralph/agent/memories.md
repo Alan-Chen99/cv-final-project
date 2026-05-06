@@ -8,6 +8,10 @@
 
 ## Decisions
 
+### mem-1778030992-f8c3
+> UNet CFG flow matching: 13M AttentionUNet with 10% condition dropout (CFG), 25 epochs, CRPS=0.196 (Gneiting M^2) on full 10K test. CFG guidance does NOT help for climate downscaling — guidance_scale=1.0 is optimal, higher guidance hurts CRPS. LR conditioning is already strong/unambiguous unlike text-to-image. Model weights in pool at research4/models/unet_cfg_best.pt.
+<!-- tags: cfg, crps, architecture, flow-matching | created: 2026-05-06 -->
+
 ### mem-1778016803-875c
 > DiT (Diffusion Transformer) flow matching with 14.6M params, 40 epochs: corrected CRPS=0.243 on full 10K test. Significantly worse than UNet flow matching (0.199 for 5.2M LR-anchor, ~0.183 for 13M OT-CFM). Val loss 0.381 vs UNet 0.253. DiT lacks local inductive bias valuable for climate fields. May need more training, smaller patch size, or positional encoding improvements.
 <!-- tags: dit, flow-matching, crps, architecture | created: 2026-05-05 -->

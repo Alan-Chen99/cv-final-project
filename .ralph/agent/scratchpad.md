@@ -92,3 +92,87 @@ The cross-comparison says research2's best = 0.171 (unbiased on 2K). In standard
 **End**: 2026-05-05 17:35 EDT, commit: f52047f
 **Duration**: ~1h 16min
 **GPU time**: ~40min training + ~15min eval = ~55min on L40S
+
+## Iteration 2
+**Start**: 2026-05-05 17:35 EDT, commit b340f7c
+**Prefix**: ntlg-alta
+
+### Concerns (3+)
+
+1. **Workflow (CRITICAL)**: CRPS formula inconsistency STILL present. `flow_matching_v2.py` uses M*(M-1) denominator (unbiased, lower values) while `dit_flow.py` uses M² denominator (Gneiting standard, higher values). If I train with flow_matching_v2.py and compare to iter1's DiT, numbers won't be comparable. Must use same formula (Gneiting M²) for ALL evaluations.
+
+2. **Quality**: DiT CRPS=0.243 is 22% worse than estimated UNet baseline (~0.183). But we have NO UNet weights on this branch — the 0.183 number is from research2 branch (2K test only, unbiased formula, never verified on 10K). We need to train our own UNet to establish a real controlled baseline.
+
+3. **Quality/Direction**: 22 prior iterations across research/research2 focused exclusively on UNet architecture + flow matching. The only novel direction tried (DiT, iter1) failed. Need to explore techniques orthogonal to architecture: training recipe, guidance, loss function, sampling strategy.
+
+4. **Fact check**: Iter1 scratchpad claims "UNet val loss was 0.253" but doesn't cite source. This appears to be from research2 branch, not verified on this branch. Can't compare val losses across branches unless same data split and normalization are used.
+
+### Plan for Iteration 2
+
+**Goal**: Train UNet flow matching model with Classifier-Free Guidance (CFG).
+
+**Why CFG**:
+- No climate downscaling paper uses CFG — genuinely under-explored
+- Simple modification: 10% condition dropout during training + guided sampling at inference
+- Theoretical motivation: guidance sharpens conditional samples, reducing MAE without destroying diversity
+- Gives us a trained UNet baseline WITH weights we control
+- One experiment, two results: UNet baseline (guidance_scale=1) + CFG variant (guidance_scale>1)
+
+**CFG mechanics**:
+- Training: with prob p=0.1, replace LR condition with zeros (unconditional)
+- Inference: v_guided = v_uncond + s*(v_cond - v_uncond), sweep s ∈ {0.5, 1.0, 1.5, 2.0}
+- s=1.0 is equivalent to standard conditional sampling (our baseline)
+
+**Architecture**: Same AttentionUNet as flow_matching_v2.py (13M params, base_channels=64, mults=(1,2,4), 4-head attention at bottleneck)
+
+**Training**: 80 epochs planned, reduced to 25 due to GPU time. batch_size=64, lr=1e-4, cosine annealing.
+
+### Infrastructure
+
+- GPU 1: node4106 (L40S), job 13369998 — trained epochs 1-8, then job killed at 18:55
+- GPU 2: node3406 (L40S), job 13379891 — resumed epochs 9-25, eval, then time limit at 21:28
+- Total training time: ~111 min (35 min + 76 min across 2 allocations)
+- Total eval time: ~50 min
+
+### Training Results
+
+25 epochs, AttentionUNet 13M params, CFG prob=0.1:
+- Best epoch: 21, val loss: 0.272
+- Val loss trajectory: 0.371→0.344→0.333→0.322→0.315→0.323→0.305→0.300→0.295→0.292→0.287→0.286→0.283→0.282→0.282→0.277→0.277→0.280→0.274→0.274→**0.272**→0.273→0.273→0.274→0.275
+
+### Evaluation Results
+
+**Full 10K test (guidance_scale=1.0, AddCL constraint, 10 Euler steps, 10 ensemble):**
+
+| Model | Params | CRPS (Gneiting M²) | MAE | RMSE | Mass Viol |
+|-------|--------|---------------------|-----|------|-----------|
+| **UNet CFG (g=1.0, 25ep)** | 13M | **0.196** | 0.258 | 0.487 | 0.000001 |
+| DiT flow (40ep, iter1) | 14.6M | 0.243 | 0.315 | 0.643 | 0.000001 |
+| LR-anchor flow (200ep, research) | 5.2M | 0.199 | 0.258 | 0.481 | 0.000131 |
+| UNet flow v2 (39ep, research2, est.) | 13M | ~0.183 | ~0.247 | ~0.458 | 0.000001 |
+
+**Guidance scale sweep (1K test subset, AddCL, 10 ens):**
+
+| Guidance | CRPS | MAE | RMSE |
+|----------|------|-----|------|
+| 0.5 | 0.221 | 0.283 | 0.547 |
+| **1.0** | **0.193** | **0.253** | **0.482** |
+| 1.5 | 0.200 | 0.261 | 0.507 |
+| 2.0 | killed (GPU timeout) | — | — |
+
+### Key Findings
+
+1. **UNet >> DiT**: UNet CRPS 0.196 vs DiT 0.243 (19% better) with similar param count. Local inductive bias from convolutions is critical.
+2. **CFG guidance does NOT help**: guidance_scale=1.0 (standard conditional) is optimal. Higher guidance (1.5) slightly hurts CRPS (+4%). Lower guidance (0.5) significantly hurts (+15%). This makes sense: LR→HR conditioning is already strong and unambiguous, unlike text-to-image where prompts are ambiguous.
+3. **Only 25 epochs**: val loss still improving slightly at epoch 25. More training (40-60 epochs) could close the gap with research2's estimated 0.183.
+4. **Negative result for CFG is informative**: Rules out a promising-sounding technique, saving future iterations from pursuing it.
+
+### Model saved
+- Checkpoint: `models/unet_cfg/best_flow.pt` (157MB, epoch 21)
+- Pool: `/home/chenxy/orcd/pool/datasets/research4/models/unet_cfg_best.pt`
+- Pool: `/home/chenxy/orcd/pool/datasets/research4/models/unet_cfg_norm_stats.pt`
+
+### End of Iteration 2
+**End**: 2026-05-05 21:30 EDT
+**Duration**: ~4h
+**GPU time**: ~2.6h training + eval across 2 allocations
