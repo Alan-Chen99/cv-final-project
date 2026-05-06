@@ -596,3 +596,24 @@ SmCL (SoftmaxConstraints) CANNOT be applied post-hoc to flow matching or DDPM mo
 4. Submit training job via sbatch, 40 epochs, ~2hr
 5. Evaluate on 10K test with AddCL
 6. Compare to CRPS=0.1865 baseline
+
+### Infrastructure
+
+- Code committed at 09c694b (logit-normal implementation + sbatch script)
+- Job 13446568 (mit_normal_gpu): PENDING → QOSMaxGRESPerUser (cancelled after 22min wait)
+- Job 13446664 (mit_preemptable): PENDING → Priority (cancelled after trying A100)
+- Job 13447655 (mit_preemptable, A100): PENDING → Priority (cancelled)
+- Job 13447695 (mit_normal_gpu): PENDING → Priority → QOSMaxGRESPerUser (cancelled after 18min)
+- **Root cause**: User has 3 GPU jobs running from other branches (nova-tango, xmpl-qwrt on mit_normal_gpu; sweep-gpu2 on mit_preemptable). QOS limits GPU count per user. Earliest GPU availability: ~18:18 EDT when xmpl-qwrt finishes.
+
+### Status
+
+- **Code**: COMPLETE — logit-normal t sampling implemented and committed (09c694b)
+- **Training**: NOT STARTED — GPU access blocked by QOSMaxGRESPerUser
+- **Eval**: NOT STARTED
+- **Next iteration**: Submit `scripts/sbatch_logit_normal.sh` when GPU frees up. Restore `--partition=mit_preemptable --requeue` or `--partition=mit_normal_gpu` depending on queue state.
+
+### End of Iteration 8
+**End**: 2026-05-06 16:30 EDT, commit: 09c694b
+**Duration**: ~48min
+**GPU time**: 0 (all jobs blocked by QOS)
