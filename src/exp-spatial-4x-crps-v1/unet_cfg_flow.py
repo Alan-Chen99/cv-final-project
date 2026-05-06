@@ -371,10 +371,15 @@ def train(args):
 
     use_spectral = getattr(args, 'spectral_weight', 0.0) > 0
     use_augment = getattr(args, 'augment', False)
+    use_logit_normal = getattr(args, 't_schedule', 'uniform') == 'logit_normal'
     if use_spectral:
         print(f"Spectral loss weight: {args.spectral_weight}")
     if use_augment:
         print("Data augmentation: random H/V flips")
+    if use_logit_normal:
+        print(f"Time schedule: logit-normal (mean={args.logit_normal_mean}, std={args.logit_normal_std})")
+    else:
+        print("Time schedule: uniform")
 
     for epoch in range(start_epoch, args.epochs):
         model.train()
@@ -395,7 +400,12 @@ def train(args):
             else:
                 lr_batch_cond = lr_batch
 
-            t = torch.rand(bs, device=device)
+            # Time sampling: uniform or logit-normal
+            if use_logit_normal:
+                z = torch.randn(bs, device=device)
+                t = torch.sigmoid(args.logit_normal_mean + args.logit_normal_std * z)
+            else:
+                t = torch.rand(bs, device=device)
             x_0 = torch.randn_like(res_batch)
             t_expand = t[:, None, None, None]
             x_t = (1 - t_expand) * x_0 + t_expand * res_batch
@@ -615,6 +625,12 @@ if __name__ == "__main__":
                         help="Enable random H/V flip augmentation")
     parser.add_argument("--spectral_weight", type=float, default=0.0,
                         help="Weight for spectral (FFT) loss (0=disabled)")
+    parser.add_argument("--t_schedule", default="uniform", choices=["uniform", "logit_normal"],
+                        help="Time sampling schedule (uniform or logit_normal)")
+    parser.add_argument("--logit_normal_mean", type=float, default=0.0,
+                        help="Mean of logit-normal distribution for t sampling")
+    parser.add_argument("--logit_normal_std", type=float, default=1.0,
+                        help="Std of logit-normal distribution for t sampling")
     # Eval args
     parser.add_argument("--n_ensemble", type=int, default=10)
     parser.add_argument("--eval_batch_size", type=int, default=32)

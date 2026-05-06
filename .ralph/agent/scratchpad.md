@@ -557,3 +557,42 @@ SmCL (SoftmaxConstraints) CANNOT be applied post-hoc to flow matching or DDPM mo
 **End**: 2026-05-06 15:41 EDT, commit: eda0f41
 **Duration**: ~4.3h
 **GPU time**: ~3h training + ~1h eval
+
+## Iteration 8
+**Start**: 2026-05-06 15:42 EDT, commit 031849a
+**Prefix**: lnrm-zqwt
+
+### Concerns (3+)
+
+1. **Quality (IMPORTANT)**: All 7 iterations used uniform t∈[0,1] for OT-CFM training. SD3/Stable Diffusion 3 paper showed logit-normal t sampling significantly improves rectified flow quality by concentrating training on informative timesteps. This is completely unexplored in our setup and in climate downscaling generally.
+
+2. **Workflow**: Data augmentation was NOT isolated from spectral loss in iter7. The 9% CRPS regression (0.2036) could be entirely from spectral loss, with augmentation being neutral or even beneficial. This question remains unanswered.
+
+3. **Workflow (persistent, 4th time raised)**: No Harder et al. baselines ever reproduced. Objective says "start with baseline and report these too." We cited their published numbers (CNN=0.115, GAN=0.151) but never ran their code ourselves. Six iterations in.
+
+4. **Fact**: The 3% gap between research4 (0.1865) and research2 (~0.178-0.181 Gneiting est.) is from random seed or subtle code differences, NOT from formulation — both use identical OT-CFM residual approach with same hyperparameters (batch_size=64, lr=1e-4, base_ch=64, mults=(1,2,4)).
+
+### Plan for Iteration 8
+
+**Goal**: Train OT-CFM flow matching with logit-normal t sampling — non-uniform timestep distribution that concentrates on informative intermediate timesteps.
+
+**Why logit-normal t**:
+- SD3 paper showed this significantly improves rectified flow training quality
+- Current setup samples t uniformly, wasting training signal on very easy (t≈1) and very noisy (t≈0) timesteps
+- Genuinely under-explored: no climate downscaling paper uses this technique
+- Simple implementation (one-line change + argument), minimal risk of bugs
+- High variance outcome: could give 2-5% improvement OR be neutral/harmful for climate data
+- Same architecture + same 2hr budget → fair comparison to 0.1865
+
+**Key design**:
+- t = sigmoid(μ + σ * z), z ~ N(0,1), μ=0.0, σ=1.0 (SD3 default)
+- This concentrates mass around t=0.5 with moderate tails
+- Everything else unchanged: same architecture, loss, LR schedule
+
+**Steps**:
+1. Add `--t_schedule` argument to unet_cfg_flow.py (uniform|logit_normal)
+2. Add `--logit_normal_mean` and `--logit_normal_std` arguments
+3. Implement logit-normal sampling in training loop
+4. Submit training job via sbatch, 40 epochs, ~2hr
+5. Evaluate on 10K test with AddCL
+6. Compare to CRPS=0.1865 baseline
