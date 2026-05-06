@@ -1,6 +1,6 @@
 Complete the following user request:
 
-<request added="original (start of loop1)" from="user" commit="d0bc53a" time="2026-05-05 16:08 EDT">
+<request added="original (start of loop1)" from="user" commit="d0bc53a" time="2026-05-06 00:45 EDT">
 
 Task: focus on `32×32 -> 128×128` spatial case with CRPS as metric. ≤2 hr of training allowed. Do the best you can.
 test dataset/task: `32×32 -> 128×128` exactly as in "constrained-downscaling"
@@ -11,8 +11,8 @@ The ≤2hr training budget exists so different methods can be compared fairly un
 Use the correct energy CRPS: `CRPS = E|X−y| − 0.5·E|X−X'|`. The `constrained-downscaling` codebase has a bug in `crps_ensemble()` — it uses `fc.shape[-1]**2` (=16384) instead of `fc.shape[0]**2` (=M²) as denominator, underestimating CRPS by ~50%. Do NOT report numbers from the buggy formula.
 
 Most iterations should spend ~2hrs to try models, tune parameters, research papers, and then 2hrs as the final run to get result (only do if useful; likely, after the first couple iterations).
-In general, choose under-explored / uncertain directions to attempt, rather than applying techniques that will likely help but by a very tiny amount. There are no penalties if you did very poorly for a iteration.
 
+MUST: If possible, choose under-explored / uncertain directions to attempt, rather than applying techniques that will likely help but by a very tiny amount. There are no penalties if you did very poorly for a iteration.
 MUST: Review loss graph, output samples, metrics, etc visually to guide research. Check key graphs and outputs into git.
 MUST: Each iteration finishes in 4hrs. All jobs in that iteration is stopped and cleanedup before you emit the result.
 MUST: You have up to **one** gpu node to use at any given time. I have a limit of 2 "normal" and 4 "preemptable"; Check squeue to decide to use normal or preemptable. This is not enforced externally: you must keep track yourself.
@@ -23,9 +23,10 @@ When time is about to end: stop, and write a report file tracked in git. Have su
 
 MUST: Agents should aim to finish all exploration/training by the **40-hour mark** (~8hr remaining on the allocation). After 40hr elapsed (approximately **2026-05-07 02:00 EDT**), no more new ideas or new training jobs. Instead, the remaining time must be spent on: evaluation of existing models, organizing data/artifacts, and writing and revising reports.
 
-Starting research direction (You change course dynamically to do better on the metric):
+Starting research direction:
 Start by running best general image downscaling model(s) available zero-shot, evaluate. Evaluate other zero shot methods.
 Then, finetune general image models and evaluate.
+Decide what to go from here.
 
 ### Prior findings
 
