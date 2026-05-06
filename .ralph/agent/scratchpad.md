@@ -617,3 +617,38 @@ SmCL (SoftmaxConstraints) CANNOT be applied post-hoc to flow matching or DDPM mo
 **End**: 2026-05-06 16:30 EDT, commit: 09c694b
 **Duration**: ~48min
 **GPU time**: 0 (all jobs blocked by QOS)
+
+## Iteration 9
+**Start**: 2026-05-06 16:31 EDT, commit d60345b
+**Prefix**: zbhh-axxo
+
+### Concerns (3+)
+
+1. **Workflow (CRITICAL)**: GPU access STILL blocked. 3 jobs from other branches (nova-tango, xmpl-qwrt, sweep-gpu2) consuming QOS quota. cdtv-xskv-eval (not ours) pending ahead of us. Earliest GPU availability: ~18:49 EDT (when nova-tango finishes). The from-scratch 40-epoch training plan (iter8's sbatch) would finish at ~21:49 — 5hr+ past start, well over iteration limit.
+
+2. **Quality (IMPORTANT)**: Instead of training logit-normal from scratch (40ep), we can FINE-TUNE the existing best 55ep model (epoch 51 checkpoint, val_loss=0.251) with logit-normal t sampling. This is faster (~15ep × 4.4min = ~67min) and more informative: it directly tests whether logit-normal improves an already-converged model, rather than confounding training length with the t-schedule change.
+
+3. **Workflow (persistent, 5th time raised)**: No Harder et al. baselines in 9 iterations. The objective says "start with baseline and report these too." We cite their published numbers but never ran their code.
+
+### Plan for Iteration 9
+
+**Goal**: Fine-tune best UNet flow model (55ep) with logit-normal t sampling for 15 epochs.
+
+**Why fine-tuning instead of from scratch**:
+- Directly tests whether logit-normal helps an already-trained model
+- 15 epochs (~67min) vs 40 epochs (~180min) — fits within GPU time constraints
+- Existing model at val_loss=0.251 is strong starting point
+- If it helps, we know logit-normal is independently useful; if not, we haven't wasted 3hr
+
+**Key design**:
+- Copy best model to `models/unet_logit_normal/` for resume
+- `--resume --finetune_lr 5e-5 --epochs 67` (start from epoch 52, train 15 new)
+- `--t_schedule logit_normal --logit_normal_mean 0.0 --logit_normal_std 1.0`
+- Eval on 1K test first (fast), then 10K if time permits
+- sbatch on mit_normal_gpu, 2hr time limit
+
+**Steps**:
+1. Create sbatch script with fine-tuning setup
+2. Submit to queue (will start ~18:49 when nova-tango finishes)
+3. Monitor via /long-running-commands
+4. Record results, compare to CRPS=0.1865 baseline
