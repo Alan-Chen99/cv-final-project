@@ -332,4 +332,4 @@ Full 10K eval attempted twice on preemptable GPU, both times preempted at 6K-8K 
 - The eval also needs to run without AddCL to get unconstrained CRPS
 
 **End:** 2026-05-06 19:28 EDT
-**End commit:** (pending)
+**End commit:** 55119de
