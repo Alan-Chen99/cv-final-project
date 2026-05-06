@@ -36,11 +36,17 @@ SAVE_DIR = POOL / "research5" / "models" / "crps_ensemble"
 
 
 class MultiHeadSwinIR(nn.Module):
-    """SwinIR backbone with K parallel output heads for ensemble prediction."""
+    """SwinIR backbone with K parallel output heads for ensemble prediction.
 
-    def __init__(self, backbone, K=8):
+    When residual=True, keeps the finetuned deterministic tail (frozen) and each
+    head predicts a residual correction. Output_k = det_mean + residual_k.
+    This separates mean accuracy from stochastic diversity (CorrDiff principle).
+    """
+
+    def __init__(self, backbone, K=8, residual=False):
         super().__init__()
         self.K = K
+        self.residual = residual
 
         # Shared frozen backbone: conv_first through conv_after_body + skip
         self.conv_first = backbone.conv_first
@@ -72,6 +78,15 @@ class MultiHeadSwinIR(nn.Module):
         for param in self.conv_after_body.parameters():
             param.requires_grad = False
 
+        if residual:
+            # Frozen deterministic tail from finetuned backbone
+            self.det_conv_before_upsample = copy.deepcopy(backbone.conv_before_upsample)
+            self.det_upsample = copy.deepcopy(backbone.upsample)
+            self.det_conv_last = copy.deepcopy(backbone.conv_last)
+            for mod in [self.det_conv_before_upsample, self.det_upsample, self.det_conv_last]:
+                for param in mod.parameters():
+                    param.requires_grad = False
+
         # K parallel output branches (trainable)
         # Each branch: conv_before_upsample + upsample + conv_last
         self.heads = nn.ModuleList()
@@ -92,7 +107,6 @@ class MultiHeadSwinIR(nn.Module):
 
     def init_heads_from_finetuned(self, backbone):
         """Initialize each head from the finetuned backbone's tail weights + noise."""
-        tail_state = {}
         # Map backbone tail layers to our head sequential indices
         # head[0] = conv_before_upsample[0] (Conv2d 180→64)
         # head[2] = upsample[0] (Conv2d 64→256)
@@ -122,6 +136,19 @@ class MultiHeadSwinIR(nn.Module):
                             b_std = dst_mod.bias.std() if dst_mod.bias.numel() > 1 else dst_mod.bias.abs().mean()
                             dst_mod.bias.add_(torch.randn_like(dst_mod.bias) * noise_scale * b_std)
 
+    def init_heads_residual(self):
+        """Initialize residual heads with small random weights for near-zero initial output.
+
+        Used in residual mode: heads predict small corrections to the frozen det. mean.
+        Small init → initial ensemble ≈ det_mean (all members identical) → CRPS starts at MAE.
+        """
+        for head in self.heads:
+            for module in head.modules():
+                if isinstance(module, nn.Conv2d):
+                    nn.init.xavier_uniform_(module.weight, gain=0.01)
+                    if module.bias is not None:
+                        nn.init.zeros_(module.bias)
+
     def forward_features(self, x):
         """Forward through Swin Transformer body (mirrors SwinIR's method)."""
         x_size = (x.shape[2], x.shape[3])
@@ -150,11 +177,23 @@ class MultiHeadSwinIR(nn.Module):
         body_out = self.conv_after_body(self.forward_features(feat))
         shared = body_out + feat  # (B, 180, 32, 32)
 
-        # K parallel heads
-        outputs = []
-        for head in self.heads:
-            out = head(shared)  # (B, 1, 128, 128)
-            outputs.append(out)
+        if self.residual:
+            # Deterministic mean from frozen tail (no grad needed)
+            with torch.no_grad():
+                det_out = self.det_conv_before_upsample(shared)
+                det_out = self.det_upsample(det_out)
+                det_mean = self.det_conv_last(det_out)  # (B, 1, 128, 128)
+            # Each head predicts a residual; output = det_mean + residual
+            outputs = []
+            for head in self.heads:
+                residual = head(shared)  # (B, 1, 128, 128)
+                outputs.append(det_mean + residual)
+        else:
+            # Direct prediction from each head
+            outputs = []
+            for head in self.heads:
+                out = head(shared)  # (B, 1, 128, 128)
+                outputs.append(out)
 
         # Stack: (B, K, 1, 128, 128)
         ensemble = torch.stack(outputs, dim=1)
@@ -274,8 +313,13 @@ def train(args):
     backbone = load_swinir_1ch(str(weights_path))
     backbone.load_state_dict(ft_ckpt['model'])
 
-    model = MultiHeadSwinIR(backbone, K=args.K)
-    model.init_heads_from_finetuned(backbone)
+    model = MultiHeadSwinIR(backbone, K=args.K, residual=args.residual)
+    if args.residual:
+        model.init_heads_residual()
+        print(f"  Mode: RESIDUAL — heads predict corrections to frozen det. mean")
+    else:
+        model.init_heads_from_finetuned(backbone)
+        print(f"  Mode: DIRECT — heads predict full output")
     model = model.to(device)
 
     n_total = sum(p.numel() for p in model.parameters())
@@ -292,8 +336,8 @@ def train(args):
     expected_epochs = min(args.epochs, int(args.wall_hours * 60 / 7) + 1)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=expected_epochs)
 
-    # Save dir
-    save_dir = SAVE_DIR
+    # Save dir — use separate dir for residual mode
+    save_dir = SAVE_DIR if not args.residual else POOL / "research5" / "models" / "crps_residual"
     save_dir.mkdir(parents=True, exist_ok=True)
 
     config = vars(args)
@@ -313,8 +357,9 @@ def train(args):
     start_time = time.time()
     wall_limit = args.wall_hours * 3600
 
+    mode_str = "RESIDUAL" if args.residual else "DIRECT"
     print(f"\nTraining for up to {args.epochs} epochs ({args.wall_hours}h wall limit)...")
-    print(f"  K={args.K} heads, LR={args.lr}, BS={args.batch_size}")
+    print(f"  Mode={mode_str}, K={args.K} heads, LR={args.lr}, BS={args.batch_size}")
     print(f"  Expected ~{expected_epochs} epochs, cosine T_max={expected_epochs}")
 
     for epoch in range(args.epochs):
@@ -375,6 +420,7 @@ def train(args):
                 'vmin': vmin,
                 'vmax': vmax,
                 'K': args.K,
+                'residual': args.residual,
             }, save_dir / 'best_ensemble.pt')
 
         elapsed = time.time() - start_time
@@ -391,6 +437,7 @@ def train(args):
         'vmin': vmin,
         'vmax': vmax,
         'K': args.K,
+        'residual': args.residual,
     }, save_dir / 'final_ensemble.pt')
     torch.save({
         'train': train_losses, 'val': val_losses, 'terms': train_terms
@@ -405,12 +452,14 @@ def evaluate(args):
     """Evaluate ensemble CRPS on test set."""
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
-    save_dir = SAVE_DIR
+    residual = getattr(args, 'residual', False)
+    save_dir = SAVE_DIR if not residual else POOL / "research5" / "models" / "crps_residual"
     ckpt = torch.load(save_dir / f'{args.checkpoint}_ensemble.pt', map_location='cpu', weights_only=False)
     vmin = ckpt['vmin']
     vmax = ckpt['vmax']
     K = ckpt['K']
-    print(f"Loaded checkpoint: epoch {ckpt['epoch']}, val_loss {ckpt['val_loss']:.6f}, K={K}")
+    residual = ckpt.get('residual', False)
+    print(f"Loaded checkpoint: epoch {ckpt['epoch']}, val_loss {ckpt['val_loss']:.6f}, K={K}, residual={residual}")
 
     # Build model
     import sys
@@ -425,7 +474,7 @@ def evaluate(args):
     backbone = load_swinir_1ch(str(weights_path))
     backbone.load_state_dict(ft_ckpt['model'])
 
-    model = MultiHeadSwinIR(backbone, K=K)
+    model = MultiHeadSwinIR(backbone, K=K, residual=residual)
     # Load trained heads
     for k, head in enumerate(model.heads):
         head.load_state_dict(ckpt['heads'][f'head_{k}'])
@@ -546,6 +595,8 @@ def main():
     parser.add_argument("--checkpoint", default="best")
     parser.add_argument("--split", default="test")
     parser.add_argument("--n_samples", type=int, default=None)
+    parser.add_argument("--residual", action="store_true",
+                        help="Residual mode: heads predict corrections to frozen det. mean")
     args = parser.parse_args()
 
     if args.mode == "train":

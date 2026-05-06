@@ -27,3 +27,17 @@
 - **Independent evaluation:** not-started
 - **Framing Biases:** Assumes SwinIR's internal handling of [0,1] inputs is appropriate for climate data.
 - **Timestamp:** 2026-05-06T05:30:00Z
+
+## DEC-003: Residual vs Direct Head Parameterization for Multi-Head Ensemble
+- **Decision:** Tested residual parameterization (heads predict corrections to frozen det. mean) vs direct prediction. Both achieve identical CRPS=0.183.
+- **Chosen Option:** Either — parameterization doesn't matter
+- **Confidence:** 90 (empirically validated, clear negative result)
+- **Alternatives Considered:**
+  - Direct heads (iter 2): each head predicts full HR output from shared features
+  - Residual heads (iter 3): each head predicts residual, output = det_mean + residual
+  - Residual + regularization: not tested, but unlikely to help given identical equilibrium
+- **Reasoning:** The CRPS loss is the dominant optimization force. Both parameterizations converge to the same t1≈0.0026, t2≈0.0024 balance in normalized space. The frozen backbone constrains what diversity is achievable — changing the head parameterization cannot overcome feature-level limitations.
+- **When to re-evaluate:** If backbone is unfrozen (features change), residual mode may then matter
+- **Independent evaluation:** not needed — clear empirical result
+- **Framing Biases:** Only tested with frozen backbone. With unfrozen backbone, residual mode could behave differently since the gradient paths differ.
+- **Timestamp:** 2026-05-06T12:58:00Z

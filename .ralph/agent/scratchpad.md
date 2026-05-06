@@ -114,4 +114,82 @@ This is a proper scoring rule: rewards accuracy AND calibrated spread.
 - The frozen backbone may be limiting — try unfreezing last 2 Swin layers
 
 **Ending time:** ~06:47 EDT
+**Ending commit:** 27b5b2c
+
+## Iteration 3 — 2026-05-06 06:47 EDT
+**Starting commit:** 27b5b2c
+**Run prefix:** zjot-ghfi
+
+### Current State
+- Time: ~21hr elapsed. ~19hr to 40hr mark (2026-05-07 02:00 EDT). Plenty of time.
+- GPU: no active allocation. Need to acquire one.
+- squeue: 1 normal, 3 preemptable (including node1627 CPU). Can allocate 1 preemptable.
+- Best CRPS: 0.183 (multi-head SwinIR K=8, frozen backbone)
+- Target: OT-CFM CRPS=0.171
+
+### Concerns (3+ problems)
+
+1. **Quality: Over-dispersion in K=8 ensemble.** Spread (0.272) exceeds MAE (0.250) by 9%. The ensemble produces more diversity than accuracy warrants. This suggests heads learn noisy pixel-level diversity rather than structured spatial uncertainty. Reducing spread while maintaining accuracy would lower CRPS.
+
+2. **Quality: Frozen backbone caps ensemble mean accuracy at deterministic SwinIR level.** Ensemble mean MAE=0.250 is identical to single-head finetuned SwinIR MAE=0.250. Multi-head training added ONLY diversity, zero accuracy improvement. The backbone features are shared and frozen — heads can only rearrange, not improve them.
+
+3. **Workflow: No visualization of individual ensemble members.** Prior iteration evaluated aggregate metrics (CRPS, spread) but never examined what individual heads produce. Without this, we don't know if diversity is structured (different patterns in uncertain regions) or random (noise). Critical for understanding why AddCL hurts CRPS.
+
+4. **Quality: AddCL hurting CRPS (0.183→0.222) is suspicious.** The uniform additive shift should NOT change spread (same shift to all members). The 21% CRPS degradation suggests the shift destroys calibration — the members were calibrated around the unconstrained mean, not the LR-consistent mean. This means the heads learned to be diverse around a biased mean.
+
+### Direction: Residual Ensemble Parameterization
+
+**Key insight:** Current multi-head approach replaces the finetuned tail with K independent heads. This discards the deterministic mean accuracy (MAE=0.250) and asks each head to independently learn the full HR mapping + diversity. Result: over-dispersed ensemble.
+
+**Alternative:** Keep the finetuned deterministic mean predictor (frozen) and add K lightweight heads that predict RESIDUALS around it. Output_k = det_mean + residual_k.
+
+**Why this is better:**
+- CorrDiff principle: separate deterministic mean from stochastic perturbations
+- Residuals center around zero → natural calibration anchor
+- Can regularize residual magnitude → control spread
+- Ensemble mean starts at finetuned MAE=0.250 (guaranteed floor)
+
+**Architecture:**
+- Backbone: frozen (conv_first → Swin layers → conv_after_body + skip)
+- Deterministic tail: frozen (conv_before_upsample → upsample → conv_last)
+- K=8 residual heads: each Conv(180→64)+ReLU → PixelShuffle(4x) → Conv(64→1) → residual
+- Output: det_mean + residual_k
+- Loss: energy CRPS + λ*mean(residual²) for regularization
+- Init: small Xavier init (gain=0.01) for symmetry breaking
+
+### Training Log
+- 06:57 — Allocated node4104, hit CUDA ECC error (hardware fault). Cancelled.
+- 06:59 — Reallocated, got node3005 (L40S)
+- 07:02 — Training started: K=8 residual heads, 15M total / 3.2M trainable
+- 08:52 — Preempted at epoch 30 (108 min). Best val loss 0.001432 at epoch 12.
+- 08:56 — Reallocated node3207 (normal GPU) for evaluation
+
+### Residual Ensemble Results (10K test)
+| Method | CRPS | MAE | RMSE | Spread | Mass Viol |
+|--------|------|-----|------|--------|-----------|
+| Residual K=8 | **0.183** | 0.250 | 0.482 | 0.280 | 0.005 |
+| Residual + AddCL | 0.206 | 0.250 | — | — | 0.000001 |
+| Direct K=8 (iter 2) | **0.183** | 0.250 | 0.482 | 0.272 | 0.005 |
+| Direct + AddCL (iter 2) | 0.222 | 0.250 | — | — | 0.000001 |
+| OT-CFM (research2) | **0.171** | 0.247 | 0.458 | — | 0.000001 |
+
+### Analysis: Negative Result
+**The residual parameterization provides NO improvement.** CRPS = 0.183 for both direct and residual modes. The hypothesis that residual centering would reduce over-dispersion was wrong — spread is actually slightly WORSE (0.280 vs 0.272).
+
+**Why this happened:**
+- The CRPS loss is the dominant optimization force, not the parameterization
+- Both approaches converge to the same t1/t2 equilibrium (~0.0026/0.0024 in normalized space)
+- The frozen backbone is the true bottleneck — all heads share the same features, limiting both accuracy and diversity structure
+- Over-dispersion is inherent to the K=8 multi-head + CRPS loss setup
+
+**Key insight:** The bottleneck is NOT how we parameterize the heads (direct vs residual) but the quality/flexibility of the shared backbone features. The frozen backbone caps ensemble mean accuracy at MAE=0.250 regardless of head design.
+
+**Positive observation:** AddCL hurts LESS with residual mode (0.206 vs 0.222). The residual structure makes the ensemble slightly more compatible with post-hoc constraints.
+
+### Implications for Next Iterations
+1. **Unfreeze backbone layers** — the only way to improve MAE below 0.250, which directly improves CRPS
+2. **Try fundamentally different stochastic mechanism** — multi-head K=8 may cap CRPS regardless. Flow matching or diffusion on residuals could produce better-calibrated diversity.
+3. **K sensitivity** still untested but likely won't overcome the backbone bottleneck
+
+**Ending time:** 08:58 EDT
 **Ending commit:** (pending)
