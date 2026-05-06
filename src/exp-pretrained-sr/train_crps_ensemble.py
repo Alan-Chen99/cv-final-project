@@ -43,12 +43,13 @@ class MultiHeadSwinIR(nn.Module):
     This separates mean accuracy from stochastic diversity (CorrDiff principle).
     """
 
-    def __init__(self, backbone, K=8, residual=False):
+    def __init__(self, backbone, K=8, residual=False, unfreeze_layers=0):
         super().__init__()
         self.K = K
         self.residual = residual
+        self.unfreeze_layers = unfreeze_layers
 
-        # Shared frozen backbone: conv_first through conv_after_body + skip
+        # Shared backbone: conv_first through conv_after_body + skip
         self.conv_first = backbone.conv_first
         self.patch_embed = backbone.patch_embed
         self.patch_unembed = backbone.patch_unembed
@@ -64,7 +65,7 @@ class MultiHeadSwinIR(nn.Module):
         self.patches_resolution = backbone.patches_resolution
         self.num_features = backbone.num_features
 
-        # Freeze backbone
+        # Freeze all backbone parameters first
         for param in self.conv_first.parameters():
             param.requires_grad = False
         for param in self.patch_embed.parameters():
@@ -77,6 +78,17 @@ class MultiHeadSwinIR(nn.Module):
             param.requires_grad = False
         for param in self.conv_after_body.parameters():
             param.requires_grad = False
+
+        # Unfreeze last N Swin Transformer layers + norm + conv_after_body
+        if unfreeze_layers > 0:
+            n_layers = len(self.layers)
+            for i in range(n_layers - unfreeze_layers, n_layers):
+                for param in self.layers[i].parameters():
+                    param.requires_grad = True
+            for param in self.norm.parameters():
+                param.requires_grad = True
+            for param in self.conv_after_body.parameters():
+                param.requires_grad = True
 
         if residual:
             # Frozen deterministic tail from finetuned backbone
@@ -313,7 +325,8 @@ def train(args):
     backbone = load_swinir_1ch(str(weights_path))
     backbone.load_state_dict(ft_ckpt['model'])
 
-    model = MultiHeadSwinIR(backbone, K=args.K, residual=args.residual)
+    model = MultiHeadSwinIR(backbone, K=args.K, residual=args.residual,
+                            unfreeze_layers=args.unfreeze_layers)
     if args.residual:
         model.init_heads_residual()
         print(f"  Mode: RESIDUAL — heads predict corrections to frozen det. mean")
@@ -324,20 +337,41 @@ def train(args):
 
     n_total = sum(p.numel() for p in model.parameters())
     n_trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-    print(f"  Parameters: {n_total:,} total, {n_trainable:,} trainable ({args.K} heads)")
+    n_backbone_trainable = sum(p.numel() for n, p in model.named_parameters()
+                               if p.requires_grad and 'heads' not in n)
+    print(f"  Parameters: {n_total:,} total, {n_trainable:,} trainable")
+    if args.unfreeze_layers > 0:
+        print(f"  Unfrozen backbone params: {n_backbone_trainable:,} (last {args.unfreeze_layers} layers + norm + conv_after_body)")
 
-    # Optimizer (only trainable params = heads)
-    optimizer = torch.optim.AdamW(
-        filter(lambda p: p.requires_grad, model.parameters()),
-        lr=args.lr, weight_decay=args.weight_decay
-    )
+    # Optimizer with discriminative LR
+    if args.unfreeze_layers > 0:
+        backbone_params = [p for n, p in model.named_parameters()
+                           if p.requires_grad and 'heads' not in n]
+        head_params = [p for n, p in model.named_parameters()
+                       if p.requires_grad and 'heads' in n]
+        backbone_lr = args.lr * args.backbone_lr_mult
+        optimizer = torch.optim.AdamW([
+            {'params': backbone_params, 'lr': backbone_lr},
+            {'params': head_params, 'lr': args.lr},
+        ], weight_decay=args.weight_decay)
+        print(f"  Discriminative LR: backbone={backbone_lr:.2e}, heads={args.lr:.2e}")
+    else:
+        optimizer = torch.optim.AdamW(
+            filter(lambda p: p.requires_grad, model.parameters()),
+            lr=args.lr, weight_decay=args.weight_decay
+        )
     # Cosine schedule based on expected epochs within wall time
     # Estimate: ~6.5 min/epoch with BS=32, 40K samples → ~18 epochs in 2hr
     expected_epochs = min(args.epochs, int(args.wall_hours * 60 / 7) + 1)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=expected_epochs)
 
-    # Save dir — use separate dir for residual mode
-    save_dir = SAVE_DIR if not args.residual else POOL / "research5" / "models" / "crps_residual"
+    # Save dir — separate dir per experiment variant
+    if args.unfreeze_layers > 0:
+        save_dir = POOL / "research5" / "models" / f"crps_unfreeze{args.unfreeze_layers}"
+    elif args.residual:
+        save_dir = POOL / "research5" / "models" / "crps_residual"
+    else:
+        save_dir = SAVE_DIR
     save_dir.mkdir(parents=True, exist_ok=True)
 
     config = vars(args)
@@ -358,6 +392,8 @@ def train(args):
     wall_limit = args.wall_hours * 3600
 
     mode_str = "RESIDUAL" if args.residual else "DIRECT"
+    if args.unfreeze_layers > 0:
+        mode_str += f"+UNFREEZE{args.unfreeze_layers}"
     print(f"\nTraining for up to {args.epochs} epochs ({args.wall_hours}h wall limit)...")
     print(f"  Mode={mode_str}, K={args.K} heads, LR={args.lr}, BS={args.batch_size}")
     print(f"  Expected ~{expected_epochs} epochs, cosine T_max={expected_epochs}")
@@ -412,7 +448,7 @@ def train(args):
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save({
+            ckpt_data = {
                 'heads': {f'head_{k}': head.state_dict() for k, head in enumerate(model.heads)},
                 'epoch': epoch,
                 'val_loss': val_loss,
@@ -421,7 +457,15 @@ def train(args):
                 'vmax': vmax,
                 'K': args.K,
                 'residual': args.residual,
-            }, save_dir / 'best_ensemble.pt')
+                'unfreeze_layers': args.unfreeze_layers,
+            }
+            # Save unfrozen backbone state if applicable
+            if args.unfreeze_layers > 0:
+                ckpt_data['backbone_state'] = {
+                    n: p.data.clone() for n, p in model.named_parameters()
+                    if p.requires_grad and 'heads' not in n
+                }
+            torch.save(ckpt_data, save_dir / 'best_ensemble.pt')
 
         elapsed = time.time() - start_time
         lr_now = scheduler.get_last_lr()[0]
@@ -430,7 +474,7 @@ def train(args):
               f"val: {val_loss:.6f} | best: {best_val_loss:.6f} | lr: {lr_now:.2e} | {elapsed/60:.1f}min")
 
     # Save final
-    torch.save({
+    final_data = {
         'heads': {f'head_{k}': head.state_dict() for k, head in enumerate(model.heads)},
         'epoch': epoch,
         'val_loss': val_loss,
@@ -438,7 +482,14 @@ def train(args):
         'vmax': vmax,
         'K': args.K,
         'residual': args.residual,
-    }, save_dir / 'final_ensemble.pt')
+        'unfreeze_layers': args.unfreeze_layers,
+    }
+    if args.unfreeze_layers > 0:
+        final_data['backbone_state'] = {
+            n: p.data.clone() for n, p in model.named_parameters()
+            if p.requires_grad and 'heads' not in n
+        }
+    torch.save(final_data, save_dir / 'final_ensemble.pt')
     torch.save({
         'train': train_losses, 'val': val_losses, 'terms': train_terms
     }, save_dir / 'losses.pt')
@@ -453,7 +504,13 @@ def evaluate(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
     residual = getattr(args, 'residual', False)
-    save_dir = SAVE_DIR if not residual else POOL / "research5" / "models" / "crps_residual"
+    # Determine save dir based on flags or explicit --eval_dir
+    if hasattr(args, 'eval_dir') and args.eval_dir:
+        save_dir = Path(args.eval_dir)
+    elif residual:
+        save_dir = POOL / "research5" / "models" / "crps_residual"
+    else:
+        save_dir = SAVE_DIR
     ckpt = torch.load(save_dir / f'{args.checkpoint}_ensemble.pt', map_location='cpu', weights_only=False)
     vmin = ckpt['vmin']
     vmax = ckpt['vmax']
@@ -474,10 +531,18 @@ def evaluate(args):
     backbone = load_swinir_1ch(str(weights_path))
     backbone.load_state_dict(ft_ckpt['model'])
 
-    model = MultiHeadSwinIR(backbone, K=K, residual=residual)
+    unfreeze_layers = ckpt.get('unfreeze_layers', 0)
+    model = MultiHeadSwinIR(backbone, K=K, residual=residual, unfreeze_layers=unfreeze_layers)
     # Load trained heads
     for k, head in enumerate(model.heads):
         head.load_state_dict(ckpt['heads'][f'head_{k}'])
+    # Load unfrozen backbone state if applicable
+    if 'backbone_state' in ckpt:
+        model_dict = dict(model.named_parameters())
+        for name, tensor in ckpt['backbone_state'].items():
+            if name in model_dict:
+                model_dict[name].data.copy_(tensor)
+        print(f"  Loaded unfrozen backbone state ({len(ckpt['backbone_state'])} params)")
     model = model.to(device).eval()
 
     # Load test data
@@ -597,6 +662,12 @@ def main():
     parser.add_argument("--n_samples", type=int, default=None)
     parser.add_argument("--residual", action="store_true",
                         help="Residual mode: heads predict corrections to frozen det. mean")
+    parser.add_argument("--unfreeze_layers", type=int, default=0,
+                        help="Number of Swin Transformer layers to unfreeze (from the end)")
+    parser.add_argument("--backbone_lr_mult", type=float, default=0.1,
+                        help="Learning rate multiplier for unfrozen backbone layers")
+    parser.add_argument("--eval_dir", type=str, default=None,
+                        help="Explicit model directory for evaluation")
     args = parser.parse_args()
 
     if args.mode == "train":

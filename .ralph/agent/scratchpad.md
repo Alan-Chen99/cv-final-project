@@ -193,3 +193,72 @@ This is a proper scoring rule: rewards accuracy AND calibrated spread.
 
 **Ending time:** 08:59 EDT
 **Ending commit:** 44ff7ab
+
+## Iteration 4 — 2026-05-06 09:00 EDT
+**Starting commit:** 6eb28be
+**Run prefix:** knam-twmo
+
+### Current State
+- Time: ~23hr elapsed. ~17hr to 40hr mark (2026-05-07 02:00 EDT). Plenty of time.
+- GPU: no active allocation. node4208 completing, node3404 in use by another branch.
+- squeue: 1 normal available, 2 preemptable available (including node1627 CPU).
+- Best CRPS: 0.183 (multi-head SwinIR K=8, frozen backbone — both direct and residual)
+- Target: OT-CFM CRPS=0.171
+
+### Concerns (3+ problems)
+
+1. **Quality: Frozen backbone confirmed as bottleneck across 2 experiments.** Iterations 2 and 3 both achieve CRPS=0.183 with MAE=0.250 — identical to the single-head finetuned SwinIR. Neither direct nor residual head parameterization can improve accuracy beyond what frozen backbone features support. Must unfreeze to break this floor.
+
+2. **Quality: Over-dispersion (spread > MAE) is structural to multi-head setup.** Spread=0.272 (direct) / 0.280 (residual) both exceed MAE=0.250. K=8 independent heads sharing frozen features learn unstructured pixel-level noise rather than spatially coherent uncertainty. Simply increasing head count or changing parameterization won't fix this — need either better features (unfreeze) or fundamentally different stochastic mechanism.
+
+3. **Workflow: Never tried unfreezing — the most obvious next step identified in iterations 2 and 3.** Both prior iterations explicitly recommended unfreezing as the primary next direction. This is the single most actionable improvement.
+
+### Direction: Unfreeze Last 2 Swin Layers + Multi-Head CRPS
+
+**Rationale:** Frozen backbone caps MAE at 0.250. Unfreezing last 2 of 6 RSTB blocks allows the backbone to adapt its high-level features for the multi-head CRPS objective while preserving lower-level pretrained representations.
+
+**Key design choices:**
+- Discriminative LR: backbone layers at 1/10th the head LR
+- Unfreeze norm layer too (follows the transformer body)
+- Keep K=8 direct mode (baseline comparison)
+- Same wall clock budget (2hr)
+
+**Expected outcome:** MAE < 0.250, CRPS < 0.183. If MAE drops to ~0.240, CRPS could reach ~0.170-0.175.
+
+### Training Log
+- 09:08 — Training started: node4505 (L40S), K=8 direct + unfreeze 2 layers
+- 09:08 — 14.7M total, 7.2M trainable (4.0M backbone + 3.2M heads)
+- 10:31 — Training complete: 25 epochs in 2.03h, best val loss 0.001428 at epoch 17
+- 11:12 — Evaluation complete: CRPS=0.1826 on 10K test
+
+### Results: Unfreeze Last 2 Layers (10K test)
+| Method | CRPS | MAE | RMSE | Spread | Mass Viol |
+|--------|------|-----|------|--------|-----------|
+| Unfreeze2 K=8 | **0.1826** | 0.249 | 0.480 | 0.272 | 0.004 |
+| Frozen K=8 (iter 2) | **0.183** | 0.250 | 0.482 | 0.272 | 0.005 |
+| Residual K=8 (iter 3) | **0.183** | 0.250 | 0.482 | 0.280 | 0.005 |
+| OT-CFM (research2) | **0.171** | 0.247 | 0.458 | — | 0.000001 |
+
+### Analysis: Marginal Result
+**Unfreezing backbone provides essentially NO improvement.** CRPS drops from 0.183 to 0.1826 (-0.2%), well within noise. Spread unchanged at 0.272.
+
+**Why unfreezing doesn't help within multi-head CRPS:**
+1. 8 conflicting gradient paths through shared backbone average to near-zero effective backbone signal
+2. The CRPS loss optimizes ensemble-level diversity, not backbone accuracy directly
+3. The multi-head architecture has a CRPS ceiling around 0.183 regardless of backbone quality
+
+**Three iterations confirming multi-head SwinIR ceiling:**
+- Iter 2: frozen + direct heads → CRPS=0.183
+- Iter 3: frozen + residual heads → CRPS=0.183
+- Iter 4: unfrozen + direct heads → CRPS=0.183
+
+**Critical insight:** The multi-head approach has hit its fundamental limit. To beat 0.183, need a different stochastic mechanism entirely. The K=8 heads learn unstructured pixel-level diversity regardless of parameterization or backbone flexibility.
+
+### Implications for Next Iterations
+1. **Drop multi-head approach.** Three experiments prove CRPS=0.183 is its ceiling.
+2. **Try flow matching on SwinIR residuals** — CorrDiff-style two-stage: use finetuned SwinIR as deterministic predictor, train flow matching model on (hr - swinir_pred) residuals.
+3. **Or noise-injection approach** — single SwinIR with noise conditioning for stochastic diversity.
+4. **Or return to OT-CFM with better architecture** — OT-CFM already achieves 0.171, but only 13M params. Perhaps OT-CFM + SwinIR backbone features could go further.
+
+**Ending time:** 11:13 EDT
+**Ending commit:** (pending)
