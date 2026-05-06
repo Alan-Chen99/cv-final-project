@@ -1,0 +1,13 @@
+=== Fine-tune start: Wed May 6 04:08:06 EDT 2026 ===
+Loading data...
+#params: 13,074,561
+Timestep sampling: uniform
+Resumed from epoch 23, FRESH schedule: lr=3e-05, T_max=13, best val loss: 0.267351
+AMP (mixed precision) enabled
+Epoch 24/36, Train: 0.274184, Val: 0.268190, LR: 0.000030, Time: 3.5min
+Epoch 25/36, Train: 0.271830, Val: 0.268069, LR: 0.000028, Time: 7.0min
+Epoch 26/36, Train: 0.271518, Val: 0.266047, LR: 0.000026, Time: 10.5min
+Epoch 27/36, Train: 0.269724, Val: 0.264240, LR: 0.000024, Time: 13.9min
+Epoch 28/36, Train: 0.269614, Val: 0.264383, LR: 0.000020, Time: 17.4min
+Epoch 29/36, Train: 0.268009, Val: 0.263852, LR: 0.000017, Time: 20.9min
+Epoch 30/36, Train: 0.266231, Val: 0.263917, LR: 0.000013, Time: 24.4min

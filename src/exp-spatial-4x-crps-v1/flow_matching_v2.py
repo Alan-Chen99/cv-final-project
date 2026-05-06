@@ -425,6 +425,17 @@ def train(args):
             return sample_timesteps_logit_normal(bs, dev, t_logit_mean, t_logit_std)
         return sample_timesteps_uniform(bs, dev)
 
+    # AMP setup
+    use_amp = getattr(args, 'amp', False)
+    scaler = torch.amp.GradScaler('cuda', enabled=use_amp)
+    if use_amp:
+        print("AMP (mixed precision) enabled")
+
+    # Data augmentation
+    use_augment = getattr(args, 'augment', False)
+    if use_augment:
+        print("Data augmentation enabled (random h/v flip)")
+
     start_time = time.time()
 
     for epoch in range(start_epoch, args.epochs):
@@ -434,6 +445,15 @@ def train(args):
             lr_batch = lr_batch.to(device)
             res_batch = res_batch.to(device)
 
+            # Data augmentation: random flips (same transform for both)
+            if use_augment:
+                if torch.rand(1).item() > 0.5:
+                    lr_batch = torch.flip(lr_batch, [-1])
+                    res_batch = torch.flip(res_batch, [-1])
+                if torch.rand(1).item() > 0.5:
+                    lr_batch = torch.flip(lr_batch, [-2])
+                    res_batch = torch.flip(res_batch, [-2])
+
             bs = lr_batch.shape[0]
             t = _sample_t(bs, device)
             x_0 = torch.randn_like(res_batch)
@@ -441,13 +461,16 @@ def train(args):
             x_t = (1 - t_expand) * x_0 + t_expand * res_batch
             target_v = res_batch - x_0
 
-            pred_v = model(x_t, t, lr_batch)
-            loss = F.mse_loss(pred_v, target_v)
-
             optimizer.zero_grad()
-            loss.backward()
+            with torch.amp.autocast('cuda', enabled=use_amp):
+                pred_v = model(x_t, t, lr_batch)
+                loss = F.mse_loss(pred_v, target_v)
+
+            scaler.scale(loss).backward()
+            scaler.unscale_(optimizer)
             torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
-            optimizer.step()
+            scaler.step(optimizer)
+            scaler.update()
 
             if ema is not None:
                 ema.update(model)
@@ -470,8 +493,9 @@ def train(args):
                 t_expand = t[:, None, None, None]
                 x_t = (1 - t_expand) * x_0 + t_expand * res_batch
                 target_v = res_batch - x_0
-                pred_v = model(x_t, t, lr_batch)
-                val_loss += F.mse_loss(pred_v, target_v).item()
+                with torch.amp.autocast('cuda', enabled=use_amp):
+                    pred_v = model(x_t, t, lr_batch)
+                    val_loss += F.mse_loss(pred_v, target_v).item()
         val_loss /= len(val_loader)
 
         elapsed = time.time() - start_time
@@ -645,6 +669,9 @@ if __name__ == "__main__":
                         choices=["uniform", "logit_normal"])
     parser.add_argument("--t_logit_mean", type=float, default=0.0)
     parser.add_argument("--t_logit_std", type=float, default=1.0)
+    # AMP + augmentation
+    parser.add_argument("--amp", action="store_true", help="Enable mixed precision training")
+    parser.add_argument("--augment", action="store_true", help="Random h/v flip augmentation")
     # Eval args
     parser.add_argument("--n_ensemble", type=int, default=10)
     parser.add_argument("--eval_batch_size", type=int, default=32)

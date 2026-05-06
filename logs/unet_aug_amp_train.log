@@ -1,0 +1,49 @@
+[long-bash] started at Wed May  6 01:00:15 EDT 2026
+GPU: NVIDIA L40S
+Loading data...
+#params: 13,074,561
+Timestep sampling: uniform
+AMP (mixed precision) enabled
+Data augmentation enabled (random h/v flip)
+Epoch 1/40, Train: 0.496928, Val: 0.372996, LR: 0.000100, Time: 3.5min
+Epoch 2/40, Train: 0.371629, Val: 0.347917, LR: 0.000099, Time: 7.0min
+Epoch 3/40, Train: 0.353246, Val: 0.332079, LR: 0.000099, Time: 10.4min
+Epoch 4/40, Train: 0.340624, Val: 0.332461, LR: 0.000098, Time: 13.9min
+Epoch 5/40, Train: 0.334358, Val: 0.320438, LR: 0.000096, Time: 17.4min
+Epoch 6/40, Train: 0.328167, Val: 0.317063, LR: 0.000095, Time: 20.9min
+Epoch 7/40, Train: 0.322780, Val: 0.313145, LR: 0.000093, Time: 24.3min
+Epoch 8/40, Train: 0.319084, Val: 0.311922, LR: 0.000090, Time: 27.8min
+Epoch 9/40, Train: 0.314802, Val: 0.309859, LR: 0.000088, Time: 31.3min
+Epoch 10/40, Train: 0.312973, Val: 0.308063, LR: 0.000085, Time: 35.0min
+Epoch 11/40, Train: 0.310348, Val: 0.302308, LR: 0.000082, Time: 38.5min
+Epoch 12/40, Train: 0.306718, Val: 0.299335, LR: 0.000079, Time: 42.0min
+Epoch 13/40, Train: 0.304020, Val: 0.300567, LR: 0.000076, Time: 45.5min
+Epoch 14/40, Train: 0.301316, Val: 0.299627, LR: 0.000073, Time: 48.9min
+Epoch 15/40, Train: 0.300591, Val: 0.295595, LR: 0.000069, Time: 52.4min
+Epoch 16/40, Train: 0.298238, Val: 0.296467, LR: 0.000065, Time: 55.9min
+Epoch 17/40, Train: 0.297586, Val: 0.292662, LR: 0.000062, Time: 59.4min
+Epoch 18/40, Train: 0.294644, Val: 0.293616, LR: 0.000058, Time: 62.8min
+Epoch 19/40, Train: 0.293657, Val: 0.292199, LR: 0.000054, Time: 66.3min
+Epoch 20/40, Train: 0.293223, Val: 0.286715, LR: 0.000050, Time: 69.8min
+Epoch 21/40, Train: 0.292932, Val: 0.287028, LR: 0.000046, Time: 73.3min
+Epoch 22/40, Train: 0.290770, Val: 0.285915, LR: 0.000042, Time: 76.8min
+Epoch 23/40, Train: 0.289419, Val: 0.286396, LR: 0.000038, Time: 80.2min
+Epoch 24/40, Train: 0.289260, Val: 0.286820, LR: 0.000035, Time: 83.7min
+Epoch 25/40, Train: 0.287371, Val: 0.282026, LR: 0.000031, Time: 87.2min
+Epoch 26/40, Train: 0.285192, Val: 0.282235, LR: 0.000027, Time: 90.6min
+Epoch 27/40, Train: 0.285462, Val: 0.281865, LR: 0.000024, Time: 94.1min
+Epoch 28/40, Train: 0.284990, Val: 0.280084, LR: 0.000021, Time: 97.6min
+Epoch 29/40, Train: 0.283058, Val: 0.280818, LR: 0.000018, Time: 101.1min
+Epoch 30/40, Train: 0.283112, Val: 0.280487, LR: 0.000015, Time: 104.5min
+Epoch 31/40, Train: 0.282836, Val: 0.277648, LR: 0.000012, Time: 108.0min
+Epoch 32/40, Train: 0.281282, Val: 0.278588, LR: 0.000010, Time: 111.5min
+Epoch 33/40, Train: 0.280711, Val: 0.278235, LR: 0.000007, Time: 115.0min
+Epoch 34/40, Train: 0.281070, Val: 0.277949, LR: 0.000005, Time: 118.4min
+[CANCELLED AT 2026-05-06T02:59:35 DUE TO TIME LIMIT]
+
+=== Evaluation (10K test, 10 ensemble, Euler 10, AddCL) ===
+CRPS (paper): 0.102944
+CRPS (std):   0.190388
+MAE:          0.268103
+RMSE:         0.525227
+Mass viol:    0.000001
