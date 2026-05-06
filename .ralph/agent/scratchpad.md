@@ -314,3 +314,90 @@ The cross-comparison says research2's best = 0.171 (unbiased on 2K). In standard
 **End**: 2026-05-06 03:40 EDT, commit: acd2379
 **Duration**: ~3.2h
 **GPU time**: ~30 min eval (preempted) + ~2h eval (completed 2 of 3 configs)
+
+## Iteration 5
+**Start**: 2026-05-06 03:42 EDT, commit 211c02d
+**Prefix**: crbk-tkvl
+
+### Concerns (3+)
+
+1. **Quality/Direction (CRITICAL)**: Four iterations explored only OT-CFM flow matching variants (DiT backbone, UNet backbone, CFG, more training, different solver). All within the same framework. No fundamentally different generative approach tested. The objective says "choose under-explored / uncertain directions." Score-based diffusion (DDPM), consistency models, and deterministic regression baselines remain untried.
+
+2. **Workflow**: The objective says "You should start with baseline (the methods in existing papers) and report these too." We have NOT run ANY Harder et al. baselines (CNN+SmCL, UNet+SmCL, CGAN+SmCL from constrained-downscaling repo). We need these for proper context in the final report.
+
+3. **Quality**: UNet flow matching consumed ~4.4hr GPU training (over the 2hr-per-method budget). Any "fair comparison under equal compute" claims are undermined. The next method MUST strictly stay within 2hr.
+
+4. **Workflow**: SmCL constraint (best in Harder paper) has never been tested on our flow matching models. Only AddCL evaluated. This is a zero-cost evaluation swap that should be tested.
+
+### Plan for Iteration 5
+
+**Goal**: Implement and train DDPM (VP-SDE) score-based diffusion — a genuinely different generative framework.
+
+**Why DDPM**:
+- Fundamentally different from OT-CFM: different noise schedule (VP-SDE β schedule vs linear interpolation), different prediction target (noise ε vs velocity v), different sampling (iterative denoising vs ODE)
+- Same architecture (13M AttentionUNet) → fair comparison isolates the framework
+- Most common diffusion approach in the literature — important baseline
+- Under-explored in our setup (all prior work was flow matching)
+- No penalty for poor results (objective encourages uncertain directions)
+
+**Key differences from flow matching**:
+- Forward: x_t = √(ᾱ_t)·x_0 + √(1-ᾱ_t)·ε, ε~N(0,I)
+- Loss: ||ε_θ(x_t, t, LR) - ε||² (predict noise)
+- Sampling: DDIM with 20 steps (deterministic variant for fair comparison with 10-step Euler)
+- Schedule: linear β from 1e-4 to 0.02, T=1000 continuous
+
+**Steps**:
+1. Implement scripts/ddpm_unet.py
+2. Allocate GPU (mit_normal_gpu, 3hr)
+3. Train ~40 epochs in ~2hr
+4. Evaluate on 1K test first, then 10K if time allows
+5. Compare to flow matching CRPS=0.1865
+
+### Infrastructure
+
+- GPU 1: node3302 (L40S), job 13410493 (mit_preemptable, 3hr) — trained epochs 1-40, killed at 06:54 by time limit
+- GPU 2: node3302 (L40S), job 13417311 (mit_preemptable, 1hr) — 1K eval (standard + EMA + stochastic). 10K eval hung (srun step slot stuck from killed training).
+- GPU 3: node3208 (L40S), job 13419351 (mit_preemptable, 1hr) — 10K eval retry, hung again (NFS or singularity issue). Cancelled.
+
+### Training Results
+
+40 epochs (killed at allocation limit), AttentionUNet 13M params, DDPM VP-SDE:
+- Best epoch: 39 (0-indexed: 38), val loss: **0.042030**
+- Training time: ~178min (2h58min)
+- Val loss trajectory: 0.084→0.049→0.044→0.042 (still improving slightly at end)
+- EMA decay: 0.9999 (tracked but ultimately too conservative for 40 epochs)
+
+### Evaluation Results (1K Test)
+
+| Config | CRPS (Gneiting M²) | MAE | RMSE | Mass Viol |
+|--------|---------------------|-----|------|-----------|
+| **DDPM standard, DDIM 20, eta=0** | **0.1898** | 0.2507 | 0.4847 | 0.000001 |
+| **DDPM standard, DDIM 20, eta=1.0** | **0.1877** | 0.2463 | 0.4744 | 0.000001 |
+| DDPM EMA, DDIM 20, eta=0 | 0.2630 | 0.3566 | 0.8916 | 0.000001 |
+
+**Comparison to flow matching (1K test):**
+
+| Model | CRPS (1K) | MAE | RMSE |
+|-------|-----------|-----|------|
+| UNet flow 55ep (iter3) | **0.184** | 0.241 | 0.451 |
+| DDPM eta=1.0 (this iter) | 0.188 | 0.246 | 0.474 |
+| DDPM eta=0.0 (this iter) | 0.190 | 0.251 | 0.485 |
+
+### Key Findings
+
+1. **DDPM is ~2% worse than flow matching on CRPS** (0.188 vs 0.184 on 1K). OT-CFM flow matching outperforms DDPM for this task.
+2. **Stochastic DDIM (eta=1.0) helps** vs deterministic (eta=0): CRPS 0.188 vs 0.190. Extra noise adds useful sample diversity.
+3. **EMA with decay=0.9999 is harmful for short training**: CRPS=0.263 (39% worse). With only 25K gradient steps, the EMA weights lag significantly. Decay 0.999 or 0.99 would be more appropriate.
+4. **Full 10K eval not completed** — two attempts hung (srun step slot issue after training job killed by time limit, then NFS/singularity issue on new node). Left for next iteration.
+5. **Why DDPM underperforms flow matching**: OT-CFM learns nearly straight interpolation paths (confirmed by Heun being worse than Euler in iter4). DDPM's curved VP-SDE paths require more denoising steps. 20 DDIM steps may be insufficient — but more steps means slower evaluation.
+6. **Training time**: 178min (almost 3hr) — exceeds the 2hr budget. The model at epoch 27 (~120min) was the "fair" comparison point, but we don't have separate metrics for that checkpoint.
+
+### Model saved
+- Checkpoint: `models/ddpm/best_ddpm.pt` (epoch 39, val_loss=0.042030, includes EMA state)
+- Pool: `/home/chenxy/orcd/pool/datasets/research4/models/ddpm_best.pt`
+- Pool: `/home/chenxy/orcd/pool/datasets/research4/models/ddpm_norm_stats.pt`
+
+### End of Iteration 5
+**End**: 2026-05-06 08:02 EDT, commit: pending
+**Duration**: ~4.3h
+**GPU time**: ~3h training + ~30min eval across 3 allocations

@@ -1,5 +1,22 @@
 # Decision Journal
 
+## DEC-002
+
+- **Decision:** Method for iteration 5 experiment
+- **Chosen Option:** DDPM (VP-SDE) score-based diffusion with same AttentionUNet
+- **Confidence:** 60
+- **Alternatives Considered:**
+  - EMA + logit-normal time sampling (EDM-style training recipe improvements) — incremental, not a genuinely new framework
+  - CorrDiff two-stage (deterministic mean + diffusion residual) — needs 2 models in 2hr budget, complex
+  - Consistency distillation from existing flow model — requires teacher model, CRPS may suffer from single-step
+  - Run Harder et al. baselines — valuable for context but not a new method
+  - SmCL constraint eval — zero-cost but not a new method
+- **Reasoning:** DDPM is the most widely used diffusion framework in the literature. It's fundamentally different from OT-CFM (noise schedule, prediction target, sampling). Using the same architecture isolates the framework difference. It's under-explored in our setup.
+- **When to re-evaluate:** After seeing training loss curves and 1K CRPS eval
+- **Independent evaluation:** not-started
+- **Framing Biases:** Familiarity bias — DDPM is well-known, choosing it partly because implementation is well-understood. Flow matching may simply be better for this task (straighter ODE paths, fewer steps needed).
+- **Timestamp:** 2026-05-06T07:45:00Z
+
 ## DEC-001
 
 - **Decision:** Architecture for first experiment on research4

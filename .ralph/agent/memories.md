@@ -8,6 +8,14 @@
 
 ## Decisions
 
+### mem-1778068979-793a
+> DDPM (VP-SDE) score-based diffusion with same 13M AttentionUNet: CRPS=0.1877 on 1K test (stochastic DDIM 20 steps, eta=1.0, AddCL). 2% worse than OT-CFM flow matching (0.184 on 1K). EMA decay=0.9999 is harmful for short training runs (CRPS=0.263). Full 10K eval not completed (hung srun). DDPM underperforms because OT-CFM learns straight paths needing fewer sampling steps.
+<!-- tags: ddpm, crps, flow-matching, architecture | created: 2026-05-06 -->
+
+### mem-1778053249-59c1
+> Full 10K eval results for UNet 55ep flow matching: Euler 10 steps CRPS=0.1865, Heun 10 steps CRPS=0.1885. Higher-order/more steps don't help: OT-CFM trains with straight-line interpolation so Euler is the matched solver. AddCL constraint, Gneiting M^2 formula. This is the definitive number for UNet flow matching on research4.
+<!-- tags: crps, evaluation, flow-matching, solver | created: 2026-05-06 -->
+
 ### mem-1778041528-e693
 > UNet 55-epoch continued training: resumed from iter2's 25-epoch model with fresh cosine LR schedule (finetune_lr=5e-5, T_max=34). cfg_prob=0 (CFG disabled). Val loss 0.272→0.251 (7.7% improvement). CRPS=0.184 on 1K test (Gneiting M^2), vs iter2's 0.193 (5% improvement). Now competitive with research2's estimated ~0.183. Full 10K eval pending.
 <!-- tags: crps, training, flow-matching | created: 2026-05-06 -->
