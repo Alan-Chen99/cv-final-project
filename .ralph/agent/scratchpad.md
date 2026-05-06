@@ -356,4 +356,4 @@ CorrDiff works because the residual distribution has reasonable variance relativ
 4. **The multi-head approach (CRPS=0.183) remains the best SwinIR-based result**
 
 **Ending time:** 15:12 EDT
-**Ending commit:** (to be filled after commit)
+**Ending commit:** 303b8e2
