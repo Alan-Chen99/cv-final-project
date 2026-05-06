@@ -357,3 +357,94 @@ CorrDiff works because the residual distribution has reasonable variance relativ
 
 **Ending time:** 15:12 EDT
 **Ending commit:** 303b8e2
+
+## Iteration 6 — 2026-05-06 15:14 EDT
+**Starting commit:** 0a230c4
+**Run prefix:** nova-tango
+
+### Current State
+- Time: ~29hr elapsed. ~11hr to 40hr mark (2026-05-07 02:00 EDT). ~2-3 more experiment iterations.
+- GPU: no active allocation. 2 normal full, 3/4 preemptable used. Allocating 1 preemptable.
+- Best CRPS: 0.183 (multi-head SwinIR K=8, research5)
+- Target: OT-CFM CRPS=0.171 (research2, checkpoint unavailable — pool dir doesn't exist)
+- squeue: job 13445100 pending (nova-tango)
+
+### Concerns (3+ problems)
+
+1. **Quality: Multi-head SwinIR ceiling at 0.183 — exhaustively confirmed.** 3 experiments (direct, residual, unfrozen backbone) all converge to CRPS=0.183. Spread > MAE indicates over-dispersion. This approach is done.
+
+2. **Quality: CorrDiff-style residual flow failed (CRPS=0.207).** Source-target mismatch: N(0,1) → N(0,0.0035) is a 285x compression. Mean corruption: MAE degrades from 0.250 to 0.264. The flow adds biased residuals.
+
+3. **Workflow: Never tested transformer-based score network.** All 5 iterations used either SwinIR (CNN/Transformer hybrid but NOT a DiT) or UNet. DiT is explicitly identified as under-explored direction #7 in CLAUDE.md. All downscaling diffusion/flow papers use UNet backbones.
+
+4. **Quality: OT-CFM remains the best approach but only tested with UNet.** The 13M UNet achieved CRPS=0.171 on research2. The architecture (not just the training method) may be limiting — a transformer backbone could capture longer-range spatial correlations.
+
+### Direction: DiT (Diffusion Transformer) for OT-CFM Flow Matching
+
+**Rationale:** Under-explored direction #7 from CLAUDE.md. All climate downscaling diffusion/flow papers use UNet backbones. DiT has become the dominant architecture in image generation (Stable Diffusion 3, FLUX, etc.) but is untested in climate downscaling. Global self-attention over all spatial tokens may better model long-range correlations in climate variables.
+
+**Architecture: FlowDiT**
+- Input: [x_t (1ch), LR_up (1ch)] → 4×4 patches → 1024 tokens × dim=384
+- 8 transformer blocks with adaLN-Zero time conditioning
+- Multi-head self-attention (6 heads) + MLP (ratio=4)
+- Unpatchify → velocity field (1ch, 128×128)
+- ~15M params (comparable to 13M UNet baseline)
+
+**Training:**
+- Same OT-CFM objective as flow_matching_v2.py
+- Same residual prediction (HR - bilinear(LR))
+- Same normalization, data loading, evaluation
+- AdamW, LR=1e-4, cosine schedule, BS=64
+- 2hr wall-clock budget
+
+**Expected outcome:** Uncertain — this is exploratory. DiT may converge slower than UNet. Success criterion: CRPS competitive with UNet (~0.171). Novel contribution even if CRPS is similar (first DiT for climate downscaling).
+
+### Training Log
+- 15:21 — salloc submitted (preemptable), pending Priority. Fairshare exhausted across branches.
+- 15:28 — Cancelled, tried H100 → pending. Tried L40S → pending. Tried normal → pending.
+- 15:42 — Normal slot opened (gcgi-vxgh-eval finished). Submitted normal GPU.
+- 15:49 — Allocated node4108 (L40S, normal partition, 3hr limit)
+- 15:50 — Benchmarked: DiT-S/8 (256 tokens): 0.9min/ep, 4.8GB. DiT-S/4 (1024 tokens): OOM at BS=64.
+- 15:53 — Training started: 100 epochs, BS=64, LR=1e-4, cosine, 22M params
+- 17:43 — Training complete: 100 epochs in 109.6 min, best val loss 0.3100 at epoch 84
+- 17:56 — Eval (10 steps): CRPS=0.204, MAE=0.282
+- 18:08 — Eval (10 steps + AddCL): CRPS=0.204, mass viol=0.000001
+- 18:15 — Eval (20 steps): CRPS=0.201, MAE=0.284
+- 18:20 — GPU cancelled
+
+### DiT Flow Matching Results (10K test)
+| Method | CRPS | MAE | RMSE | Spread | Mass Viol |
+|--------|------|-----|------|--------|-----------|
+| DiT 10 steps | 0.204 | 0.282 | 0.567 | 0.272 | 0.003 |
+| DiT 10 + AddCL | 0.204 | 0.282 | 0.567 | 0.271 | 0.000001 |
+| DiT 20 steps | 0.201 | 0.284 | 0.571 | 0.310 | 0.003 |
+| Multi-Head K=8 (iter 2) | **0.183** | 0.250 | 0.482 | 0.272 | 0.005 |
+| OT-CFM UNet (research2) | **0.171** | 0.247 | 0.458 | — | 0.000001 |
+
+### Analysis: DiT Underperforms UNet for Climate Downscaling
+
+**The DiT achieves CRPS=0.201-0.204, significantly worse than UNet (0.171) and multi-head SwinIR (0.183).**
+
+**Root cause: 8×8 patches lose fine-grained spatial detail.**
+- Each 8×8 patch is compressed to a single 384-dim token
+- Unpatchify reconstructs 64 pixels from one vector via linear projection
+- Fine spatial patterns within patches are lost — rank-1 approximation per patch
+- UNet processes at full 128×128 through convolutions with skip connections
+
+**Evidence:**
+- MAE=0.282 vs UNet's 0.247 → 14% worse accuracy
+- 2-layer conv refinement (32 channels) insufficient for lost intra-patch detail
+- More ODE steps (20 vs 10) increases spread (0.31 vs 0.27) but doesn't improve MAE
+
+**Why 4×4 patches weren't feasible:**
+- 1024 tokens with BS=64 → OOM on L40S (46GB) even with flash attention
+- Would need BS=16 → 42 min/epoch → only ~3 epochs in 2hr
+
+**Positive:** DiT trains fast (1.1 min/ep), converges well, AddCL works perfectly.
+
+### Implications for Next Iterations
+1. **Retrain OT-CFM UNet from scratch** on this branch — proven architecture, CRPS=0.171
+2. **Hybrid DiT + Conv decoder** could combine global attention with fine detail
+3. **UNet convolutional inductive bias is important** for pixel-level prediction tasks
+
+**Ending time:** ~18:20 EDT

@@ -55,3 +55,17 @@
 - **Independent evaluation:** not-started
 - **Framing Biases:** Assumed CorrDiff analogy transfers directly, but CorrDiff's residuals have much larger variance relative to noise source. The SwinIR predictions are too accurate for this approach.
 - **Timestamp:** 2026-05-06T19:12:00Z
+
+## DEC-005: DiT for Climate Downscaling Flow Matching — Negative Result
+- **Decision:** Tested FlowDiT (Diffusion Transformer) as replacement for UNet in OT-CFM flow matching. Clear negative result.
+- **Chosen Option:** DiT-S/8 (dim=384, depth=8, heads=6, 8×8 patches, 22M params)
+- **Confidence:** 90 (empirically validated, CRPS=0.201-0.204 vs UNet 0.171)
+- **Alternatives Considered:**
+  - DiT with 4×4 patches (1024 tokens): OOM at BS=64, impractical within 2hr budget
+  - Hybrid DiT encoder + Conv decoder: NOT tested, could be promising
+  - Larger/deeper DiT: would worsen the patch-size problem, not help
+- **Reasoning:** 8×8 patches compress each 64-pixel region to a single token, losing fine spatial detail. The linear unpatchify cannot reconstruct high-frequency patterns. UNet's full-resolution convolutions with skip connections preserve detail at all scales. The convolutional inductive bias is important for pixel-level climate downscaling.
+- **When to re-evaluate:** If hybrid DiT+Conv or 4×4 patches with gradient checkpointing become feasible
+- **Independent evaluation:** not-started
+- **Framing Biases:** Tested only 8×8 patches due to memory constraints. The negative result may be specific to coarse patching, not DiT architecture in general. Flash attention with 4×4 patches and smaller batch could change the conclusion.
+- **Timestamp:** 2026-05-06T22:20:00Z
