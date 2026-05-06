@@ -19,6 +19,39 @@ import torch.nn as nn
 import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 from pathlib import Path
+from scipy.optimize import linear_sum_assignment
+
+
+# ── OT coupling ──────────────────────────────────────────────────────────────
+
+@torch.no_grad()
+def ot_coupling(x0, x1):
+    """Minibatch optimal transport coupling.
+
+    Given source x0 and target x1, find permutation of x0 that minimizes
+    total transport cost (L2 distance). Cost matrix computed on GPU,
+    only the small BxB matrix transferred to CPU for Hungarian algorithm.
+
+    Args:
+        x0: (B, ...) source samples (noise) on GPU
+        x1: (B, ...) target samples (data) on GPU
+    Returns:
+        x0 reordered to match x1 via OT assignment (on same device)
+    """
+    B = x0.shape[0]
+    # Flatten on GPU
+    x0_flat = x0.reshape(B, -1)  # (B, D)
+    x1_flat = x1.reshape(B, -1)  # (B, D)
+    # Cost matrix on GPU: ||a-b||^2 = ||a||^2 + ||b||^2 - 2*a·b
+    x0_sq = (x0_flat ** 2).sum(dim=1, keepdim=True)  # (B, 1)
+    x1_sq = (x1_flat ** 2).sum(dim=1, keepdim=True)  # (B, 1)
+    cost = x0_sq + x1_sq.T - 2 * x0_flat @ x1_flat.T  # (B, B) on GPU
+    # Only transfer small BxB matrix to CPU for Hungarian
+    cost_np = cost.cpu().numpy()
+    row_ind, col_ind = linear_sum_assignment(cost_np)
+    # Reorder x0 so x0[i] is matched to x1[i]
+    inv_perm = np.argsort(col_ind)
+    return x0[inv_perm]
 
 
 # ── Architecture ──────────────────────────────────────────────────────────────
@@ -123,28 +156,32 @@ class EMA:
 
 
 class DownBlock(nn.Module):
-    def __init__(self, in_ch, out_ch, time_dim):
+    def __init__(self, in_ch, out_ch, time_dim, n_res=1):
         super().__init__()
-        self.res = ResBlock(in_ch, time_dim)
+        self.res_blocks = nn.ModuleList([ResBlock(in_ch, time_dim) for _ in range(n_res)])
         self.down = nn.Conv2d(in_ch, out_ch, 3, stride=2, padding=1)
 
     def forward(self, x, t_emb):
-        h = self.res(x, t_emb)
+        h = x
+        for res in self.res_blocks:
+            h = res(h, t_emb)
         return self.down(h), h  # downsampled, skip
 
 
 class UpBlock(nn.Module):
-    def __init__(self, in_ch, skip_ch, out_ch, time_dim):
+    def __init__(self, in_ch, skip_ch, out_ch, time_dim, n_res=1):
         super().__init__()
         self.up = nn.ConvTranspose2d(in_ch, out_ch, 4, stride=2, padding=1)
         self.conv = nn.Conv2d(out_ch + skip_ch, out_ch, 3, padding=1)
-        self.res = ResBlock(out_ch, time_dim)
+        self.res_blocks = nn.ModuleList([ResBlock(out_ch, time_dim) for _ in range(n_res)])
 
     def forward(self, x, skip, t_emb):
         h = self.up(x)
         h = torch.cat([h, skip], dim=1)
         h = self.conv(h)
-        return self.res(h, t_emb)
+        for res in self.res_blocks:
+            h = res(h, t_emb)
+        return h
 
 
 class FlowUNet(nn.Module):
@@ -154,7 +191,7 @@ class FlowUNet(nn.Module):
     Output: (B, 1, 128, 128) — predicted velocity
     """
 
-    def __init__(self, channels=(32, 64, 128), time_dim=128, use_attention=False):
+    def __init__(self, channels=(32, 64, 128), time_dim=128, use_attention=False, n_res_blocks=1):
         super().__init__()
         self.time_dim = time_dim
         self.use_attention = use_attention
@@ -171,9 +208,9 @@ class FlowUNet(nn.Module):
         self.input_conv = nn.Conv2d(2, c0, 3, padding=1)
 
         # Encoder: 128 -> 64 -> 32 -> 16
-        self.down0 = DownBlock(c0, c1, time_dim)   # 128 -> 64
-        self.down1 = DownBlock(c1, c2, time_dim)   # 64 -> 32
-        self.down2 = DownBlock(c2, c2, time_dim)   # 32 -> 16
+        self.down0 = DownBlock(c0, c1, time_dim, n_res=n_res_blocks)   # 128 -> 64
+        self.down1 = DownBlock(c1, c2, time_dim, n_res=n_res_blocks)   # 64 -> 32
+        self.down2 = DownBlock(c2, c2, time_dim, n_res=n_res_blocks)   # 32 -> 16
 
         # Middle
         self.mid = ResBlock(c2, time_dim)
@@ -181,9 +218,9 @@ class FlowUNet(nn.Module):
             self.mid_attn = SelfAttention(c2)
 
         # Decoder: 16 -> 32 -> 64 -> 128
-        self.up2 = UpBlock(c2, c2, c2, time_dim)   # 16 -> 32
-        self.up1 = UpBlock(c2, c1, c1, time_dim)   # 32 -> 64
-        self.up0 = UpBlock(c1, c0, c0, time_dim)   # 64 -> 128
+        self.up2 = UpBlock(c2, c2, c2, time_dim, n_res=n_res_blocks)   # 16 -> 32
+        self.up1 = UpBlock(c2, c1, c1, time_dim, n_res=n_res_blocks)   # 32 -> 64
+        self.up0 = UpBlock(c1, c0, c0, time_dim, n_res=n_res_blocks)   # 64 -> 128
 
         # Output
         self.out_norm = nn.GroupNorm(8, c0)
@@ -337,11 +374,14 @@ def train(args):
     noise_std = getattr(args, 'noise_std', 0.5)
     augment = getattr(args, 'augment', False)
     residual = getattr(args, 'residual', False)
+    use_ot = getattr(args, 'ot', False)
     print(f"Training flow matching model on {device}")
     print(f"Args: epochs={args.epochs}, bs={args.batch_size}, lr={args.lr}, "
           f"channels={args.channels}, euler_steps={args.euler_steps}")
     if residual:
         print("Residual mode: learning on (HR - bilinear(LR)) space")
+    if use_ot:
+        print("OT-CFM: minibatch optimal transport coupling enabled")
     if lr_anchor:
         print(f"LR-anchor mode: noise_std={noise_std}")
     if augment:
@@ -360,9 +400,10 @@ def train(args):
     # Model
     channels = [int(c) for c in args.channels.split(',')]
     use_attention = getattr(args, 'attention', False)
-    model = FlowUNet(channels=channels, use_attention=use_attention).to(device)
+    n_res_blocks = getattr(args, 'n_res_blocks', 1)
+    model = FlowUNet(channels=channels, use_attention=use_attention, n_res_blocks=n_res_blocks).to(device)
     n_params = sum(p.numel() for p in model.parameters())
-    print(f"Model params: {n_params:,}")
+    print(f"Model params: {n_params:,} (n_res_blocks={n_res_blocks})")
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.lr, weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=args.epochs)
@@ -402,7 +443,9 @@ def train(args):
                 'crps_loss': crps_loss_enabled,
                 'lr_anchor': lr_anchor, 'noise_std': noise_std,
                 'use_attention': use_attention,
-                'residual': residual},
+                'n_res_blocks': n_res_blocks,
+                'residual': residual,
+                'ot': use_ot},
                save_dir / 'flow_config.pth')
 
     t_start = time.time()
@@ -438,6 +481,11 @@ def train(args):
                 x0 = cond + noise_std * torch.randn_like(flow_target)
             else:
                 x0 = torch.randn_like(flow_target)
+
+            # OT coupling: reorder x0 to minimize transport cost to flow_target
+            if use_ot:
+                x0 = ot_coupling(x0, flow_target)
+
             t = torch.rand(B, device=device)
 
             # Interpolate: x_t = (1-t)*x0 + t*x1
@@ -587,7 +635,9 @@ def train(args):
                 'crps_loss': crps_loss_enabled,
                 'lr_anchor': lr_anchor, 'noise_std': noise_std,
                 'use_attention': use_attention,
-                'residual': residual},
+                'n_res_blocks': n_res_blocks,
+                'residual': residual,
+                'ot': use_ot},
                save_dir / 'flow_config.pth')
 
 
@@ -668,7 +718,8 @@ def evaluate(args):
         noise_std = args.eval_noise_std
 
     use_attention = config.get('use_attention', False)
-    model = FlowUNet(channels=channels, use_attention=use_attention).to(device)
+    n_res_blocks = config.get('n_res_blocks', 1)
+    model = FlowUNet(channels=channels, use_attention=use_attention, n_res_blocks=n_res_blocks).to(device)
     ckpt = 'flow_best.pth' if (save_dir / 'flow_best.pth').exists() else 'flow_last.pth'
     model.load_state_dict(torch.load(save_dir / ckpt, weights_only=False))
     model.eval()
@@ -825,6 +876,10 @@ if __name__ == '__main__':
                         help='Enable random h/v flip augmentation during training')
     parser.add_argument('--residual', action='store_true',
                         help='Learn on residual (HR - bilinear(LR)) space')
+    parser.add_argument('--ot', action='store_true',
+                        help='Use minibatch OT coupling (OT-CFM)')
+    parser.add_argument('--n-res-blocks', type=int, default=1,
+                        help='Number of ResBlocks per level (default: 1, research2 used 2)')
     args = parser.parse_args()
 
     if args.mode in ('train', 'both'):

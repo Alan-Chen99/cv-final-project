@@ -120,3 +120,74 @@ Finetuning actually made SwinIR WORSE than zero-shot (0.285 vs 0.279). Confirms 
 
 **End:** 2026-05-06 06:50 EDT
 **End commit:** 8290f26
+
+## Iteration 3
+**Start:** 2026-05-06 06:46 EDT
+**Start commit:** 8dfda68
+**Run prefix:** uqge-enkg
+
+### Situation
+- Branch: research6, iterations 1-2 complete
+- Best CRPS this branch: 0.238 (residual flow, 9.1M, 100 epochs, random coupling)
+- Target: research2's 0.171 (OT-CFM, 13M, 2 ResBlocks/level, 39 epochs)
+- GPU: 1 normal slot available (1/2 used), preemptable nearly full (3-4/4)
+- Research2 weights NOT accessible from this branch (pool/research2 empty)
+- Time: 06:46 EDT, ~19hr remaining before 40hr cutoff (02:00 EDT tomorrow)
+
+### Concerns
+1. **Quality concern — missing OT coupling**: The biggest architectural difference between research6 (CRPS 0.238) and research2 (CRPS 0.171) is that research2 used OT-CFM (optimal transport coupling). Research6 uses random source-target pairing. OT coupling leads to straighter flow paths that are easier to learn with few Euler steps. This is the most likely cause of the quality gap, ahead of capacity (9.1M vs 13M).
+
+2. **Quality concern — no EMA**: Research6's training loop has EMA implemented but NEVER enabled (--ema flag not passed). EMA typically gives ~5-10% improvement in generative models. With 100 epochs of training, EMA would accumulate a significantly smoothed model.
+
+3. **Workflow concern — dangling GPU jobs**: Three GPU jobs running (nsyy-wjrk node3208, jrut-ohex COMPLETING, crbk-tkvl node3302) with prefixes that don't match iteration 2's jwcj-hvhx. These are from other agents/branches. Iteration 2 did not properly document which jobs it created. Cannot determine if any are ours. Per rule 1010/1012, leaving them alone since prefixes don't match.
+
+### Plan for this iteration
+**ONE thing: Implement minibatch OT coupling and train with EMA.**
+
+Hypothesis: OT coupling is the single biggest factor in the research2 gap. Testing with same architecture (9.1M, 1 ResBlock/level) isolates OT's effect from capacity scaling.
+
+Changes:
+- Add `--ot` flag for minibatch OT coupling via scipy.optimize.linear_sum_assignment
+- Train with --ot --ema --ema-decay 0.999, same channels (64,128,256), batch 64
+- ~60-70 epochs to fit in 2hr on L40S
+- Evaluate on full 10K test with AddCL
+
+### OT Coupling Attempt — FAILED (too slow)
+Implemented minibatch OT coupling with GPU-based cost matrix + CPU Hungarian algorithm.
+- First attempt (CPU cost matrix): ~7.7 min/epoch (4.5x slower than non-OT)
+- Second attempt (GPU cost matrix + CPU Hungarian): still ~7.7 min/epoch
+- Root cause: `cost.cpu()` forces CUDA sync every batch, breaks GPU pipeline
+- Training preempted at epoch 10 (77 min)
+- Conclusion: **minibatch OT with CPU Hungarian is not viable** for 128x128 images at batch 64.
+  Would need GPU-native Sinkhorn or approximate matching.
+
+### Pivot: Scale architecture to 2 ResBlocks/level + EMA (no OT)
+- Added `--n-res-blocks` parameter to FlowUNet
+- 2 ResBlocks/level: 12.5M params (vs 9.1M with 1 ResBlock)
+- Training rate: ~2.96 min/epoch on L40S
+- **Preempted 3 times** on mit_preemptable partition during this iteration:
+  1. OT training preempted at epoch 10 (node4308, signal terminated)
+  2. v2 training preempted after 2 min (node3206, signal terminated)
+  3. v2 training preempted at epoch 25 (node4208, DUE TO PREEMPTION)
+
+### Flow v2 Results (10K test, 10 members, 10 Euler steps, 25 epochs only)
+| Method | Params | Epochs | CRPS | RMSE | MAE | Spread | Mass Viol |
+|--------|--------|--------|------|------|-----|--------|-----------|
+| Flow v2 + AddCL | 12.5M | 25 | 0.262 | 0.613 | 0.340 | 0.514 | 0.000 |
+| **Iter2: flow residual + AddCL** | **9.1M** | **100** | **0.238** | **0.577** | **0.298** | **0.265** | **0.000** |
+| **Prior: OT-CFM (research2)** | **13M** | **39** | **0.171** | **~0.456** | **~0.242** | **~0.07** | **0.000** |
+
+### Analysis
+1. **Model is severely undertrained.** 25/60 epochs. Spread=0.514 is 2x the 9.1M model's 0.265, indicating the model generates noise-like diverse samples rather than structured predictions.
+2. **Architecture scaling needs matching training.** The 12.5M model at 25 epochs is worse than 9.1M at 100 epochs. The extra capacity needs proportionally more training to converge.
+3. **OT coupling is prohibitively expensive with CPU Hungarian.** Would need GPU-native solver (Sinkhorn) or approximate matching to be practical.
+4. **Preemptable partition extremely unstable today.** 3 preemptions in one iteration. Consider using mit_normal when available.
+
+### What next iteration should do
+1. **Resume flow_v2 training from epoch 25** — checkpoint exists at `pool/research6/models/flow_v2/`. Need 35+ more epochs.
+2. **Try mit_normal partition** if available (more stable)
+3. After training completes, evaluate with both AddCL and no constraint
+4. If CRPS doesn't improve significantly over 9.1M model, the gap to research2 is NOT primarily architecture — it must be OT coupling or other training details
+
+**End:** 2026-05-06 10:57 EDT
+**End commit:** (pending)
