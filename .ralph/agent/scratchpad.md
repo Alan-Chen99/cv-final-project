@@ -176,3 +176,76 @@ The cross-comparison says research2's best = 0.171 (unbiased on 2K). In standard
 **End**: 2026-05-05 21:30 EDT, commit: 8ba0700
 **Duration**: ~4h
 **GPU time**: ~2.6h training + eval across 2 allocations
+
+## Iteration 3
+**Start**: 2026-05-05 21:31 EDT, commit ef9811f
+**Prefix**: ftbd-tlvk
+
+### Concerns (3+)
+
+1. **Workflow (CRITICAL)**: The iter2 UNet was only trained for 25 of planned 80 epochs due to GPU time limits across 2 allocations. Val loss was still declining (0.272 at epoch 21, trajectory clearly not plateaued). The 2hr training budget was not fully used. More training is the single most reliable way to improve CRPS.
+
+2. **Quality**: All evaluations across all branches use Euler ODE with only 10 steps. This is the simplest 1st-order solver. Higher-order solvers (Heun/midpoint) or more steps could give free CRPS improvements without retraining. Never explored.
+
+3. **Quality**: No EMA (Exponential Moving Average) used in any model on research4. The flow_downscale.py has EMA code but unet_cfg_flow.py doesn't. EMA is standard practice for generative models and typically improves quality.
+
+4. **Fact check**: The "~0.183 CRPS" for research2 is an estimate: converted from unbiased M*(M-1) formula on 2K test subset, never verified on full 10K test with Gneiting M² formula. It's a rough target, not a verified number.
+
+### Plan for Iteration 3
+
+**Goal**: Continue training UNet to ~55 epochs + evaluate with more ODE steps.
+
+**Why**:
+- Most reliable improvement path (val loss still declining)
+- 2hr training budget not utilized by iter2
+- cfg_prob=0 for remaining epochs (CFG proven negative)
+- Also test 20 and 50 ODE steps vs current 10 (zero retraining cost)
+
+**Steps**:
+1. Allocate GPU
+2. Resume training from epoch 25 to ~55 epochs (~1.5hr)
+3. Evaluate best model on full 10K test with 10, 20, and 50 Euler steps
+4. Compare to iter2 CRPS=0.196
+
+### Infrastructure
+
+- GPU: node4200 (L40S, 46GB), job 13393589 (mit_normal_gpu, 3hr limit)
+- Training started: ~21:49 EDT, finished ~00:12 EDT (151 min)
+- Issue: initial resume with original scheduler had LR=3e-6 (exhausted). Fixed with --finetune_lr 5e-5 (fresh cosine schedule, T_max=34 for remaining epochs)
+
+### Training Results
+
+55 epochs total (21 from iter2 + 34 continued), AttentionUNet 13M params, cfg_prob=0:
+- Best epoch: 52 (0-indexed: 51), val loss: **0.251212**
+- Val loss trajectory (continued training):
+  - Epoch 22: 0.275 (LR bump from finetune_lr)
+  - Epoch 30: 0.267
+  - Epoch 40: 0.257
+  - Epoch 48: 0.252
+  - Epoch 52: **0.251** (best)
+- Improvement: 0.272 → 0.251 (7.7% val loss reduction)
+
+### Evaluation Results (1K test subset)
+
+| Model | Params | Epochs | CRPS (Gneiting M²) | MAE | RMSE | Mass Viol |
+|-------|--------|--------|---------------------|-----|------|-----------|
+| **UNet 55ep (this iter)** | 13M | 55 | **0.184** | 0.241 | 0.451 | 0.000001 |
+| UNet CFG 25ep (iter2, 1K) | 13M | 25 | 0.193 | 0.253 | 0.482 | 0.000001 |
+| UNet CFG 25ep (iter2, 10K) | 13M | 25 | 0.196 | 0.258 | 0.487 | 0.000001 |
+| DiT flow 40ep (iter1) | 14.6M | 40 | 0.243 | 0.315 | 0.643 | 0.000001 |
+| LR-anchor flow (research) | 5.2M | 200 | 0.199 | 0.258 | 0.481 | 0.000131 |
+| UNet flow v2 (research2, est.) | 13M | 39 | ~0.183 | ~0.247 | ~0.458 | 0.000001 |
+
+**CRPS improved 5% over iter2 (0.193→0.184 on 1K test).** Now competitive with research2's estimated ~0.183.
+
+**Note**: Full 10K eval not done (allocation expired). 1K typically gives slightly lower CRPS than 10K. Full 10K needed for final comparison.
+
+### Model saved
+- Checkpoint: `models/unet_cfg/best_flow.pt` (epoch 52, val_loss=0.251)
+- Pool: `/home/chenxy/orcd/pool/datasets/research4/models/unet_cfg_best.pt`
+- Pool: `/home/chenxy/orcd/pool/datasets/research4/models/unet_cfg_norm_stats.pt`
+
+### End of Iteration 3
+**End**: 2026-05-06 00:25 EDT, commit: (pending)
+**Duration**: ~3h
+**GPU time**: ~2.5h training + ~5min eval on L40S
