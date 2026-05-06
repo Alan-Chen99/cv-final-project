@@ -232,6 +232,34 @@ def euler_sample_cfg(model, condition, shape, steps=10, guidance_scale=1.0):
     return x
 
 
+@torch.no_grad()
+def heun_sample_cfg(model, condition, shape, steps=10, guidance_scale=1.0):
+    """Heun's method (2nd-order) ODE solver with optional CFG.
+    Each step uses 2 function evaluations (NFE = 2*steps)."""
+    device = condition.device
+    x = torch.randn(shape, device=device)
+    dt = 1.0 / steps
+    use_guidance = (guidance_scale != 1.0)
+    uncond = torch.zeros_like(condition) if use_guidance else None
+
+    def get_velocity(x_in, t_val):
+        t_tensor = torch.full((shape[0],), t_val, device=device)
+        v_cond = model(x_in, t_tensor, condition)
+        if use_guidance:
+            v_uncond = model(x_in, t_tensor, uncond)
+            return v_uncond + guidance_scale * (v_cond - v_uncond)
+        return v_cond
+
+    for i in range(steps):
+        t_i = i * dt
+        v1 = get_velocity(x, t_i)
+        x_euler = x + v1 * dt
+        t_next = min((i + 1) * dt, 1.0)
+        v2 = get_velocity(x_euler, t_next)
+        x = x + 0.5 * (v1 + v2) * dt
+    return x
+
+
 # ---------- Training ----------
 
 def train(args):
@@ -413,8 +441,11 @@ def evaluate(args):
     use_constraint = args.constraint
     guidance_scale = args.guidance_scale
 
+    solver = getattr(args, 'solver', 'euler')
+    sample_fn = heun_sample_cfg if solver == 'heun' else euler_sample_cfg
+
     print(f"Evaluating {n_samples} samples, {n_ensemble} ensemble, "
-          f"{ode_steps} Euler steps, constraint={use_constraint}, guidance={guidance_scale}")
+          f"{ode_steps} {solver} steps, constraint={use_constraint}, guidance={guidance_scale}")
     print(f"Model epoch: {ckpt['epoch']+1}, val_loss: {ckpt['val_loss']:.6f}")
     print(f"CFG training prob: {saved_args.get('cfg_prob', 0.0)}")
 
@@ -436,7 +467,7 @@ def evaluate(args):
         ensemble_preds = []
         for e in range(n_ensemble):
             with torch.no_grad():
-                sampled_res_norm = euler_sample_cfg(
+                sampled_res_norm = sample_fn(
                     model, batch_lr,
                     shape=(bs, 1, 128, 128),
                     steps=ode_steps,
@@ -534,6 +565,8 @@ if __name__ == "__main__":
     parser.add_argument("--max_samples", type=int, default=None)
     parser.add_argument("--split", default="test")
     parser.add_argument("--constraint", default="addcl", choices=["none", "addcl"])
+    parser.add_argument("--solver", default="euler", choices=["euler", "heun"],
+                        help="ODE solver: euler (1st-order) or heun (2nd-order, 2x NFE)")
     args = parser.parse_args()
 
     args.channel_mults_tuple = tuple(int(x) for x in args.channel_mults.split(','))
