@@ -261,4 +261,4 @@ This is a proper scoring rule: rewards accuracy AND calibrated spread.
 4. **Or return to OT-CFM with better architecture** — OT-CFM already achieves 0.171, but only 13M params. Perhaps OT-CFM + SwinIR backbone features could go further.
 
 **Ending time:** 11:13 EDT
-**Ending commit:** (pending)
+**Ending commit:** 370dc74
