@@ -476,6 +476,6 @@ SmCL (SoftmaxConstraints) CANNOT be applied post-hoc to flow matching or DDPM mo
 3. **OT-CFM flow matching remains the best framework** for this task.
 
 ### End of Iteration 6
-**End**: 2026-05-06 11:16 EDT, commit: TBD
+**End**: 2026-05-06 11:16 EDT, commit: 97f7e72
 **Duration**: ~3.2h
 **GPU time**: ~2h eval (mit_normal_gpu, mostly data loading + DDIM sampling)
