@@ -437,3 +437,70 @@ Rationale:
 - Improvement: 1.3% — from solver alone, no retraining
 
 **End:** 2026-05-06 12:05 EDT
+
+## Iteration 7
+**Start:** 2026-05-06 12:29 EDT, commit aece275
+**Run prefix:** mlnk-xnoa
+
+### Orientation
+- Best: UNet v2 (13M, base_channels=64) CRPS 0.1709 (midpoint 5, AddCL, 10K, 10 ens)
+- All training iterations used base_channels=64 (13M params). No wider model tested.
+- Inference is optimized (midpoint solver confirmed best). Training is the bottleneck.
+- ~13.5hr remain before 40-hour mark (~2026-05-07 02:00 EDT)
+- Non-mine jobs on cluster: 13431380 (gcgi-vxgh-train), 13430871 (abif-qkbf), 13429871 (unfe-gwpm), 13399242 (sweep-gpu2). Leave alone.
+
+### Concerns (3+)
+
+1. **Quality:** Model capacity has NEVER been varied. All UNet v2 runs use base_channels=64 (13M params). The model may be underfitting — val loss was still decreasing at epoch 40 (0.252). A wider model (96 channels, ~29M params) would test whether capacity is the bottleneck. This is the most informative unexplored axis.
+
+2. **Quality:** Ensemble size is always 10. CRPS = E|X-y| - 0.5*E|X-X'| is an expectation over the ensemble. With M=10, the estimate is noisy. More members (20, 50) could improve the metric estimate AND yield better calibration. Never tested.
+
+3. **Workflow:** The iter-6 evaluation used `n_ensemble=10`. The inference_ablation.py script supports any ensemble size. Testing n_ensemble=20 alongside the wider model would be zero-cost at eval time (just more wall-clock, no retraining).
+
+4. **Fact:** The mit_normal_gpu allocation (3hr limit for the gcgi-vxgh-train job on node3402) will expire soon. I need to use mit_preemptable or mit_normal_gpu carefully for my allocation.
+
+### Plan for this iteration
+**ONE thing:** Train wider UNet v2 (base_channels=96, ~29M params) from scratch with uniform t + AMP for 2hr budget.
+
+Rationale:
+- Capacity variation is the most informative unexplored axis
+- Current model (13M) still improving at epoch 40 → may be capacity-limited
+- 96 channels ≈ 2.25x more conv params → ~6-7 min/ep on L40S → ~17-20 epochs in 2hr
+- If CRPS improves: capacity was the bottleneck, and a wider model is better
+- If CRPS is similar/worse: 13M + 40ep is the sweet spot for this budget
+- Target: CRPS < 0.170 (10K, midpoint 5, AddCL)
+- Will eval with both midpoint 5 and euler 10 for comparison
+
+### Training: UNet v2 wide (base_channels=96) + AMP (node3302, L40S)
+**Training:** 25/40 epochs (time limit killed at epoch 25), batch_size=64, lr=1e-4, cosine T_max=40, uniform t, AMP
+- Model: 28.4M params (vs 13.1M for base_channels=64)
+- Wall-clock: 147.8 min for 25 epochs (~5.9 min/epoch — 68% slower than 64ch model)
+- Best val_loss: **0.2432** at epoch 25 (vs 0.2518 at epoch 40 for 64ch model!)
+- Convergence: still decreasing when killed — val_loss trajectory:
+  - Epoch 10: 0.271 (64ch at ep10: ~0.280)
+  - Epoch 20: 0.249 (64ch at ep20: ~0.260)
+  - Epoch 25: 0.243 (64ch at ep40: 0.252)
+- The wider model is **3.4% better on val loss** despite 37% fewer epochs
+
+**Val loss comparison (same training recipe, AMP + uniform t):**
+
+| Model | Params | Epochs | Val Loss (best) | Wall-clock |
+|-------|--------|--------|----------------|------------|
+| **UNet v2 wide96** | 28.4M | 25 | **0.2432** | 148 min |
+| UNet v2 base64 (iter-5) | 13.1M | 40 | 0.2518 | 139 min |
+
+**CRPS evaluation NOT completed** — cluster GPUs fully allocated (QOSMaxGRESPerUser on mit_normal_gpu, Priority queue on mit_preemptable). The checkpoint is saved and ready for eval next iteration.
+
+**Key findings (training only):**
+1. Wider UNet (28.4M) reaches significantly better val loss (0.243 vs 0.252) despite fewer epochs
+2. The 64ch model was capacity-limited — more parameters help even within the same 2hr budget
+3. ~5.9 min/epoch on L40S with AMP (vs ~3.5 min/ep for 64ch)
+4. Val loss was still decreasing at epoch 25 — the model would benefit from more epochs
+5. Cosine schedule with T_max=40 meant LR was already quite low at epoch 25 (0.000031)
+
+**Next iteration MUST:**
+1. Evaluate unet_wide96_amp on 10K test with midpoint 5 + AddCL (and Euler 10 for comparison)
+2. If CRPS improves over baseline 0.1709: wider model is the new best
+3. Consider training with T_max=25 (matching actual epochs) for better LR schedule
+
+**End:** 2026-05-06 16:17 EDT
