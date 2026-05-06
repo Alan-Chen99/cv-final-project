@@ -191,5 +191,5 @@ This is a proper scoring rule: rewards accuracy AND calibrated spread.
 2. **Try fundamentally different stochastic mechanism** — multi-head K=8 may cap CRPS regardless. Flow matching or diffusion on residuals could produce better-calibrated diversity.
 3. **K sensitivity** still untested but likely won't overcome the backbone bottleneck
 
-**Ending time:** 08:58 EDT
-**Ending commit:** (pending)
+**Ending time:** 08:59 EDT
+**Ending commit:** 44ff7ab
