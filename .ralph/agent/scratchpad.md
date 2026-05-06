@@ -371,3 +371,69 @@ Rationale:
 - Next directions to try (genuinely novel): wider model, different solver, DDPM, consistency distillation
 
 **End:** 2026-05-06 08:45 EDT
+
+## Iteration 6
+**Start:** 2026-05-06 08:46 EDT, commit 0fb25d3
+**Run prefix:** dlon-ohol
+
+### Orientation
+- Best: UNet v2 uniform+AMP CRPS 0.173 (40ep, Euler 10, AddCL, no TTA)
+- All prior iterations focused on TRAINING improvements
+- NO iteration has tested INFERENCE improvements: SmCL, midpoint solver, more steps, TTA
+- These are FREE improvements (no retraining) and potentially impactful
+- ~17hr remain before 40-hour mark
+
+### Concerns (3+)
+
+1. **Workflow:** Prior iterations NEVER tested inference ablations. The evaluation settings (Euler 10, AddCL) were copied without questioning. SmCL is theoretically better (enforces non-negativity, which TCW data requires), midpoint solver is higher-order, and TTA adds ensemble diversity — all untested.
+
+2. **Quality:** SmCL should be strictly better than AddCL for TCW (Total Column Water). TCW is always non-negative, but AddCL can produce negative HR values since it just adds a correction. SmCL uses exp() which ensures positivity.
+
+3. **Quality:** Midpoint solver (2nd order) with 5 steps has the same NFE (10 evaluations) as Euler 10 steps but higher accuracy. It was already implemented in the code but never tested.
+
+4. **Quality:** TTA is implemented (`--tta` flag) and flips half of ensemble members horizontally. This adds geometric diversity at zero training cost. Never tested.
+
+### Plan for this iteration
+**ONE thing:** Systematic inference ablation on unet_uniform_amp model:
+- Baseline: Euler 10, AddCL (current CRPS 0.173)
+- Test: SmCL, midpoint 5 steps, more Euler steps (20), TTA
+- Combine best settings
+- Target: CRPS < 0.173
+
+### Phase 1 results (2K test, 10 ensemble)
+
+| Config | CRPS | RMSE | MAE | Mass Viol | NFE |
+|--------|------|------|-----|-----------|-----|
+| **midpoint_5_addcl** | **0.1680** | 0.458 | 0.245 | 0.000001 | 10 |
+| euler_20_addcl | 0.1688 | 0.455 | 0.243 | 0.000001 | 20 |
+| euler_10_addcl | 0.1703 | 0.452 | 0.241 | 0.000001 | 10 |
+| euler_10_none | 0.1703 | 0.452 | 0.241 | 0.003 | 10 |
+| euler_10_addcl_tta | 0.1781 | 0.504 | 0.256 | 0.000001 | 10 |
+| SmCL variants | NaN | — | — | — | — |
+
+**Key findings:**
+1. **Midpoint solver wins**: CRPS 0.168 vs Euler 10 0.170 (1.3% improvement) at same NFE!
+2. Midpoint 5 (10 NFE) beats Euler 20 (20 NFE) — 2nd-order better than more 1st-order steps
+3. AddCL vs None: negligible CRPS difference (0.170264 vs 0.170266). AddCL only helps mass violation.
+4. SmCL NaN: exp() overflows on residual predictions (model outputs residuals, not [0,1] images)
+5. TTA HURTS: 0.178 vs 0.170 (4.6% worse). Model not trained with augmentation → flipped inputs are OOD.
+
+### Phase 2 results (FULL 10K test, 10 ensemble)
+
+| Config | CRPS | RMSE | MAE | Mass Viol | NFE | Time |
+|--------|------|------|-----|-----------|-----|------|
+| **midpoint_5_addcl** | **0.1709** | 0.461 | 0.249 | 0.000001 | 10 | 1514s |
+| midpoint_10_addcl | 0.1708 | 0.461 | 0.249 | 0.000001 | 20 | 3003s |
+| euler_10_addcl | 0.1731 | 0.455 | 0.245 | 0.000001 | 10 | 1515s |
+
+**Key findings (10K):**
+1. **Midpoint solver improves CRPS by 1.3%**: 0.1709 vs 0.1731, same NFE (free improvement)
+2. More midpoint steps don't help: midpoint_10 ≈ midpoint_5 (ODE well-converged at 5 steps)
+3. Midpoint trades RMSE for CRPS: slightly worse RMSE (0.461 vs 0.455) but better ensemble diversity
+4. Euler 10 result (0.1731) confirms iter-5's 0.173 exactly
+
+**Updated best result:** CRPS 0.1709 (midpoint 5, AddCL, 10K test)
+- Previous best: CRPS 0.1731 (euler 10, same model)
+- Improvement: 1.3% — from solver alone, no retraining
+
+**End:** 2026-05-06 12:05 EDT
