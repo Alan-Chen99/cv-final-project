@@ -401,3 +401,81 @@ The cross-comparison says research2's best = 0.171 (unbiased on 2K). In standard
 **End**: 2026-05-06 08:04 EDT, commit: 5c3a972
 **Duration**: ~4.3h
 **GPU time**: ~3h training + ~30min eval across 3 allocations
+
+## Iteration 6
+**Start**: 2026-05-06 08:04 EDT, commit f719988
+**Prefix**: hrgq-sauw
+
+### Concerns (3+)
+
+1. **Workflow (CRITICAL)**: DDPM full 10K evaluation still incomplete after two failed attempts in iter5 (srun hung twice). The 1K CRPS=0.1877 is not definitive — iter2→iter4 showed 1K→10K gaps of +1.3-1.6%. Must complete on a fresh allocation.
+
+2. **Workflow**: No Harder et al. baselines (CNN+SmCL, CGAN+SmCL) ever run despite the objective requiring "start with baseline (the methods in existing papers) and report these too." Six iterations in with zero baseline numbers.
+
+3. **Quality**: SmCL constraint (best in Harder paper) never tested on ANY flow matching or DDPM model. Only AddCL evaluated. SmCL is a zero-cost evaluation swap — could give free CRPS improvement.
+
+4. **Quality/Budget**: Both UNet flow matching (4.4hr) and DDPM (3hr) exceeded the 2hr training budget. No model was trained within budget for a fair comparison. The next method MUST stay within 2hr.
+
+### Plan for Iteration 6
+
+**Goal**: Complete DDPM 10K evaluation + test SmCL constraint on both models.
+
+**Why**:
+- DDPM 10K eval is the most critical unfinished work — two failed attempts, needed for report
+- SmCL constraint is a zero-retraining-cost evaluation that could improve CRPS for free
+- Both are quick evaluations (~30-40 min each) that finalize existing work before trying new directions
+- Clean closure of DDPM line of work before moving on
+
+**Steps**:
+1. Allocate GPU (fresh allocation avoids iter5's srun issues)
+2. Run DDPM 10K eval (stochastic DDIM 20, eta=1.0, AddCL)
+3. Run DDPM 10K eval with SmCL constraint
+4. Run UNet flow matching eval with SmCL constraint (10K)
+5. Record final numbers for report
+
+### Infrastructure
+
+- salloc #1 (mit_preemptable, job 13420039, node3403): hung on srun step
+- salloc #2 (mit_preemptable, job 13420620, node3302): 100-sample test worked, full 10K hung on srun
+- sbatch #1 (mit_preemptable, job 13422030, node2644): preempted after 5min
+- sbatch #2 (mit_normal_gpu, job 13422579): cancelled immediately (0 elapsed)
+- sbatch #3 (mit_preemptable --requeue, job 13422814, node3500): preempted after 18sec (data loaded, 32/10K processed)
+- salloc #3 (mit_normal_gpu, job 13423233, node3005): srun hung again
+- **sbatch #4 (mit_normal_gpu, job 13423938, node3005): SUCCESS** — completed DDPM 10K AddCL eval, nearly completed no-constraint eval (9312/10K), UNet eval not started (2hr timeout)
+
+### Key finding: salloc+srun is unreliable from container
+
+The `srun --jobid=JOBID` approach (via gpu_run.py) consistently hangs on full-size evaluations when run from within the Apptainer container on node1627. Quick commands work, but long-running eval srun steps produce no output and appear stuck. This occurs even on fresh allocations. The sbatch approach (running singularity exec directly on the GPU node) works reliably. **Future iterations must use sbatch for all eval/training, not salloc+srun.**
+
+### SmCL finding
+
+SmCL (SoftmaxConstraints) CANNOT be applied post-hoc to flow matching or DDPM models. SmCL applies `exp()` to the model output, which causes overflow/NaN because our models predict residuals in arbitrary range. SmCL requires integration into training (network output goes directly into SmCL before any denormalization). AddCL (additive correction) is the only post-hoc constraint that works.
+
+### Evaluation Results (Full 10K Test)
+
+**DDPM VP-SDE, 40 epochs, 13M AttentionUNet, stochastic DDIM 20 steps, eta=1.0:**
+
+| Model | Constraint | CRPS (Gneiting M²) | MAE | RMSE | Mass Viol |
+|-------|-----------|---------------------|-----|------|-----------|
+| **DDPM 40ep** | **AddCL** | **0.1907** | 0.2504 | 0.4781 | 0.000001 |
+| DDPM 40ep | None | timed out at 9312/10K | — | — | — |
+
+**Comparison table (all full 10K test, Gneiting M²):**
+
+| Model | Params | Epochs | Constraint | CRPS | MAE | RMSE |
+|-------|--------|--------|-----------|------|-----|------|
+| **UNet flow 55ep** | **13M** | **55** | **AddCL** | **0.1865** | **0.2453** | **0.4552** |
+| DDPM 40ep | 13M | 40 | AddCL | 0.1907 | 0.2504 | 0.4781 |
+| UNet CFG 25ep | 13M | 25 | AddCL | 0.196 | 0.258 | 0.487 |
+| LR-anchor flow (research) | 5.2M | 200 | AddCL | 0.199 | 0.258 | 0.481 |
+| DiT flow 40ep | 14.6M | 40 | AddCL | 0.243 | 0.315 | 0.643 |
+
+**Key findings**:
+1. **DDPM is 2.3% worse than flow matching** on full 10K (0.1907 vs 0.1865). Confirms 1K result (2.2% gap).
+2. **1K→10K gap for DDPM**: 0.1877 → 0.1907 (+1.6%), consistent with flow matching's 1.3% gap.
+3. **OT-CFM flow matching remains the best framework** for this task.
+
+### End of Iteration 6
+**End**: 2026-05-06 11:16 EDT, commit: TBD
+**Duration**: ~3.2h
+**GPU time**: ~2h eval (mit_normal_gpu, mostly data loading + DDIM sampling)

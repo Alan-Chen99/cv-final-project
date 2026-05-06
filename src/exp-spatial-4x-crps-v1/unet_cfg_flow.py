@@ -208,6 +208,16 @@ def apply_addcl(pred_hr, lr_orig, upsampling_factor=4):
     return pred_hr + correction_hr
 
 
+def apply_smcl(pred_hr, lr_orig, upsampling_factor=4):
+    """Softmax constraint layer (SmCL) from Harder et al. 2208.05424."""
+    pool = torch.nn.AvgPool2d(kernel_size=upsampling_factor)
+    y = torch.exp(pred_hr)
+    sum_y = pool(y)
+    ratio = lr_orig / sum_y
+    ratio_hr = ratio.repeat_interleave(upsampling_factor, dim=-2).repeat_interleave(upsampling_factor, dim=-1)
+    return y * ratio_hr
+
+
 # ---------- ODE Sampling with CFG ----------
 
 @torch.no_grad()
@@ -478,6 +488,8 @@ def evaluate(args):
 
                 if use_constraint == 'addcl':
                     pred_hr = apply_addcl(pred_hr, batch_lr_orig)
+                elif use_constraint == 'smcl':
+                    pred_hr = apply_smcl(pred_hr, batch_lr_orig)
 
                 ensemble_preds.append(pred_hr.numpy())
 
@@ -564,7 +576,7 @@ if __name__ == "__main__":
     parser.add_argument("--ode_steps", type=int, default=10)
     parser.add_argument("--max_samples", type=int, default=None)
     parser.add_argument("--split", default="test")
-    parser.add_argument("--constraint", default="addcl", choices=["none", "addcl"])
+    parser.add_argument("--constraint", default="addcl", choices=["none", "addcl", "smcl"])
     parser.add_argument("--solver", default="euler", choices=["euler", "heun"],
                         help="ODE solver: euler (1st-order) or heun (2nd-order, 2x NFE)")
     args = parser.parse_args()

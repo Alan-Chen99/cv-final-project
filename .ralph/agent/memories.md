@@ -8,6 +8,10 @@
 
 ## Decisions
 
+### mem-1778080603-3a5c
+> DDPM VP-SDE full 10K eval: CRPS=0.1907 (Gneiting M^2, AddCL, stochastic DDIM 20 steps eta=1.0). Confirmed 2.3% worse than OT-CFM flow matching (0.1865). 1K→10K gap: 0.1877→0.1907 (+1.6%). SmCL cannot be applied post-hoc (exp overflow on residual predictions). salloc+srun is unreliable from container — use sbatch for all GPU work.
+<!-- tags: ddpm, crps, evaluation, flow-matching | created: 2026-05-06 -->
+
 ### mem-1778068979-793a
 > DDPM (VP-SDE) score-based diffusion with same 13M AttentionUNet: CRPS=0.1877 on 1K test (stochastic DDIM 20 steps, eta=1.0, AddCL). 2% worse than OT-CFM flow matching (0.184 on 1K). EMA decay=0.9999 is harmful for short training runs (CRPS=0.263). Full 10K eval not completed (hung srun). DDPM underperforms because OT-CFM learns straight paths needing fewer sampling steps.
 <!-- tags: ddpm, crps, flow-matching, architecture | created: 2026-05-06 -->
@@ -29,6 +33,10 @@
 <!-- tags: dit, flow-matching, crps, architecture | created: 2026-05-05 -->
 
 ## Fixes
+
+### mem-1778080609-8eec
+> salloc+srun (via gpu_run.py) is unreliable for long-running commands from within Apptainer container on node1627. Quick commands work but eval/training srun steps hang silently. sbatch works reliably because singularity exec runs directly on the GPU node. Always use sbatch for eval and training jobs.
+<!-- tags: gpu, workflow, slurm | created: 2026-05-06 -->
 
 ### mem-1778016803-ba70
 > CRPS formula discrepancy: flow_downscale.py uses Gneiting M^2 formula (standard energy CRPS), flow_matching_v2.py crps_ensemble_correct uses M*(M-1) (unbiased estimator). For M=10, difference is ~7%. Cross-comparison report mixed formulas. Use Gneiting M^2 consistently.

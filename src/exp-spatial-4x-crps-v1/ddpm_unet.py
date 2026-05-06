@@ -242,6 +242,17 @@ def apply_addcl(pred_hr, lr_orig, upsampling_factor=4):
     return pred_hr + correction_hr
 
 
+def apply_smcl(pred_hr, lr_orig, upsampling_factor=4):
+    """Softmax constraint layer (SmCL) from Harder et al. 2208.05424.
+    Ensures non-negativity and exact mass conservation."""
+    pool = torch.nn.AvgPool2d(kernel_size=upsampling_factor)
+    y = torch.exp(pred_hr)
+    sum_y = pool(y)
+    ratio = lr_orig / sum_y
+    ratio_hr = ratio.repeat_interleave(upsampling_factor, dim=-2).repeat_interleave(upsampling_factor, dim=-1)
+    return y * ratio_hr
+
+
 # ---------- DDIM Sampling ----------
 
 @torch.no_grad()
@@ -453,11 +464,15 @@ def train(args):
 def evaluate(args):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     basedir = args.basedir
+    print(f"[eval] Device: {device}, basedir: {basedir}", flush=True)
 
+    print("[eval] Loading norm stats...", flush=True)
     stats = torch.load(os.path.join(args.save_dir, 'norm_stats.pt'), weights_only=False,
                         map_location=device)
 
+    print("[eval] Loading test data...", flush=True)
     lr_up, residual, hr, lr_orig = load_tcw4_data(basedir, args.split)
+    print(f"[eval] Data loaded: {lr_up.shape[0]} samples", flush=True)
     lr_up_norm = (lr_up - stats['lr_mean']) / stats['lr_std']
 
     ckpt = torch.load(os.path.join(args.save_dir, 'best_ddpm.pt'), weights_only=False,
@@ -529,6 +544,8 @@ def evaluate(args):
 
                 if args.constraint == 'addcl':
                     pred_hr = apply_addcl(pred_hr, batch_lr_orig)
+                elif args.constraint == 'smcl':
+                    pred_hr = apply_smcl(pred_hr, batch_lr_orig)
 
                 ensemble_preds.append(pred_hr.numpy())
 
@@ -549,7 +566,7 @@ def evaluate(args):
             all_mass_viol.append(torch.mean(torch.abs(pooled - lr_i)).item())
 
         if (start_idx // batch_size) % 10 == 0:
-            print(f"  Processed {end_idx}/{n_samples}...")
+            print(f"  Processed {end_idx}/{n_samples}...", flush=True)
 
     crps = np.mean(all_crps)
     mae = np.mean(all_mae)
@@ -594,7 +611,7 @@ if __name__ == "__main__":
                         help="DDIM eta: 0=deterministic, 1=DDPM stochastic")
     parser.add_argument("--max_samples", type=int, default=None)
     parser.add_argument("--split", default="test")
-    parser.add_argument("--constraint", default="addcl", choices=["none", "addcl"])
+    parser.add_argument("--constraint", default="addcl", choices=["none", "addcl", "smcl"])
     parser.add_argument("--use_ema", action="store_true", help="Use EMA weights for eval")
     args = parser.parse_args()
 
