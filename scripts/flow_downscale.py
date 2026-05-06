@@ -721,7 +721,16 @@ def evaluate(args):
     n_res_blocks = config.get('n_res_blocks', 1)
     model = FlowUNet(channels=channels, use_attention=use_attention, n_res_blocks=n_res_blocks).to(device)
     ckpt = 'flow_best.pth' if (save_dir / 'flow_best.pth').exists() else 'flow_last.pth'
-    model.load_state_dict(torch.load(save_dir / ckpt, weights_only=False))
+    state_dict = torch.load(save_dir / ckpt, weights_only=False)
+    # Remap old checkpoint keys: down0.res.* -> down0.res_blocks.0.*
+    remapped = {}
+    for k, v in state_dict.items():
+        for prefix in ['down0', 'down1', 'down2', 'up0', 'up1', 'up2']:
+            if k.startswith(f'{prefix}.res.'):
+                k = k.replace(f'{prefix}.res.', f'{prefix}.res_blocks.0.', 1)
+                break
+        remapped[k] = v
+    model.load_state_dict(remapped)
     model.eval()
     constraint = getattr(args, 'constraint', 'none')
     solver = getattr(args, 'solver', 'euler')

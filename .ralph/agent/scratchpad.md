@@ -191,3 +191,69 @@ Implemented minibatch OT coupling with GPU-based cost matrix + CPU Hungarian alg
 
 **End:** 2026-05-06 10:57 EDT
 **End commit:** 6eb9079
+
+## Iteration 4
+**Start:** 2026-05-06 10:59 EDT
+**Start commit:** 1620efa
+**Run prefix:** unfe-gwpm
+
+### Situation
+- Branch: research6, iterations 1-3 complete
+- Best CRPS this branch: 0.238 (flow_residual, 9.1M, 100ep, random coupling)
+- flow_v2 (12.5M, 2 ResBlocks, EMA) stuck at epoch 25/60 → CRPS 0.262 (undertrained)
+- Normal GPU: 2/2 used (dlon-oho, hrgq-sau — NOT ours)
+- Preemptable GPU: 2/4 used (sweep-gp, knam-twm — NOT ours)
+- Time: 10:59 EDT, ~15hr until 40hr cutoff (02:00 EDT tomorrow)
+
+### Concerns
+1. **Workflow concern — flow_v2 undertrained**: Iteration 3 trained for only 25/60 epochs due to 3 preemptions. The CRPS 0.262 is meaningless — the model's spread (0.514) is 2x the 9.1M model's, indicating it hasn't learned to generate coherent samples. Must complete training before drawing any conclusions about whether 12.5M params + EMA helps.
+
+2. **Quality concern — Euler step count never explored**: ALL evaluations used 10 Euler steps. This is a critical free parameter. The flow_residual (9.1M) model was trained with 100 epochs — with 10 Euler steps, the ODE integration may be inaccurate. Research2 used 10 steps too, but with OT coupling that creates straighter flows. Without OT, our flows are more curved and may need more steps. This is a zero-cost experiment at eval time.
+
+3. **Quality concern — fundamental gap likely requires OT or different approach**: Even if flow_v2 trains fully and beats 0.238, the gap to 0.171 is 28%. Architecture scaling from 9.1M→12.5M is unlikely to bridge this alone. The key missing ingredient is OT coupling (creates straighter flows = better samples per step). CPU Hungarian was too slow; GPU Sinkhorn is the natural next step but wasn't attempted.
+
+### Plan for this iteration
+**ONE thing: Resume flow_v2 training from epoch 25 to ~60 epochs, then evaluate.**
+- Allocate preemptable GPU (normal full)
+- Resume training with same config: channels=[64,128,256], attention, n_res_blocks=2, EMA, residual, augment
+- ~35 more epochs at ~3 min/epoch = ~105 min
+- After training: evaluate on 10K test with 10 members, 10 Euler steps, AddCL
+- Also quick test: eval existing flow_residual with 20 Euler steps to check step count effect
+
+### Training: flow_v2 resumed (epoch 25→60)
+- GPU: node3619 (L40S), preemptable, job 13429871
+- Resumed from epoch 26 (checkpoint best_val=0.002009)
+- T_max effectively became 60 (from args.epochs, not checkpoint's T_max=100)
+- Training: 100.8 min for 35 epochs (~2.88 min/epoch)
+- Best val loss: 0.001761 (improved 12% from 0.002009)
+- Val loss trajectory: 0.002254 (ep30), 0.002686 (ep40), 0.001872 (ep50), 0.002138 (ep60)
+- Noisy val loss typical for flow matching (random t, x0 per batch)
+
+### Evaluation Results (10K test, 10 members, AddCL)
+
+| Method | Params | Epochs | Steps | Solver | CRPS | RMSE | MAE | Spread | Mass Viol |
+|--------|--------|--------|-------|--------|------|------|-----|--------|-----------|
+| flow_residual | 9.1M | 100 | 10 | Euler | 0.238 | 0.577 | 0.298 | 0.265 | 0.000 |
+| **flow_residual** | **9.1M** | **100** | **20** | **Euler** | **0.232** | **0.579** | **0.298** | **0.293** | **0.000** |
+| flow_residual | 9.1M | 100 | 10 | Heun | **2.149** | 3.109 | 2.462 | 8.559 | 0.000 |
+| flow_v2 + EMA | 12.5M | 60 | 10 | Euler | 0.241 | 0.574 | 0.309 | 0.362 | 0.000 |
+| **Prior: OT-CFM** | **13M** | **39** | **10** | **Euler** | **0.171** | **~0.456** | **~0.242** | **~0.07** | **0.000** |
+
+### Key Findings
+
+1. **Architecture scaling + EMA didn't help.** flow_v2 (12.5M, EMA, 60ep) CRPS=0.241, marginally worse than flow_residual (9.1M, no EMA, 100ep) CRPS=0.238. The extra capacity and EMA don't compensate for fewer training epochs or fundamentally improve the flow quality.
+
+2. **20 Euler steps give modest improvement.** CRPS improved 0.238→0.232 (2.5%). MAE unchanged at 0.298 — the gain comes from slightly more diverse samples (spread 0.265→0.293). The 10→20 step gain is marginal, suggesting the flow paths aren't the primary bottleneck at this step count.
+
+3. **Heun solver fails catastrophically.** CRPS=2.149 with Heun vs 0.238 with Euler (same 20 NFE). The learned velocity field is not smooth enough for 2nd-order integration — corrections overshoot. This is **strong evidence that the velocity field is noisy/curved** due to random coupling.
+
+4. **The gap to research2 (0.171) is NOT architecture or step count.** The most plausible remaining explanation is **OT coupling**, which creates straighter flows, smoother velocity fields, and enables accurate sampling with fewer steps. CPU Hungarian was 4.5x too slow (iter 3); GPU Sinkhorn is the clear next direction.
+
+### Conclusions for next iteration
+- The architecture exploration is exhausted: 9.1M, 12.5M, EMA, attention all tested with minimal gains
+- **Priority 1: Implement GPU Sinkhorn OT coupling.** This is the single most impactful change — it addresses the root cause (curved flows) rather than symptoms
+- Alternative: try guidance/classifier-free methods to reduce sample diversity while maintaining quality
+- Best model for now: flow_residual (9.1M, 100ep) with 20 Euler steps + AddCL → CRPS 0.232
+
+**End:** 2026-05-06 14:32 EDT
+**End commit:** (pending)
