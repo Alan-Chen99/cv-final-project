@@ -190,4 +190,4 @@ Implemented minibatch OT coupling with GPU-based cost matrix + CPU Hungarian alg
 4. If CRPS doesn't improve significantly over 9.1M model, the gap to research2 is NOT primarily architecture — it must be OT coupling or other training details
 
 **End:** 2026-05-06 10:57 EDT
-**End commit:** (pending)
+**End commit:** 6eb9079
