@@ -554,6 +554,6 @@ SmCL (SoftmaxConstraints) CANNOT be applied post-hoc to flow matching or DDPM mo
 4. **Baseline re-confirmed: CRPS = 0.1865** (55ep UNet, AddCL, Euler 10). Exact match with iter4 result — methodology is reproducible.
 
 ### End of Iteration 7
-**End**: 2026-05-06 15:40 EDT, commit: TBD
+**End**: 2026-05-06 15:41 EDT, commit: eda0f41
 **Duration**: ~4.3h
 **GPU time**: ~3h training + ~1h eval
