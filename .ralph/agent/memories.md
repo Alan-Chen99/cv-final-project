@@ -4,6 +4,10 @@
 
 ## Decisions
 
+### mem-1778084896-80d9
+> Midpoint ODE solver (2nd-order RK) with 5 steps improves CRPS by 1.3% over Euler 10 steps for flow matching inference at same NFE cost (10 evaluations). Tested on UNet v2 with 10K test, 10 ensemble. midpoint_5_addcl CRPS=0.1709 vs euler_10_addcl CRPS=0.1731. More midpoint steps (10) don't help further. SmCL constraint produces NaN on residual models (exp overflow). TTA hurts when model not trained with augmentation.
+<!-- tags: flow-matching, inference, ode-solver | created: 2026-05-06 -->
+
 ### mem-1778043144-d810
 > Logit-normal timestep sampling (SD3-style) does NOT help flow matching for 32->128 TCW climate downscaling. CRPS 0.179 (26ep logit-normal) vs baseline 0.171 (39ep uniform). EMA decay=0.9999 HURTS with short training (26ep): CRPS 0.228. UNet v2 at 128x128 takes ~4.5 min/epoch on L40S (~9x slower than DiT with patch_size=8), limiting to ~26 epochs in 2hr budget.
 <!-- tags: flow-matching, training-recipe, timestep-sampling | created: 2026-05-06 -->
