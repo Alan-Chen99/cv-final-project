@@ -398,6 +398,6 @@ The cross-comparison says research2's best = 0.171 (unbiased on 2K). In standard
 - Pool: `/home/chenxy/orcd/pool/datasets/research4/models/ddpm_norm_stats.pt`
 
 ### End of Iteration 5
-**End**: 2026-05-06 08:02 EDT, commit: pending
+**End**: 2026-05-06 08:04 EDT, commit: 5c3a972
 **Duration**: ~4.3h
 **GPU time**: ~3h training + ~30min eval across 3 allocations
