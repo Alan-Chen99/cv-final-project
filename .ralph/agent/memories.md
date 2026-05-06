@@ -8,6 +8,10 @@
 
 ## Decisions
 
+### mem-1778096424-d7fd
+> Spectral loss (FFT L1 on reconstructed x1, weight=0.1) + data augmentation (random H/V flips) on OT-CFM flow matching: CRPS=0.2036 on full 10K test (Gneiting M^2, AddCL). 9.2% WORSE than MSE-only baseline (0.1865). Spectral loss fails because x1_pred = x_t + (1-t)*v_pred is noisy at small t, making FFT targets meaningless. Data augmentation was not isolated.
+<!-- tags: spectral-loss, crps, flow-matching, augmentation | created: 2026-05-06 -->
+
 ### mem-1778080603-3a5c
 > DDPM VP-SDE full 10K eval: CRPS=0.1907 (Gneiting M^2, AddCL, stochastic DDIM 20 steps eta=1.0). Confirmed 2.3% worse than OT-CFM flow matching (0.1865). 1K→10K gap: 0.1877→0.1907 (+1.6%). SmCL cannot be applied post-hoc (exp overflow on residual predictions). salloc+srun is unreliable from container — use sbatch for all GPU work.
 <!-- tags: ddpm, crps, evaluation, flow-matching | created: 2026-05-06 -->

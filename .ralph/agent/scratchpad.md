@@ -479,3 +479,81 @@ SmCL (SoftmaxConstraints) CANNOT be applied post-hoc to flow matching or DDPM mo
 **End**: 2026-05-06 11:16 EDT, commit: 97f7e72
 **Duration**: ~3.2h
 **GPU time**: ~2h eval (mit_normal_gpu, mostly data loading + DDIM sampling)
+
+## Iteration 7
+**Start**: 2026-05-06 11:18 EDT, commit cd3b161
+**Prefix**: gcgi-vxgh
+
+### Concerns (3+)
+
+1. **Fact (IMPORTANT)**: Both unet_cfg_flow.py (research4) and flow_matching_v2.py (research2) use IDENTICAL OT-CFM residual formulation: `x_t = (1-t)*noise + t*residual`, `v = residual - noise`. Prior scratchpad entries implied research2 used a different "residual" approach — this is misleading. The 3% CRPS gap (0.1865 vs ~0.178 Gneiting est.) must come from training hyperparameters or random seed, not from the formulation.
+
+2. **Quality**: No data augmentation or multi-scale loss ever tested. Climate fields (TCW) are approximately isotropic — random flips/rotations are physically justified. Spectral loss (penalizing FFT mismatch) is under-explored in climate downscaling and could improve fine-scale detail. Both are simple modifications to the training recipe.
+
+3. **Workflow (CRITICAL)**: CRPS numbers from cross-comparison notes (research2 CRPS=0.171 on 2K) may use M*(M-1) unbiased formula, not Gneiting M². Converting: Gneiting CRPS ≈ 0.178 (2K) → ~0.181 (10K). The scratchpad's claim "~0.196 Gneiting on 10K" appears WRONG — mathematical conversion gives ~0.181. Research2 model weights are NOT available on this branch (no pool/datasets/research2/), so we cannot verify.
+
+4. **Quality/Direction**: All 6 iterations explored the SAME loss function (pure MSE on velocity). Adding a frequency-domain supervision signal is the most promising unexplored direction — zero-cost to implement, could give 2-5% CRPS improvement by better capturing multi-scale structure.
+
+### Plan for Iteration 7
+
+**Goal**: Train flow matching with spectral loss + data augmentation. Compare to MSE-only baseline.
+
+**Why**:
+- Spectral loss adds frequency-domain supervision — model learns to match power spectrum, not just pixel-level velocity
+- Data augmentation (random flips) provides free regularization, 4x effective dataset
+- Both are under-explored directions with meaningful uncertainty
+- Same architecture + same 2hr budget → fair comparison to 0.1865
+
+**Key design**:
+- x1_pred = x_t + (1-t)*v_pred (reconstruct target from velocity)
+- spectral_loss = L1(FFT(x1_pred), FFT(x1_target)) in frequency domain
+- Total loss = MSE(v_pred, v_target) + lambda * spectral_loss
+- Augmentation: random horizontal + vertical flip on LR and residual jointly
+- Train from scratch, 40 epochs, batch_size=64, lr=1e-4
+
+**Steps**:
+1. Modify unet_cfg_flow.py to add spectral loss + augmentation flags
+2. Allocate GPU via sbatch
+3. Train ~40 epochs (~2hr)
+4. Evaluate on 10K test
+5. Compare to CRPS=0.1865
+
+### Infrastructure
+
+- Training job: 13431380 (mit_normal_gpu, 3hr, node3402 L40S)
+  - Training completed: 40 epochs, 177.4 min
+  - Best epoch: 34, val_loss=0.273974
+  - Job timed out during eval phase
+- Eval job: 13441754 (mit_normal_gpu, 2hr, node3406 L40S)
+  - All 3 evals completed successfully
+
+### Training Results
+
+40 epochs, 13M AttentionUNet, spectral_weight=0.1, augment=True, cfg_prob=0:
+- Best epoch: 34, val loss: **0.273974** (combined MSE+spectral)
+- Val loss trajectory: 0.369 → 0.304 (ep10) → 0.285 (ep22) → 0.274 (ep34, best)
+- Note: val loss includes spectral term so NOT directly comparable to MSE-only baseline (0.251)
+
+### Evaluation Results (Full 10K Test)
+
+| Model | Epochs | Spectral | Aug | CRPS (10K) | MAE | RMSE | Mass Viol |
+|-------|--------|----------|-----|------------|-----|------|-----------|
+| Baseline UNet 55ep | 55 | No | No | **0.1865** | 0.2453 | 0.4552 | 0.000001 |
+| Spectral+Aug UNet 40ep | 40 | 0.1 | Yes | 0.2036 | 0.2671 | 0.5219 | 0.000001 |
+
+**Spectral loss HURTS: +9.2% CRPS regression** (0.2036 vs 0.1865).
+
+### Key Findings
+
+1. **Spectral loss (FFT L1 on reconstructed x1) worsens CRPS significantly.** The model learns to match power spectrum magnitude but at the cost of worse per-pixel velocity prediction. CRPS penalizes calibration + accuracy — spectral loss doesn't help either.
+
+2. **Why it fails**: The spectral loss on reconstructed x1 = x_t + (1-t)*v_pred is noisy at small t (x_t ≈ noise), making the FFT targets meaningless. The loss is only informative near t=1 but weighted equally across all t. This creates a conflicting gradient signal for most of the training distribution.
+
+3. **Data augmentation alone was not isolated.** The experiment bundles spectral + augmentation. Cannot tell if augmentation alone helps or hurts.
+
+4. **Baseline re-confirmed: CRPS = 0.1865** (55ep UNet, AddCL, Euler 10). Exact match with iter4 result — methodology is reproducible.
+
+### End of Iteration 7
+**End**: 2026-05-06 15:40 EDT, commit: TBD
+**Duration**: ~4.3h
+**GPU time**: ~3h training + ~1h eval

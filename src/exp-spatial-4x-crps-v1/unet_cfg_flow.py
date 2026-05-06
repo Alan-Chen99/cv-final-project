@@ -218,6 +218,29 @@ def apply_smcl(pred_hr, lr_orig, upsampling_factor=4):
     return y * ratio_hr
 
 
+# ---------- Spectral Loss ----------
+
+def spectral_loss(pred, target):
+    """L1 loss in Fourier domain — penalizes power spectrum mismatch.
+    Operates on 2D spatial dims of (B,C,H,W) tensors."""
+    fft_pred = torch.fft.rfft2(pred, norm='ortho')
+    fft_target = torch.fft.rfft2(target, norm='ortho')
+    return F.l1_loss(torch.abs(fft_pred), torch.abs(fft_target))
+
+
+# ---------- Data Augmentation ----------
+
+def random_flip_batch(lr_batch, res_batch):
+    """Apply consistent random horizontal + vertical flips to LR and residual."""
+    if torch.rand(1).item() > 0.5:
+        lr_batch = torch.flip(lr_batch, [-1])
+        res_batch = torch.flip(res_batch, [-1])
+    if torch.rand(1).item() > 0.5:
+        lr_batch = torch.flip(lr_batch, [-2])
+        res_batch = torch.flip(res_batch, [-2])
+    return lr_batch, res_batch
+
+
 # ---------- ODE Sampling with CFG ----------
 
 @torch.no_grad()
@@ -346,6 +369,13 @@ def train(args):
 
     start_time = time.time()
 
+    use_spectral = getattr(args, 'spectral_weight', 0.0) > 0
+    use_augment = getattr(args, 'augment', False)
+    if use_spectral:
+        print(f"Spectral loss weight: {args.spectral_weight}")
+    if use_augment:
+        print("Data augmentation: random H/V flips")
+
     for epoch in range(start_epoch, args.epochs):
         model.train()
         train_loss = 0
@@ -353,6 +383,10 @@ def train(args):
             lr_batch = lr_batch.to(device)
             res_batch = res_batch.to(device)
             bs = lr_batch.shape[0]
+
+            # Data augmentation: random flips (applied before CFG dropout)
+            if use_augment:
+                lr_batch, res_batch = random_flip_batch(lr_batch, res_batch)
 
             # CFG: per-sample condition dropout
             if args.cfg_prob > 0:
@@ -369,6 +403,12 @@ def train(args):
 
             pred_v = model(x_t, t, lr_batch_cond)
             loss = F.mse_loss(pred_v, target_v)
+
+            # Spectral loss: penalize FFT mismatch on reconstructed x_1
+            if use_spectral:
+                x1_pred = x_t + (1 - t_expand) * pred_v
+                x1_target = res_batch
+                loss = loss + args.spectral_weight * spectral_loss(x1_pred, x1_target)
 
             optimizer.zero_grad()
             loss.backward()
@@ -570,6 +610,11 @@ if __name__ == "__main__":
                         help="Guidance scale for sampling (1.0=standard conditional)")
     parser.add_argument("--sweep_scales", type=str, default="0.5,1.0,1.5,2.0,3.0",
                         help="Comma-separated guidance scales for eval_sweep mode")
+    # Training recipe args
+    parser.add_argument("--augment", action="store_true",
+                        help="Enable random H/V flip augmentation")
+    parser.add_argument("--spectral_weight", type=float, default=0.0,
+                        help="Weight for spectral (FFT) loss (0=disabled)")
     # Eval args
     parser.add_argument("--n_ensemble", type=int, default=10)
     parser.add_argument("--eval_batch_size", type=int, default=32)
