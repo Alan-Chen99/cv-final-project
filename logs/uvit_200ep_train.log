@@ -1,0 +1,325 @@
+srun: job 13380646 queued and waiting for resources
+srun: job 13380646 has been allocated resources
+=== U-ViT Flow Training 200ep ===
+Date: Tue May  5 19:04:19 EDT 2026
+Node: node3507
+GPU: NVIDIA L40S
+Loading data...
+U-ViT: patch_size=8, hidden=256, depth=12, heads=4
+#params: 16,551,565
+#patches: 256
+Epoch 1/200, Train: 1.248887, Val: 0.983700, LR: 0.000100, Time: 0.6min
+  -> New best! Saved checkpoint.
+Epoch 2/200, Train: 0.865045, Val: 0.783229, LR: 0.000100, Time: 1.2min
+  -> New best! Saved checkpoint.
+Epoch 3/200, Train: 0.729432, Val: 0.681008, LR: 0.000100, Time: 1.8min
+  -> New best! Saved checkpoint.
+Epoch 4/200, Train: 0.649403, Val: 0.626088, LR: 0.000100, Time: 2.4min
+  -> New best! Saved checkpoint.
+Epoch 5/200, Train: 0.604724, Val: 0.590007, LR: 0.000100, Time: 3.0min
+  -> New best! Saved checkpoint.
+Epoch 6/200, Train: 0.575867, Val: 0.568342, LR: 0.000100, Time: 3.6min
+  -> New best! Saved checkpoint.
+Epoch 7/200, Train: 0.557695, Val: 0.550957, LR: 0.000100, Time: 4.2min
+  -> New best! Saved checkpoint.
+Epoch 8/200, Train: 0.539743, Val: 0.518776, LR: 0.000100, Time: 4.7min
+  -> New best! Saved checkpoint.
+Epoch 9/200, Train: 0.497201, Val: 0.479467, LR: 0.000100, Time: 5.3min
+  -> New best! Saved checkpoint.
+Epoch 10/200, Train: 0.471950, Val: 0.465373, LR: 0.000099, Time: 5.9min
+  -> New best! Saved checkpoint.
+Epoch 11/200, Train: 0.460102, Val: 0.458605, LR: 0.000099, Time: 6.5min
+  -> New best! Saved checkpoint.
+Epoch 12/200, Train: 0.448756, Val: 0.445019, LR: 0.000099, Time: 7.1min
+  -> New best! Saved checkpoint.
+Epoch 13/200, Train: 0.438070, Val: 0.435050, LR: 0.000099, Time: 7.7min
+  -> New best! Saved checkpoint.
+Epoch 14/200, Train: 0.426124, Val: 0.424702, LR: 0.000099, Time: 8.3min
+  -> New best! Saved checkpoint.
+Epoch 15/200, Train: 0.419556, Val: 0.416311, LR: 0.000099, Time: 8.9min
+  -> New best! Saved checkpoint.
+Epoch 16/200, Train: 0.412365, Val: 0.408235, LR: 0.000098, Time: 9.5min
+  -> New best! Saved checkpoint.
+Epoch 17/200, Train: 0.405913, Val: 0.406838, LR: 0.000098, Time: 10.0min
+  -> New best! Saved checkpoint.
+Epoch 18/200, Train: 0.402761, Val: 0.399512, LR: 0.000098, Time: 10.6min
+  -> New best! Saved checkpoint.
+Epoch 19/200, Train: 0.394480, Val: 0.386543, LR: 0.000098, Time: 11.2min
+  -> New best! Saved checkpoint.
+Epoch 20/200, Train: 0.379659, Val: 0.374573, LR: 0.000098, Time: 11.8min
+  -> New best! Saved checkpoint.
+Epoch 21/200, Train: 0.372814, Val: 0.371197, LR: 0.000097, Time: 12.4min
+  -> New best! Saved checkpoint.
+Epoch 22/200, Train: 0.368449, Val: 0.365040, LR: 0.000097, Time: 13.0min
+  -> New best! Saved checkpoint.
+Epoch 23/200, Train: 0.362460, Val: 0.363866, LR: 0.000097, Time: 13.6min
+  -> New best! Saved checkpoint.
+Epoch 24/200, Train: 0.362467, Val: 0.362019, LR: 0.000096, Time: 14.2min
+  -> New best! Saved checkpoint.
+Epoch 25/200, Train: 0.359054, Val: 0.360967, LR: 0.000096, Time: 14.8min
+  -> New best! Saved checkpoint.
+Epoch 26/200, Train: 0.355316, Val: 0.354538, LR: 0.000096, Time: 15.4min
+  -> New best! Saved checkpoint.
+Epoch 27/200, Train: 0.354413, Val: 0.355320, LR: 0.000096, Time: 15.9min
+Epoch 28/200, Train: 0.352224, Val: 0.352645, LR: 0.000095, Time: 16.5min
+  -> New best! Saved checkpoint.
+Epoch 29/200, Train: 0.349651, Val: 0.350829, LR: 0.000095, Time: 17.1min
+  -> New best! Saved checkpoint.
+Epoch 30/200, Train: 0.348880, Val: 0.351390, LR: 0.000095, Time: 17.7min
+Epoch 31/200, Train: 0.346573, Val: 0.350442, LR: 0.000094, Time: 18.3min
+  -> New best! Saved checkpoint.
+Epoch 32/200, Train: 0.346565, Val: 0.347942, LR: 0.000094, Time: 18.9min
+  -> New best! Saved checkpoint.
+Epoch 33/200, Train: 0.344079, Val: 0.345455, LR: 0.000093, Time: 19.5min
+  -> New best! Saved checkpoint.
+Epoch 34/200, Train: 0.344136, Val: 0.346613, LR: 0.000093, Time: 20.1min
+Epoch 35/200, Train: 0.343557, Val: 0.341145, LR: 0.000093, Time: 20.6min
+  -> New best! Saved checkpoint.
+Epoch 36/200, Train: 0.341044, Val: 0.343854, LR: 0.000092, Time: 21.2min
+Epoch 37/200, Train: 0.339889, Val: 0.344992, LR: 0.000092, Time: 21.8min
+Epoch 38/200, Train: 0.338771, Val: 0.341492, LR: 0.000091, Time: 22.4min
+Epoch 39/200, Train: 0.338242, Val: 0.341526, LR: 0.000091, Time: 23.0min
+Epoch 40/200, Train: 0.335459, Val: 0.339925, LR: 0.000090, Time: 23.6min
+  -> New best! Saved checkpoint.
+Epoch 41/200, Train: 0.337560, Val: 0.338449, LR: 0.000090, Time: 24.2min
+  -> New best! Saved checkpoint.
+Epoch 42/200, Train: 0.337192, Val: 0.334965, LR: 0.000090, Time: 24.8min
+  -> New best! Saved checkpoint.
+Epoch 43/200, Train: 0.333778, Val: 0.338939, LR: 0.000089, Time: 25.4min
+Epoch 44/200, Train: 0.334847, Val: 0.336943, LR: 0.000089, Time: 25.9min
+Epoch 45/200, Train: 0.333113, Val: 0.337450, LR: 0.000088, Time: 26.5min
+Epoch 46/200, Train: 0.331901, Val: 0.338017, LR: 0.000088, Time: 27.1min
+Epoch 47/200, Train: 0.330675, Val: 0.335581, LR: 0.000087, Time: 27.7min
+Epoch 48/200, Train: 0.330850, Val: 0.335589, LR: 0.000086, Time: 28.3min
+Epoch 49/200, Train: 0.330178, Val: 0.333609, LR: 0.000086, Time: 28.9min
+  -> New best! Saved checkpoint.
+Epoch 50/200, Train: 0.329355, Val: 0.330181, LR: 0.000085, Time: 29.5min
+  -> New best! Saved checkpoint.
+Epoch 51/200, Train: 0.329519, Val: 0.332465, LR: 0.000085, Time: 30.0min
+Epoch 52/200, Train: 0.329192, Val: 0.333465, LR: 0.000084, Time: 30.6min
+Epoch 53/200, Train: 0.327173, Val: 0.331645, LR: 0.000084, Time: 31.2min
+Epoch 54/200, Train: 0.328370, Val: 0.329737, LR: 0.000083, Time: 31.8min
+  -> New best! Saved checkpoint.
+Epoch 55/200, Train: 0.327818, Val: 0.333534, LR: 0.000082, Time: 32.4min
+Epoch 56/200, Train: 0.326917, Val: 0.329612, LR: 0.000082, Time: 33.0min
+  -> New best! Saved checkpoint.
+Epoch 57/200, Train: 0.325261, Val: 0.328501, LR: 0.000081, Time: 33.6min
+  -> New best! Saved checkpoint.
+Epoch 58/200, Train: 0.325554, Val: 0.327021, LR: 0.000081, Time: 34.2min
+  -> New best! Saved checkpoint.
+Epoch 59/200, Train: 0.325537, Val: 0.327318, LR: 0.000080, Time: 34.7min
+Epoch 60/200, Train: 0.324222, Val: 0.328773, LR: 0.000079, Time: 35.3min
+Epoch 61/200, Train: 0.323671, Val: 0.325881, LR: 0.000079, Time: 35.9min
+  -> New best! Saved checkpoint.
+Epoch 62/200, Train: 0.324029, Val: 0.328889, LR: 0.000078, Time: 36.5min
+Epoch 63/200, Train: 0.322544, Val: 0.325152, LR: 0.000077, Time: 37.1min
+  -> New best! Saved checkpoint.
+Epoch 64/200, Train: 0.323937, Val: 0.326302, LR: 0.000077, Time: 37.7min
+Epoch 65/200, Train: 0.322401, Val: 0.324951, LR: 0.000076, Time: 38.3min
+  -> New best! Saved checkpoint.
+Epoch 66/200, Train: 0.321485, Val: 0.324638, LR: 0.000075, Time: 38.9min
+  -> New best! Saved checkpoint.
+Epoch 67/200, Train: 0.320290, Val: 0.322915, LR: 0.000075, Time: 39.4min
+  -> New best! Saved checkpoint.
+Epoch 68/200, Train: 0.321746, Val: 0.325451, LR: 0.000074, Time: 40.0min
+Epoch 69/200, Train: 0.321315, Val: 0.325715, LR: 0.000073, Time: 40.6min
+Epoch 70/200, Train: 0.319648, Val: 0.321839, LR: 0.000073, Time: 41.2min
+  -> New best! Saved checkpoint.
+Epoch 71/200, Train: 0.319231, Val: 0.323196, LR: 0.000072, Time: 41.8min
+Epoch 72/200, Train: 0.319242, Val: 0.322898, LR: 0.000071, Time: 42.4min
+Epoch 73/200, Train: 0.319931, Val: 0.322365, LR: 0.000071, Time: 43.0min
+Epoch 74/200, Train: 0.318000, Val: 0.323803, LR: 0.000070, Time: 43.6min
+Epoch 75/200, Train: 0.317139, Val: 0.323738, LR: 0.000069, Time: 44.1min
+Epoch 76/200, Train: 0.318923, Val: 0.322116, LR: 0.000068, Time: 44.7min
+Epoch 77/200, Train: 0.317940, Val: 0.322766, LR: 0.000068, Time: 45.3min
+Epoch 78/200, Train: 0.317335, Val: 0.318698, LR: 0.000067, Time: 45.9min
+  -> New best! Saved checkpoint.
+Epoch 79/200, Train: 0.316816, Val: 0.318709, LR: 0.000066, Time: 46.5min
+Epoch 80/200, Train: 0.315957, Val: 0.320989, LR: 0.000065, Time: 47.1min
+Epoch 81/200, Train: 0.315533, Val: 0.320676, LR: 0.000065, Time: 47.7min
+Epoch 82/200, Train: 0.315941, Val: 0.320067, LR: 0.000064, Time: 48.2min
+Epoch 83/200, Train: 0.315305, Val: 0.318512, LR: 0.000063, Time: 48.8min
+  -> New best! Saved checkpoint.
+Epoch 84/200, Train: 0.315378, Val: 0.319478, LR: 0.000062, Time: 49.4min
+Epoch 85/200, Train: 0.315460, Val: 0.323559, LR: 0.000062, Time: 50.0min
+Epoch 86/200, Train: 0.313710, Val: 0.320621, LR: 0.000061, Time: 50.6min
+Epoch 87/200, Train: 0.315201, Val: 0.319890, LR: 0.000060, Time: 51.2min
+Epoch 88/200, Train: 0.313636, Val: 0.316627, LR: 0.000059, Time: 51.8min
+  -> New best! Saved checkpoint.
+Epoch 89/200, Train: 0.314036, Val: 0.317342, LR: 0.000059, Time: 52.4min
+Epoch 90/200, Train: 0.312921, Val: 0.317244, LR: 0.000058, Time: 52.9min
+Epoch 91/200, Train: 0.312691, Val: 0.319254, LR: 0.000057, Time: 53.5min
+Epoch 92/200, Train: 0.313039, Val: 0.314867, LR: 0.000056, Time: 54.1min
+  -> New best! Saved checkpoint.
+Epoch 93/200, Train: 0.312499, Val: 0.318220, LR: 0.000055, Time: 54.7min
+Epoch 94/200, Train: 0.312935, Val: 0.314761, LR: 0.000055, Time: 55.3min
+  -> New best! Saved checkpoint.
+Epoch 95/200, Train: 0.311871, Val: 0.315218, LR: 0.000054, Time: 55.9min
+Epoch 96/200, Train: 0.310921, Val: 0.316200, LR: 0.000053, Time: 56.5min
+Epoch 97/200, Train: 0.311234, Val: 0.315176, LR: 0.000052, Time: 57.0min
+Epoch 98/200, Train: 0.312130, Val: 0.316612, LR: 0.000052, Time: 57.6min
+Epoch 99/200, Train: 0.312201, Val: 0.312888, LR: 0.000051, Time: 58.2min
+  -> New best! Saved checkpoint.
+Epoch 100/200, Train: 0.310502, Val: 0.316732, LR: 0.000050, Time: 58.8min
+Epoch 101/200, Train: 0.311926, Val: 0.313513, LR: 0.000049, Time: 59.4min
+Epoch 102/200, Train: 0.310788, Val: 0.312927, LR: 0.000048, Time: 60.0min
+Epoch 103/200, Train: 0.310357, Val: 0.315639, LR: 0.000048, Time: 60.6min
+Epoch 104/200, Train: 0.309850, Val: 0.312719, LR: 0.000047, Time: 61.1min
+  -> New best! Saved checkpoint.
+Epoch 105/200, Train: 0.310545, Val: 0.315554, LR: 0.000046, Time: 61.7min
+Epoch 106/200, Train: 0.308738, Val: 0.315039, LR: 0.000045, Time: 62.3min
+Epoch 107/200, Train: 0.309686, Val: 0.311863, LR: 0.000045, Time: 62.9min
+  -> New best! Saved checkpoint.
+Epoch 108/200, Train: 0.309186, Val: 0.313314, LR: 0.000044, Time: 63.5min
+Epoch 109/200, Train: 0.308720, Val: 0.313125, LR: 0.000043, Time: 64.1min
+Epoch 110/200, Train: 0.308654, Val: 0.312811, LR: 0.000042, Time: 64.7min
+Epoch 111/200, Train: 0.308355, Val: 0.314596, LR: 0.000041, Time: 65.2min
+Epoch 112/200, Train: 0.309056, Val: 0.313589, LR: 0.000041, Time: 65.8min
+Epoch 113/200, Train: 0.308423, Val: 0.311346, LR: 0.000040, Time: 66.4min
+  -> New best! Saved checkpoint.
+Epoch 114/200, Train: 0.306781, Val: 0.312223, LR: 0.000039, Time: 67.0min
+Epoch 115/200, Train: 0.307390, Val: 0.311885, LR: 0.000038, Time: 67.6min
+Epoch 116/200, Train: 0.307789, Val: 0.311950, LR: 0.000038, Time: 68.2min
+Epoch 117/200, Train: 0.306921, Val: 0.311539, LR: 0.000037, Time: 68.8min
+Epoch 118/200, Train: 0.306561, Val: 0.312253, LR: 0.000036, Time: 69.3min
+Epoch 119/200, Train: 0.306551, Val: 0.312406, LR: 0.000035, Time: 69.9min
+Epoch 120/200, Train: 0.306657, Val: 0.313349, LR: 0.000035, Time: 70.5min
+Epoch 121/200, Train: 0.306205, Val: 0.314310, LR: 0.000034, Time: 71.1min
+Epoch 122/200, Train: 0.307531, Val: 0.310795, LR: 0.000033, Time: 71.7min
+  -> New best! Saved checkpoint.
+Epoch 123/200, Train: 0.305269, Val: 0.311225, LR: 0.000032, Time: 72.3min
+Epoch 124/200, Train: 0.306812, Val: 0.309654, LR: 0.000032, Time: 72.9min
+  -> New best! Saved checkpoint.
+Epoch 125/200, Train: 0.306841, Val: 0.309544, LR: 0.000031, Time: 73.5min
+  -> New best! Saved checkpoint.
+Epoch 126/200, Train: 0.306023, Val: 0.310109, LR: 0.000030, Time: 74.0min
+Epoch 127/200, Train: 0.305968, Val: 0.309618, LR: 0.000029, Time: 74.6min
+Epoch 128/200, Train: 0.305305, Val: 0.313095, LR: 0.000029, Time: 75.2min
+Epoch 129/200, Train: 0.304724, Val: 0.310547, LR: 0.000028, Time: 75.8min
+Epoch 130/200, Train: 0.305012, Val: 0.310562, LR: 0.000027, Time: 76.4min
+Epoch 131/200, Train: 0.303964, Val: 0.309446, LR: 0.000027, Time: 77.0min
+  -> New best! Saved checkpoint.
+Epoch 132/200, Train: 0.305104, Val: 0.307954, LR: 0.000026, Time: 77.6min
+  -> New best! Saved checkpoint.
+Epoch 133/200, Train: 0.304449, Val: 0.308597, LR: 0.000025, Time: 78.1min
+Epoch 134/200, Train: 0.303203, Val: 0.312164, LR: 0.000025, Time: 78.7min
+Epoch 135/200, Train: 0.304623, Val: 0.311041, LR: 0.000024, Time: 79.3min
+Epoch 136/200, Train: 0.304584, Val: 0.308183, LR: 0.000023, Time: 79.9min
+Epoch 137/200, Train: 0.303593, Val: 0.310401, LR: 0.000023, Time: 80.5min
+Epoch 138/200, Train: 0.302965, Val: 0.311398, LR: 0.000022, Time: 81.1min
+Epoch 139/200, Train: 0.303074, Val: 0.308565, LR: 0.000021, Time: 81.6min
+Epoch 140/200, Train: 0.302283, Val: 0.308698, LR: 0.000021, Time: 82.2min
+Epoch 141/200, Train: 0.303729, Val: 0.307078, LR: 0.000020, Time: 82.8min
+  -> New best! Saved checkpoint.
+Epoch 142/200, Train: 0.302123, Val: 0.306815, LR: 0.000019, Time: 83.4min
+  -> New best! Saved checkpoint.
+Epoch 143/200, Train: 0.302835, Val: 0.307406, LR: 0.000019, Time: 84.0min
+Epoch 144/200, Train: 0.302378, Val: 0.307468, LR: 0.000018, Time: 84.6min
+Epoch 145/200, Train: 0.302509, Val: 0.307866, LR: 0.000018, Time: 85.2min
+Epoch 146/200, Train: 0.301601, Val: 0.307053, LR: 0.000017, Time: 85.8min
+Epoch 147/200, Train: 0.302027, Val: 0.308266, LR: 0.000016, Time: 86.3min
+Epoch 148/200, Train: 0.300897, Val: 0.310232, LR: 0.000016, Time: 86.9min
+Epoch 149/200, Train: 0.301792, Val: 0.310370, LR: 0.000015, Time: 87.5min
+Epoch 150/200, Train: 0.301490, Val: 0.309018, LR: 0.000015, Time: 88.1min
+Epoch 151/200, Train: 0.300907, Val: 0.307442, LR: 0.000014, Time: 88.7min
+Epoch 152/200, Train: 0.300949, Val: 0.304213, LR: 0.000014, Time: 89.3min
+  -> New best! Saved checkpoint.
+Epoch 153/200, Train: 0.301314, Val: 0.308108, LR: 0.000013, Time: 89.9min
+Epoch 154/200, Train: 0.301322, Val: 0.307002, LR: 0.000012, Time: 90.4min
+Epoch 155/200, Train: 0.302206, Val: 0.307077, LR: 0.000012, Time: 91.0min
+Epoch 156/200, Train: 0.300634, Val: 0.306447, LR: 0.000011, Time: 91.6min
+Epoch 157/200, Train: 0.300733, Val: 0.308158, LR: 0.000011, Time: 92.2min
+Epoch 158/200, Train: 0.300698, Val: 0.306521, LR: 0.000010, Time: 92.8min
+Epoch 159/200, Train: 0.301185, Val: 0.307194, LR: 0.000010, Time: 93.4min
+Epoch 160/200, Train: 0.300344, Val: 0.308189, LR: 0.000010, Time: 94.0min
+Epoch 161/200, Train: 0.299085, Val: 0.306643, LR: 0.000009, Time: 94.5min
+Epoch 162/200, Train: 0.301264, Val: 0.306278, LR: 0.000009, Time: 95.1min
+Epoch 163/200, Train: 0.299876, Val: 0.306977, LR: 0.000008, Time: 95.7min
+Epoch 164/200, Train: 0.301078, Val: 0.307682, LR: 0.000008, Time: 96.3min
+Epoch 165/200, Train: 0.299486, Val: 0.305576, LR: 0.000007, Time: 96.9min
+Epoch 166/200, Train: 0.301044, Val: 0.305653, LR: 0.000007, Time: 97.5min
+Epoch 167/200, Train: 0.300153, Val: 0.305778, LR: 0.000007, Time: 98.1min
+Epoch 168/200, Train: 0.300972, Val: 0.307412, LR: 0.000006, Time: 98.6min
+Epoch 169/200, Train: 0.300215, Val: 0.307646, LR: 0.000006, Time: 99.2min
+Epoch 170/200, Train: 0.298269, Val: 0.306711, LR: 0.000005, Time: 99.8min
+Epoch 171/200, Train: 0.298812, Val: 0.307343, LR: 0.000005, Time: 100.4min
+Epoch 172/200, Train: 0.299526, Val: 0.304994, LR: 0.000005, Time: 101.0min
+Epoch 173/200, Train: 0.299969, Val: 0.307588, LR: 0.000004, Time: 101.6min
+Epoch 174/200, Train: 0.300372, Val: 0.305243, LR: 0.000004, Time: 102.2min
+Epoch 175/200, Train: 0.298823, Val: 0.305238, LR: 0.000004, Time: 102.7min
+Epoch 176/200, Train: 0.299522, Val: 0.306893, LR: 0.000004, Time: 103.3min
+Epoch 177/200, Train: 0.300781, Val: 0.306617, LR: 0.000003, Time: 103.9min
+Epoch 178/200, Train: 0.299987, Val: 0.305169, LR: 0.000003, Time: 104.5min
+Epoch 179/200, Train: 0.299705, Val: 0.305423, LR: 0.000003, Time: 105.1min
+Epoch 180/200, Train: 0.299529, Val: 0.306309, LR: 0.000002, Time: 105.7min
+Epoch 181/200, Train: 0.298831, Val: 0.307459, LR: 0.000002, Time: 106.3min
+Epoch 182/200, Train: 0.299590, Val: 0.308240, LR: 0.000002, Time: 106.8min
+Epoch 183/200, Train: 0.298972, Val: 0.306268, LR: 0.000002, Time: 107.4min
+Epoch 184/200, Train: 0.299005, Val: 0.305423, LR: 0.000002, Time: 108.0min
+Epoch 185/200, Train: 0.299258, Val: 0.305836, LR: 0.000001, Time: 108.6min
+Epoch 186/200, Train: 0.299238, Val: 0.304446, LR: 0.000001, Time: 109.2min
+Epoch 187/200, Train: 0.299516, Val: 0.309334, LR: 0.000001, Time: 109.8min
+Epoch 188/200, Train: 0.298656, Val: 0.303782, LR: 0.000001, Time: 110.4min
+  -> New best! Saved checkpoint.
+Epoch 189/200, Train: 0.299409, Val: 0.306673, LR: 0.000001, Time: 111.0min
+Epoch 190/200, Train: 0.298998, Val: 0.305479, LR: 0.000001, Time: 111.5min
+Epoch 191/200, Train: 0.298846, Val: 0.306873, LR: 0.000000, Time: 112.1min
+Epoch 192/200, Train: 0.298912, Val: 0.308578, LR: 0.000000, Time: 112.7min
+Epoch 193/200, Train: 0.299370, Val: 0.304477, LR: 0.000000, Time: 113.3min
+Epoch 194/200, Train: 0.299453, Val: 0.306115, LR: 0.000000, Time: 113.9min
+Epoch 195/200, Train: 0.298646, Val: 0.304719, LR: 0.000000, Time: 114.5min
+Epoch 196/200, Train: 0.298879, Val: 0.307116, LR: 0.000000, Time: 115.1min
+Epoch 197/200, Train: 0.298311, Val: 0.305164, LR: 0.000000, Time: 115.6min
+Epoch 198/200, Train: 0.299133, Val: 0.307208, LR: 0.000000, Time: 116.2min
+Epoch 199/200, Train: 0.298655, Val: 0.307457, LR: 0.000000, Time: 116.8min
+Epoch 200/200, Train: 0.298962, Val: 0.305569, LR: 0.000000, Time: 117.4min
+
+Training complete. Best val loss: 0.303782
+Total time: 117.4 min
+TRAINING COMPLETE
+Evaluating 10000 samples, 10 ensemble, 10 Euler steps, constraint=addcl...
+Model: U-ViT, patch_size=8, hidden=256, depth=12
+Model epoch: 188, val_loss: 0.303782
+  Processed 32/10000...
+  Processed 352/10000...
+  Processed 672/10000...
+  Processed 992/10000...
+  Processed 1312/10000...
+  Processed 1632/10000...
+  Processed 1952/10000...
+  Processed 2272/10000...
+  Processed 2592/10000...
+  Processed 2912/10000...
+  Processed 3232/10000...
+  Processed 3552/10000...
+  Processed 3872/10000...
+  Processed 4192/10000...
+  Processed 4512/10000...
+  Processed 4832/10000...
+  Processed 5152/10000...
+  Processed 5472/10000...
+  Processed 5792/10000...
+  Processed 6112/10000...
+  Processed 6432/10000...
+  Processed 6752/10000...
+  Processed 7072/10000...
+  Processed 7392/10000...
+  Processed 7712/10000...
+  Processed 8032/10000...
+  Processed 8352/10000...
+  Processed 8672/10000...
+  Processed 8992/10000...
+  Processed 9312/10000...
+  Processed 9632/10000...
+  Processed 9952/10000...
+
+Results (test, 10 ens, 10 Euler steps, constraint=addcl):
+  CRPS (paper/buggy): 0.105455
+  CRPS (correct):     0.194237
+  MAE:                0.274306
+  RMSE:               0.532814
+  Mass violation:     0.000001
+FULL EVAL COMPLETE
+
+=== Done ===
+Date: Tue May  5 21:06:09 EDT 2026

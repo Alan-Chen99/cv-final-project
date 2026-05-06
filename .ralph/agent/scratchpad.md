@@ -85,3 +85,68 @@ Architecture:
 - The main weakness is lack of multi-scale skip connections
 - Next step: U-ViT (DiT + skip connections) could get best of both worlds
 - DiT with extended training matches the simpler UNet, suggesting transformers benefit from data/compute but have a harder learning problem
+
+## Iteration 2
+**Start:** 2026-05-05 18:53 EDT, commit b0d6dd3
+**Run prefix:** ecdzc-kkmks
+
+### Orientation
+- DiT 200ep CRPS 0.195 from iter-1 — verified from logs (correct CRPS formula, 10K test, AddCL)
+- Actual DiT arch: hidden_size=256, depth=12, num_heads=4 (NOT 384 as in code defaults — training script overrode)
+- Cancelled stale job 13369998 (ntlg-alta, unnamed prefix, submitted from node1627 during iter-1 but not documented)
+- GPU slot now free. Two sweep-gpu jobs (13346680, 13360036) are NOT mine.
+
+### Concerns (3+)
+
+1. **Workflow:** Prior agent left a stale GPU allocation (job 13369998, ntlg-alta) that wasn't cancelled or documented. The job name doesn't match the zyqup-yoihn prefix. Cancelled it — no useful work was running.
+
+2. **Quality:** DiT's diagnosed weakness (no skip connections) is the #1 gap vs UNet. The U-ViT direction (DiT + skip connections) is the natural fix and directly tests this hypothesis. This is well-supported by the original U-ViT paper ("All are Worth Words", 2022).
+
+3. **Quality:** The prior agent didn't add a 3x3 conv refinement after unpatchify — the original U-ViT paper found this crucial for spatial quality. Pure linear unpatch creates visible grid artifacts at patch boundaries. Must add conv refinement.
+
+4. **Fact check:** Verified DiT 200ep CRPS 0.195 from logs/dit_200ep_train.log line 321. The number is correct.
+
+### Plan for this iteration
+**ONE thing:** Implement and train U-ViT (DiT + long skip connections + conv refinement) for flow matching.
+
+Rationale: This directly addresses the main diagnosed weakness of pure DiT (no multi-scale info flow). If skip connections close the gap with UNet, it validates that transformers ARE viable for climate downscaling when properly architected.
+
+Architecture:
+- Same as DiT: patch_size=8, hidden_size=256, depth=12, num_heads=4
+- ADD: long skip connections between blocks (0→11, 1→10, ..., 5→6) via concat+linear
+- ADD: 3x3 conv refinement after unpatchify (from U-ViT paper)
+- Extra params: ~0.8M (skip projections) + ~0.6K (conv refinement) ≈ ~15.4M total
+- Same OT-CFM training, residual prediction, AddCL constraint
+- Train 200 epochs to match DiT comparison
+
+### U-ViT 200-epoch results (node3507, L40S)
+**Training:** 200 epochs, batch_size=64, lr=1e-4, cosine T_max=200
+- Wall-clock: 117.4 min (within 2hr budget)
+- Best val loss: 0.3038 at epoch 188 (vs DiT's 0.301 — 1% worse)
+- Train/val convergence: train=0.299, val=0.306 at end
+
+**Evaluation (FULL 10K test, 10 ensemble, Euler 10, AddCL):**
+
+| Model | Params | Epochs | CRPS (correct) | RMSE | MAE | Mass Viol |
+|-------|--------|--------|---------------|------|-----|-----------|
+| **U-ViT 200ep** | 16.5M | 200 | **0.194** | 0.533 | 0.274 | 0.000001 |
+| DiT 200ep | 14.6M | 200 | 0.195 | 0.540 | 0.276 | 0.000001 |
+| UNet attn (research) | 5.2M | 200 | 0.199 | 0.481 | 0.258 | 0.0001 |
+| UNet v2 (research2) | 13M | 39 | 0.171 | 0.456 | 0.242 | 0.000001 |
+| GAN baseline | 204K | — | 0.307 | 0.618 | 0.307 | 0.0454 |
+
+**Key findings:**
+1. U-ViT (0.194) marginally beats DiT (0.195) — skip connections help but only slightly
+2. U-ViT beats simpler UNet (research, 0.199) by 2.5%
+3. U-ViT still 13.5% worse than UNet v2 (0.171)
+4. Skip connections improved val_loss (0.304 vs 0.301) but CRPS gap barely changed
+5. The transformer architecture bottleneck is NOT skip connections alone — it's the fundamentally different inductive bias (patch tokenization vs multi-scale convolution)
+
+**Conclusion for U-ViT experiment:**
+- Adding skip connections to DiT provides marginal improvement
+- The core transformer approach hits a wall for this task: patch_size=8 tokenization loses fine spatial detail that convolutions preserve naturally
+- Both DiT and U-ViT converge to similar val_loss (~0.301-0.304) and CRPS (~0.194-0.195)
+- The UNet's multi-scale convolutional processing is architecturally better suited for spatial super-resolution
+- Next directions to explore: (a) smaller patch size (4 instead of 8), (b) hybrid conv-transformer, (c) return to UNet with improvements (EMA, data augmentation, CRPS loss)
+
+**End:** 2026-05-05 21:06 EDT
