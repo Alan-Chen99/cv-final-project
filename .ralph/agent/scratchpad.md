@@ -56,4 +56,4 @@ ONE thing: Set up and run zero-shot evaluation of pretrained image SR models on 
 - Potential directions: DiT backbone, consistency distillation, improved sampling
 
 **End:** 2026-05-06 02:05 EDT
-**End commit:** (to be filled after commit)
+**End commit:** 665393e
