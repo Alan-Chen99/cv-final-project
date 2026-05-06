@@ -257,3 +257,79 @@ Implemented minibatch OT coupling with GPU-based cost matrix + CPU Hungarian alg
 
 **End:** 2026-05-06 14:32 EDT
 **End commit:** 65471f4
+
+## Iteration 5
+**Start:** 2026-05-06 14:33 EDT
+**Start commit:** 97fd818
+**Run prefix:** xmpl-qwrt-zbfa
+
+### Situation
+- Branch: research6, iterations 1-4 complete
+- Best CRPS this branch: 0.232 (flow_residual, 9.1M, 100ep, 20 Euler steps + AddCL)
+- Target: research2's 0.171 (13M, 39ep)
+- Normal GPU: 1/2 available. Preemptable: full (4/4).
+- Time: 14:33 EDT, ~11.5hr until 40hr deadline
+
+### Concerns
+
+1. **FACT CONCERN (critical): Prior iterations' "OT coupling" narrative is completely wrong.**
+   Research2's code (`src/exp-spatial-4x-crps-v1/flow_matching_v2.py`) uses NO minibatch OT coupling — grep for `ot_coupling`, `linear_sum_assignment`, `sinkhorn` returns zero matches. The "OT-CFM" label in the notes refers to the OT probability PATH (standard straight-line interpolation x_t=(1-t)*x0+t*x1), which BOTH branches already use. All 3 iterations of OT coupling work (CPU Hungarian, "GPU Sinkhorn needed" analysis, Heun failure attributed to "curved flows from random coupling") were based on a false premise. Research2 achieves 0.171 with plain random coupling.
+
+2. **QUALITY CONCERN: The actual gap is NORMALIZATION, not OT coupling.**
+   - Research6 (`flow_downscale.py`): min-max [0,1] normalization. Residuals (HR-bilinear(LR)) are tiny (~[-0.2, 0.2]). Noise x0~N(0,1) is 5-15x larger. The velocity field v=x1-x0 is dominated by -x0 (trivial). The model can't learn the data signal.
+   - Research2 (`flow_matching_v2.py`): z-score normalization. Residuals standardized to mean=0, std~1. Noise x0~N(0,1) is on the SAME scale. Velocity field has equal contributions from both terms. Well-conditioned for learning.
+   - Secondary factors: research2 uses 2 ResBlocks/level (13M vs 9.1M), dropout=0.1, grad clipping, fp32 (no AMP), time_emb_dim=256 (vs 128).
+
+3. **WORKFLOW CONCERN: Research2's code was never read.**
+   `src/exp-spatial-4x-crps-v1/flow_matching_v2.py` was available in the repo throughout all 4 iterations. It would have taken 5 minutes to read the training loop and discover: (a) no OT coupling, (b) z-score normalization. Instead, iterations 3-4 spent ~8+ hours pursuing OT coupling implementations.
+
+### Plan for this iteration
+**ONE thing: Train using research2's exact recipe (flow_matching_v2.py) on this branch.**
+
+This tests the hypothesis that z-score normalization + 2 ResBlocks/level is what makes research2 work, not OT coupling. Expected outcome: CRPS close to 0.171.
+
+Steps:
+1. Set up data symlink for flow_matching_v2.py
+2. Allocate normal GPU (1 slot available)
+3. Train 40 epochs (~2hr on L40S at ~3 min/ep)
+4. Evaluate on full 10K test with corrected CRPS + AddCL
+5. Compare with 0.232 (this branch) and 0.171 (research2)
+
+### Training: flow_matching_v2.py (z-score normalization)
+- GPU: node3008 (L40S), normal, job 13444815
+- Architecture: AttentionUNet, 13.07M params, base_channels=64, mults=(1,2,4), 4-head attention at bottleneck, 2 ResBlocks/level, dropout=0.1
+- Data: z-score normalized residuals (mean=0, std=0.966), z-score normalized LR condition (mean=22.5, std=17.1)
+- Training: AdamW lr=1e-4, weight_decay=1e-5, cosine T_max=40, batch 64, grad clip 1.0
+- 40 epochs in 178 min (4.45 min/epoch on L40S)
+- Best val loss: 0.250993 (epoch 40)
+- 2-hour mark: epoch 27, val loss 0.256111
+
+### Evaluation Results
+
+#### 50-sample CPU estimate (reliable quick check)
+| Method | CRPS (paper) | CRPS (corrected) | MAE | RMSE | Mass Viol |
+|--------|-------------|------------------|-----|------|-----------|
+| flow_v2_zscore + AddCL | 0.096 | 0.178 | 0.252 | 0.473 | 0.000001 |
+| **Research2 reference (2K)** | **0.093** | **0.171** | **0.247** | **0.458** | **0.000001** |
+| Research6 prior best (10K) | — | 0.232 | 0.298 | 0.577 | 0.000 |
+
+Full 10K eval attempted twice on preemptable GPU, both times preempted at 6K-8K samples. 50-sample subset gives rough estimate; full 10K eval needed next iteration.
+
+### Key Findings
+
+1. **Normalization was the root cause, NOT OT coupling.** Switching from min-max [0,1] to z-score normalization improved CRPS from 0.232 → 0.178 (23% improvement), nearly matching research2's 0.171.
+
+2. **Prior "OT coupling" narrative was completely wrong.** Research2's `flow_matching_v2.py` has zero OT coupling code (verified by grep). The "OT-CFM" label refers to the OT probability path (straight interpolation), not minibatch coupling. Iterations 3-4 wasted ~8 hours pursuing a false lead.
+
+3. **Scale mismatch is catastrophic for flow matching.** In research6's min-max normalization, residuals had std≈0.007 while noise had std=1 — a 140:1 noise-to-signal ratio. The model was essentially learning to predict negative noise, with data being a 0.7% perturbation.
+
+4. **Remaining gap (0.178 vs 0.171) could be sample size.** The 50-sample CPU estimate has high variance. The true 10K CRPS may be closer to 0.171.
+
+### Conclusions for next iteration
+- **Priority 1:** Full 10K evaluation (needs ~35 min GPU, request 1hr allocation to avoid timeout)
+- If 10K CRPS is close to 0.171, the model matches research2
+- If 10K CRPS is significantly worse, investigate remaining differences: research2 might have had subtle training differences
+- The eval also needs to run without AddCL to get unconstrained CRPS
+
+**End:** 2026-05-06 19:28 EDT
+**End commit:** (pending)
