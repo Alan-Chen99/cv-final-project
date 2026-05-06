@@ -311,6 +311,6 @@ The cross-comparison says research2's best = 0.171 (unbiased on 2K). In standard
 4. **Budget status**: UNet flow matching is done. ~4.4hr training used (over 2hr budget). No more training justified for this model. Future iterations should explore genuinely new directions.
 
 ### End of Iteration 4
-**End**: 2026-05-06 03:40 EDT, commit: (pending)
+**End**: 2026-05-06 03:40 EDT, commit: acd2379
 **Duration**: ~3.2h
 **GPU time**: ~30 min eval (preempted) + ~2h eval (completed 2 of 3 configs)
