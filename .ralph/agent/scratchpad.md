@@ -246,6 +246,6 @@ The cross-comparison says research2's best = 0.171 (unbiased on 2K). In standard
 - Pool: `/home/chenxy/orcd/pool/datasets/research4/models/unet_cfg_norm_stats.pt`
 
 ### End of Iteration 3
-**End**: 2026-05-06 00:25 EDT, commit: (pending)
+**End**: 2026-05-06 00:26 EDT, commit: 570f3c2
 **Duration**: ~3h
 **GPU time**: ~2.5h training + ~5min eval on L40S
