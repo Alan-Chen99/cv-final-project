@@ -56,3 +56,62 @@ Under-explored direction: prior iterations only trained flow matching from scrat
 
 **Ending time:** ~04:00 EDT
 **Ending commit:** e1b97ed
+
+## Iteration 2 — 2026-05-06 04:00 EDT
+**Starting commit:** a824136
+**Run prefix:** jrut-ohex
+
+### Current State
+- Time: ~18hr elapsed. ~22hr to 40hr mark (2026-05-07 02:00 EDT). Plenty of time.
+- GPU: prior job (dnds-fuxq/13405137) already cleaned up. Need fresh allocation.
+- squeue: 2 normal + 2 preemptable used by others. Can allocate 1 preemptable.
+- Best SwinIR-FT: MAE=0.250 deterministic. OT-CFM best: CRPS=0.171 (ensemble).
+
+### Concerns (3+ problems)
+1. **Workflow: No ensemble CRPS ever computed on this branch.** The entire objective metric is CRPS, but iteration 1 only measured deterministic MAE (=CRPS for det. model). Comparison to OT-CFM's 0.171 is apples-to-oranges since SwinIR's 0.250 is det. CRPS. Must make model stochastic.
+2. **Quality: LR schedule mismatch.** Cosine annealing with T_max=50 but only 19 epochs ran (2hr wall limit). LR at epoch 19/50 is still ~50% of initial LR — schedule never completed its cooldown. This likely caused the val loss oscillation seen around epochs 12-19.
+3. **Quality: Val MAE oscillation indicates potential overfitting.** Physical MAE chart shows val bumps at epochs 13-15 while train keeps dropping. The gap widens in later epochs. Full backbone finetuning (11.9M params) on 40K samples may be overdoing it.
+
+### Direction: Multi-Head SwinIR with Direct CRPS Loss
+**Why this direction:**
+- Directly optimizes the actual metric (CRPS energy score)
+- Under-explored: no prior work combines pretrained SR backbone + multi-head CRPS training
+- Leverages the finetuned backbone features (iteration 1's work)
+- Avoids MC-dropout's typically weak diversity
+
+**Architecture:**
+- Freeze SwinIR backbone (through conv_after_body + skip)
+- Replace tail (conv_before_upsample + upsample + conv_last) with K=8 parallel branches
+- Each branch: Conv+ReLU → PixelShuffle → Conv → output (1, 128, 128)
+- ~400K params per branch → 3.2M trainable total
+
+**Loss:** Energy score = (1/K)Σ|y_k - y| - (1/(2K²))ΣΣ|y_k - y_k'|
+This is a proper scoring rule: rewards accuracy AND calibrated spread.
+
+### Training Log
+- 04:12 — Fix NaN bug (bias std on 1-element tensor)
+- 04:24 — Node busy from prior srun; re-allocated → node3206
+- 04:43 — Training started: K=8 heads, 3.2M trainable, frozen backbone
+- 06:45 — Training complete: 35 epochs in 2.03h, best val loss 0.001434 at epoch 17
+
+### CRPS Ensemble Results (10K test)
+| Method | CRPS (energy) | MAE (ens. mean) | RMSE | Spread | Mass Viol |
+|--------|---------------|-----------------|------|--------|-----------|
+| Multi-Head SwinIR (K=8) | **0.183** | 0.250 | 0.482 | 0.272 | 0.005 |
+| Multi-Head + AddCL | 0.222 | 0.250 | — | — | 0.000001 |
+| OT-CFM (research2) | **0.171** | 0.247 | 0.458 | — | 0.000001 |
+| SwinIR-FT deterministic | 0.250 | 0.250 | 0.483 | 0 | 0.014 |
+
+### Analysis
+- **Good:** Ensemble CRPS (0.183) vs deterministic CRPS (0.250) = 27% improvement
+- **Bad:** Still behind OT-CFM (0.171) by 7%
+- **Surprising:** AddCL *hurts* ensemble CRPS (0.183 → 0.222). Adding the same shift to all members doesn't change spread, but the ensemble members may already be spreading optimally around the unconstrained mean — re-centering onto LR means corrupts the calibration.
+- **Concern:** Spread (0.272) is much larger than MAE (0.250), suggesting possible over-dispersion. The heads may not be learning structured uncertainty but rather random noise diversity.
+
+### What's Next
+- Re-run with more heads (K=16) or fewer (K=4) to see CRPS sensitivity
+- Consider SmCL-style constraint per member (not uniform AddCL)
+- The frozen backbone may be limiting — try unfreezing last 2 Swin layers
+
+**Ending time:** ~06:47 EDT
+**Ending commit:** (pending)
