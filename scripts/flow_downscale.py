@@ -266,6 +266,11 @@ def bicubic_upsample(lr, size=128):
     return F.interpolate(lr, size=(size, size), mode='bicubic', align_corners=False)
 
 
+def bilinear_upsample(lr, size=128):
+    """Bilinear upsample LR to HR resolution."""
+    return F.interpolate(lr, size=(size, size), mode='bilinear', align_corners=False)
+
+
 # ── Constraint layers ────────────────────────────────────────────────────────
 
 def apply_constraint(hr, lr_32, constraint_type='none', eps=1e-6):
@@ -283,6 +288,13 @@ def apply_constraint(hr, lr_32, constraint_type='none', eps=1e-6):
     """
     if constraint_type == 'none':
         return hr.clamp(0, 1)
+
+    if constraint_type == 'addcl':
+        # Additive correction: avgpool(hr) == lr_32
+        pooled = F.avg_pool2d(hr, kernel_size=4)  # (B, 1, 32, 32)
+        correction = lr_32 - pooled
+        correction_up = correction.repeat_interleave(4, dim=2).repeat_interleave(4, dim=3)
+        return hr + correction_up
 
     if constraint_type == 'softmax':
         y = torch.exp(hr)
@@ -324,9 +336,12 @@ def train(args):
     lr_anchor = getattr(args, 'lr_anchor', False)
     noise_std = getattr(args, 'noise_std', 0.5)
     augment = getattr(args, 'augment', False)
+    residual = getattr(args, 'residual', False)
     print(f"Training flow matching model on {device}")
     print(f"Args: epochs={args.epochs}, bs={args.batch_size}, lr={args.lr}, "
           f"channels={args.channels}, euler_steps={args.euler_steps}")
+    if residual:
+        print("Residual mode: learning on (HR - bilinear(LR)) space")
     if lr_anchor:
         print(f"LR-anchor mode: noise_std={noise_std}")
     if augment:
@@ -386,7 +401,8 @@ def train(args):
                 'constraint_aware': constraint_aware,
                 'crps_loss': crps_loss_enabled,
                 'lr_anchor': lr_anchor, 'noise_std': noise_std,
-                'use_attention': use_attention},
+                'use_attention': use_attention,
+                'residual': residual},
                save_dir / 'flow_config.pth')
 
     t_start = time.time()
@@ -411,23 +427,25 @@ def train(args):
 
             B = lr_input.shape[0]
 
-            # Bicubic upsample LR for conditioning
-            cond = bicubic_upsample(lr_input)    # (B, 1, 128, 128)
+            # Upsample LR for conditioning
+            cond = bilinear_upsample(lr_input) if residual else bicubic_upsample(lr_input)
+
+            # In residual mode, flow target is the residual (HR - bilinear(LR))
+            flow_target = (hr_target - cond) if residual else hr_target
 
             # Sample source and time
             if lr_anchor:
-                # LR-anchor: start from LR + noise (shorter ODE trajectory)
-                x0 = cond + noise_std * torch.randn_like(hr_target)
+                x0 = cond + noise_std * torch.randn_like(flow_target)
             else:
-                x0 = torch.randn_like(hr_target)     # (B, 1, 128, 128)
-            t = torch.rand(B, device=device)      # (B,) in [0, 1]
+                x0 = torch.randn_like(flow_target)
+            t = torch.rand(B, device=device)
 
             # Interpolate: x_t = (1-t)*x0 + t*x1
             t_expand = t[:, None, None, None]
-            x_t = (1 - t_expand) * x0 + t_expand * hr_target
+            x_t = (1 - t_expand) * x0 + t_expand * flow_target
 
             # Target velocity: v = x1 - x0
-            v_target = hr_target - x0
+            v_target = flow_target - x0
 
             # Forward + loss with AMP
             with torch.amp.autocast('cuda'):
@@ -507,15 +525,16 @@ def train(args):
                 lr_input = lr_input.to(device)
                 hr_target = hr_target.to(device)
                 B = lr_input.shape[0]
-                cond = bicubic_upsample(lr_input)
+                cond = bilinear_upsample(lr_input) if residual else bicubic_upsample(lr_input)
+                flow_target = (hr_target - cond) if residual else hr_target
                 if lr_anchor:
-                    x0 = cond + noise_std * torch.randn_like(hr_target)
+                    x0 = cond + noise_std * torch.randn_like(flow_target)
                 else:
-                    x0 = torch.randn_like(hr_target)
+                    x0 = torch.randn_like(flow_target)
                 t = torch.rand(B, device=device)
                 t_expand = t[:, None, None, None]
-                x_t = (1 - t_expand) * x0 + t_expand * hr_target
-                v_target = hr_target - x0
+                x_t = (1 - t_expand) * x0 + t_expand * flow_target
+                v_target = flow_target - x0
                 with torch.amp.autocast('cuda'):
                     v_pred = model(x_t, t, cond)
                     val_loss += F.mse_loss(v_pred, v_target).item()
@@ -567,7 +586,8 @@ def train(args):
                 'constraint_aware': constraint_aware,
                 'crps_loss': crps_loss_enabled,
                 'lr_anchor': lr_anchor, 'noise_std': noise_std,
-                'use_attention': use_attention},
+                'use_attention': use_attention,
+                'residual': residual},
                save_dir / 'flow_config.pth')
 
 
@@ -576,7 +596,8 @@ def train(args):
 @torch.no_grad()
 def generate_ensemble(model, lr_input, n_members, n_steps, device,
                       constraint='none', solver='euler',
-                      lr_anchor=False, noise_std=1.0):
+                      lr_anchor=False, noise_std=1.0,
+                      residual=False):
     """Generate ensemble predictions via ODE integration.
 
     Args:
@@ -585,16 +606,17 @@ def generate_ensemble(model, lr_input, n_members, n_steps, device,
         n_members: number of ensemble members
         n_steps: integration steps
         device: torch device
-        constraint: 'none', 'softmax', or 'mult'
+        constraint: 'none', 'softmax', 'mult', or 'addcl'
         solver: 'euler' (1st order) or 'heun' (2nd order, 2x NFE)
         lr_anchor: if True, start from LR + noise instead of pure noise
         noise_std: noise scale for LR-anchor mode
+        residual: if True, model predicts residual, add bilinear(LR) at the end
 
     Returns:
         (B, M, 1, 128, 128) ensemble predictions (normalized)
     """
     B = lr_input.shape[0]
-    cond = bicubic_upsample(lr_input)  # (B, 1, 128, 128)
+    cond = bilinear_upsample(lr_input) if residual else bicubic_upsample(lr_input)
     dt = 1.0 / n_steps
 
     all_members = []
@@ -602,20 +624,23 @@ def generate_ensemble(model, lr_input, n_members, n_steps, device,
         if lr_anchor:
             x = cond + noise_std * torch.randn(B, 1, 128, 128, device=device)
         else:
-            x = torch.randn(B, 1, 128, 128, device=device)  # Start from noise
+            x = torch.randn(B, 1, 128, 128, device=device)
 
         for step in range(n_steps):
             t_cur = torch.full((B,), step * dt, device=device)
             v1 = model(x, t_cur, cond)
 
             if solver == 'heun':
-                # Heun's method: x_next = x + dt/2 * (v1 + v2)
                 x_euler = x + v1 * dt
                 t_next = torch.full((B,), (step + 1) * dt, device=device)
                 v2 = model(x_euler, t_next, cond)
                 x = x + 0.5 * dt * (v1 + v2)
             else:
                 x = x + v1 * dt
+
+        # In residual mode, add back the bilinear upsampled LR
+        if residual:
+            x = x + cond
 
         x = apply_constraint(x, lr_input, constraint)
         all_members.append(x)
@@ -637,6 +662,7 @@ def evaluate(args):
 
     lr_anchor = config.get('lr_anchor', False)
     noise_std = config.get('noise_std', 1.0)
+    residual = config.get('residual', False)
     if args.eval_noise_std is not None:
         print(f"Overriding noise_std: {noise_std} -> {args.eval_noise_std}")
         noise_std = args.eval_noise_std
@@ -649,7 +675,8 @@ def evaluate(args):
     constraint = getattr(args, 'constraint', 'none')
     solver = getattr(args, 'solver', 'euler')
     print(f"Loaded {ckpt}, euler_steps={euler_steps}, n_members={args.n_members}, "
-          f"constraint={constraint}, solver={solver}, lr_anchor={lr_anchor}, noise_std={noise_std}")
+          f"constraint={constraint}, solver={solver}, lr_anchor={lr_anchor}, "
+          f"noise_std={noise_std}, residual={residual}")
 
     # Load test data (normalized)
     test_loader, _, _ = load_data(args.data_dir, args.eval_batch_size, 'test')
@@ -665,7 +692,8 @@ def evaluate(args):
         lr_input = lr_input.to(device)
         ensemble = generate_ensemble(model, lr_input, args.n_members, euler_steps,
                                      device, constraint=constraint, solver=solver,
-                                     lr_anchor=lr_anchor, noise_std=noise_std)
+                                     lr_anchor=lr_anchor, noise_std=noise_std,
+                                     residual=residual)
         # Denormalize
         ensemble = ensemble * (max_val - min_val) + min_val
         hr_denorm = hr_target * (max_val - min_val) + min_val
@@ -769,7 +797,7 @@ if __name__ == '__main__':
     parser.add_argument('--channels', default='32,64,128')
     parser.add_argument('--euler-steps', type=int, default=20)
     parser.add_argument('--n-members', type=int, default=10)
-    parser.add_argument('--constraint', choices=['none', 'softmax', 'mult'],
+    parser.add_argument('--constraint', choices=['none', 'softmax', 'mult', 'addcl'],
                         default='none', help='Post-hoc conservation constraint')
     parser.add_argument('--solver', choices=['euler', 'heun'], default='euler',
                         help='ODE solver for inference')
@@ -795,6 +823,8 @@ if __name__ == '__main__':
                         help='EMA decay rate (default: 0.999)')
     parser.add_argument('--augment', action='store_true',
                         help='Enable random h/v flip augmentation during training')
+    parser.add_argument('--residual', action='store_true',
+                        help='Learn on residual (HR - bilinear(LR)) space')
     args = parser.parse_args()
 
     if args.mode in ('train', 'both'):

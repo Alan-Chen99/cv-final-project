@@ -57,3 +57,66 @@ ONE thing: Set up and run zero-shot evaluation of pretrained image SR models on 
 
 **End:** 2026-05-06 02:05 EDT
 **End commit:** 665393e
+
+## Iteration 2
+**Start:** 2026-05-06 02:06 EDT
+**Start commit:** 20026b6
+**Run prefix:** jwcj-hvhx
+
+### Situation
+- Branch: research6, iteration 1 completed zero-shot and deterministic baselines
+- Best result so far: UNet L1 TTA8 CRPS 0.258 (deterministic), prior flow matching 0.171
+- Normal GPU: 2/2 used (rwzi-rdw node3006, wwtlu-jj node4104) — NOT ours
+- Preemptable GPU: 1/4 used (sweep-gp node4211) — NOT ours
+- dnds-fux on node4307: CPU-only preemptable — NOT ours
+- Need to allocate own preemptable GPU
+
+### Concerns
+1. **Workflow concern:** Iteration 1 trained a finetuned SwinIR model (`best_swinir1ch.pt` exists at pool/research6/models/swinir_finetune/) but NEVER evaluated it. The scratchpad shows only zero-shot SwinIR results. The starting direction explicitly asked to "finetune general image models and evaluate" — the finetuning was done but evaluation was skipped.
+2. **Quality concern:** The SwinIR1Ch wrapper uses simple 1x1 conv adapters (input/output). This is a very simple adapter. Need to check if the model was trained with frozen or unfrozen backbone. With frozen backbone, only the adapters (6 params) are trainable — too few to learn anything useful.
+3. **Workflow concern:** Iteration 1 didn't clearly document which GPU jobs it created or cleaned up. The rwzi-rdw and dnds-fux jobs were created during iteration 1 but aren't mentioned in the scratchpad. They might be from other branches running concurrently.
+
+### Plan for this iteration
+1. Evaluate existing finetuned SwinIR model (5 min) — fill gap from iteration 1
+2. Train a flow matching model with residual mode (attention, augmentation, 64/128/256 channels) — target beating 0.171 CRPS
+3. Evaluate the flow matching model on 10K test set
+
+### SwinIR Finetune Eval (gap from iter 1)
+| Method | CRPS | RMSE | MAE | Mass Viol | Spread |
+|--------|------|------|-----|-----------|--------|
+| SwinIR-finetune TTA8 | 0.300 | 0.659 | 0.320 | 0.092 | 0.035 |
+| SwinIR-finetune TTA8+AddCL | 0.285 | 0.642 | 0.302 | 0.000 | 0.031 |
+
+Finetuning actually made SwinIR WORSE than zero-shot (0.285 vs 0.279). Confirms pretrained natural image features don't help.
+
+### Residual Flow Matching Training
+- Architecture: FlowUNet with 64/128/256 channels, attention at 16x16, 9.1M params
+- Residual mode: learns on (HR - bilinear(LR)) space
+- Training: AdamW lr=1e-4, cosine schedule T_max=100, batch 64, augmentation
+- 100 epochs across 3 GPU allocations (preempted once, time-limited once)
+- Best val loss: 0.001978 (epoch ~70)
+- Total training time: ~2.9 hrs on L40S
+
+### Flow Matching Results (10K test, 10 members, 10 Euler steps)
+
+| Method | CRPS | RMSE | MAE | Spread | Mass Viol |
+|--------|------|------|-----|--------|-----------|
+| Residual flow + AddCL | 0.238 | 0.577 | 0.298 | 0.265 | 0.000 |
+| Residual flow (none) | 0.239 | 0.578 | 0.300 | 0.273 | 0.029 |
+| **Prior: OT-CFM (research2)** | **0.171** | **~0.456** | **~0.242** | **~0.07** | **0.000** |
+
+### Analysis: Why 0.238 instead of 0.171
+1. **Excess diversity, insufficient accuracy.** Spread=0.265 is 4x research2's ~0.07, but MAE=0.298 is 23% worse than ~0.242. Model generates too-diverse, low-quality samples.
+2. **Architecture capacity.** 9.1M params (1 ResBlock/level) vs research2's 13M (2 ResBlocks/level). The extra capacity is critical for per-member accuracy.
+3. **Training schedule mismatch.** Cosine T_max=100 with 100 epochs vs research2's T_max=40 with 39 epochs. Research2's aggressive schedule may force faster convergence.
+4. **No EMA.** Research2 presumably used EMA based on its codebase. I trained without EMA.
+
+### Conclusions for next iteration
+- Need to match research2 architecture more closely: 2 ResBlocks per level (~13M params)
+- Use shorter cosine schedule (T_max=40) with early stopping
+- Add EMA (decay=0.999)
+- The residual formulation itself is sound; the bottleneck is model capacity and training recipe
+- Alternative direction: try to use the research2 model directly if weights exist on this branch
+
+**End:** 2026-05-06 06:48 EDT
+**End commit:** (pending)
