@@ -664,4 +664,4 @@ Past the 40hr mark. Focus on evaluation summary and report writing. No new exper
 - Clarified CRPS comparison: research5 best (0.173 on 10K) ≈ research2 (~0.174 estimated on 10K)
 
 **Ending time:** ~03:05 EDT
-**Ending commit:** (next commit)
+**Ending commit:** ffdfb4d
