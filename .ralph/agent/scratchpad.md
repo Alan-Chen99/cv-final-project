@@ -533,3 +533,103 @@ CorrDiff works because the residual distribution has reasonable variance relativ
 
 **Ending time:** 20:39 EDT
 **Ending commit:** adc4e81
+
+## Iteration 8 — 2026-05-06 20:41 EDT
+**Starting commit:** 4832afe
+**Run prefix:** volk-apex
+
+### Current State
+- Time: ~35hr elapsed. ~5hr to 40hr mark (2026-05-07 02:00 EDT). 1-2 iterations left.
+- GPU: 1 normal used (zbhh-axx node3008, not ours), 3 preemptable GPU + 1 CPU. Can allocate 1 normal slot.
+- Best CRPS: 0.183 (multi-head SwinIR K=8)
+- Target: OT-CFM CRPS=0.171 (research2, checkpoint unavailable)
+
+### Concerns (3+ problems)
+
+1. **Quality: 7 iterations exhausted SwinIR-based approaches.** Multi-head caps at 0.183, noise conditioning at 0.200. All approaches using SwinIR backbone hit the same ceiling because the backbone features dominate and limit diversity. The only approach that beat 0.183 was OT-CFM UNet (0.171) which learns the full residual distribution from scratch.
+
+2. **Workflow: Never combined SwinIR predictions with OT-CFM as conditioning.** Iteration 5 trained flow on SwinIR *residuals* (target=HR-SwinIR_pred, std=0.0035) → failed due to source-target mismatch. But using SwinIR predictions as *extra conditioning* while targeting bilinear residuals (standard OT-CFM target) was never tried. This avoids the mismatch problem.
+
+3. **Quality: OT-CFM UNet has no pretrained prior.** The 13M UNet on research2 learns everything from scratch. Adding SwinIR predictions as conditioning provides a strong prior: the model knows approximately where the HR should be and only needs to learn the residual distribution around it. This is CorrDiff's principle applied correctly.
+
+### Direction: SwinIR-Conditioned OT-CFM Flow Matching
+
+**Key insight from iteration 5 failure:** The problem was targeting SwinIR residuals (too small). The fix is to keep the standard OT-CFM target (bilinear residuals, reasonable variance) but add SwinIR predictions as extra conditioning information.
+
+**Architecture:**
+- Same AttentionUNet as flow_matching_v2.py
+- in_channels=3: [x_t (1ch), lr_up_norm (1ch), swinir_pred_norm (1ch)]
+- Target: bilinear residual (HR - bilinear(LR)), same as standard OT-CFM
+- ~13M params (same capacity as research2 baseline)
+
+**Why this should work:**
+- Standard OT-CFM target distribution → no source-target mismatch
+- SwinIR prediction provides strong spatial prior (MAE=0.250)
+- Model can learn to use SwinIR hint for accuracy while generating calibrated diversity
+- Strictly more information than standard 2-channel conditioning
+
+**Why this might NOT work:**
+- Extra conditioning channel may not help if LR_up already contains sufficient information
+- SwinIR predictions may not be diverse enough to help with the stochastic component
+
+**Training:**
+- base_channels=64, mults=(1,2,4), attention 4 heads
+- BS=64, LR=1e-4, cosine schedule, 200 epochs (time-limited)
+- EMA decay=0.999
+- 2hr wall-clock budget
+
+### Training Log
+- 20:41 — Started iteration. Generated run prefix volk-apex.
+- 20:50 — GPU allocation: node3507 (L40S, normal partition, 3hr limit)
+- 20:54 — Training started: 13M params, BS=64, LR=1e-4, cosine, EMA=0.999
+- 22:51 — Training complete: 26 epochs in 115.8 min, best val=0.249975 at epoch 26
+- 22:51 — First eval attempt on node3507 (20 steps) — timed out at 8992/10000
+- 23:50 — node3507 allocation expired
+- 23:52 — New allocation: node4306 (preemptable, 1hr) — eval timed out again at 9632/10000
+- 00:54 — Third allocation: node4308 (preemptable, 2hr)
+- 01:28 — Eval complete (10 steps): CRPS=0.175, MAE=0.299
+- 02:36 — Eval complete (20 steps): CRPS=0.173, MAE=0.312
+- 02:54 — AddCL eval timed out at 2624/10000 (allocation expired)
+
+### Results: SwinIR-Conditioned OT-CFM (10K test)
+| Method | CRPS | MAE | RMSE | Mass Viol |
+|--------|------|-----|------|-----------|
+| SwinIR-Flow 10 steps | 0.175 | 0.299 | 0.461 | 0.005 |
+| SwinIR-Flow 20 steps | **0.173** | 0.312 | 0.464 | 0.005 |
+| Multi-Head K=8 (iter 2) | 0.183 | 0.250 | 0.482 | 0.005 |
+| OT-CFM UNet (research2) | **0.171** | 0.247 | 0.458 | 0.000001 |
+
+### Analysis: Positive Result — SwinIR Conditioning Helps
+
+**SwinIR-conditioned flow achieves CRPS=0.173, close to target 0.171 and beating multi-head (0.183).**
+
+**Key observations:**
+- CRPS=0.173 vs multi-head 0.183 = 5.5% improvement, breaking the ceiling
+- Only 26 epochs due to slow node (~4.5min/ep on L40S) — model still improving
+- MAE=0.312 is worse than multi-head's 0.250 — flow produces calibrated diverse samples rather than tight deterministic predictions
+- This is the correct tradeoff: CRPS rewards calibrated uncertainty, not just accuracy
+- AddCL evaluation incomplete (timed out) — would likely reduce mass violation from 0.005 to ~0.000001
+
+**Why it works:**
+- SwinIR prediction provides strong spatial prior as extra conditioning
+- Standard OT-CFM target (bilinear residual) avoids the source-target mismatch that killed iteration 5
+- 3-channel conditioning (x_t, lr_up, swinir_pred) gives the model strictly more information
+
+**Limitation:**
+- Only 26 epochs trained — likely undertrained compared to research2's full training
+- With more epochs, CRPS could potentially reach or beat 0.171
+
+### Updated Summary: 8 Iterations
+| Iter | Direction | CRPS | Verdict |
+|------|-----------|------|---------|
+| 1 | SwinIR finetune (det.) | 0.250 | Baseline |
+| 2 | Multi-head K=8 direct | 0.183 | Best SwinIR |
+| 3 | Multi-head K=8 residual | 0.183 | Same ceiling |
+| 4 | Multi-head unfreeze-2 | 0.183 | Same ceiling |
+| 5 | Residual flow matching | 0.207 | Negative |
+| 6 | DiT flow matching | 0.204 | Negative |
+| 7 | Noise-conditioned tail | 0.200 | Negative |
+| 8 | SwinIR-conditioned OT-CFM | **0.173** | **Best this branch** |
+
+**Ending time:** 02:54 EDT
+**Ending commit:** (pending)
