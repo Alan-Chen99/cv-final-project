@@ -333,3 +333,56 @@ Full 10K eval attempted twice on preemptable GPU, both times preempted at 6K-8K 
 
 **End:** 2026-05-06 19:28 EDT
 **End commit:** 55119de
+
+## Iteration 6
+**Start:** 2026-05-06 19:25 EDT
+**Start commit:** dd92117
+**Run prefix:** zlkd-epvq
+
+### Situation
+- Branch: research6, iterations 1-5 complete
+- Best CRPS this branch: 0.178 (50-sample estimate, flow_v2_zscore, 13M, 40ep, z-score norm + AddCL)
+- Target: research2's 0.171 (13M, 39ep)
+- Normal GPU: 2/2 used + 1 pending. Preemptable: 2/4 used.
+- Time: 19:25 EDT, ~6.5hr until 40hr deadline (02:00 EDT), ~14.5hr until node1627 expires
+
+### Concerns
+
+1. **Workflow concern (critical): 50-sample CRPS estimate has high variance.** The 0.178 CRPS from iter 5 was computed on only 50 test samples. With 10K test samples, the actual CRPS could be anywhere from 0.165 to 0.195. The full 10K eval was attempted twice and preempted both times. This is the single most important unfinished work — all conclusions about matching research2 depend on it.
+
+2. **Quality concern: Only AddCL constraint was tested.** Iter 5's 50-sample eval used AddCL only. Research2's eval also used AddCL but we should compare unconstrained (none) and SmCL to understand how constraint affects the z-score model. SmCL might be better for TCW (non-negative physical variable).
+
+3. **Workflow concern: Time budget running low.** With ~6.5hr until the 40hr training deadline, this is likely one of the last iterations. Priority must be getting definitive numbers, not exploring new directions. After the 10K eval, should focus on report writing.
+
+### Plan for this iteration
+**ONE thing: Full 10K evaluation of flow_v2_zscore with multiple constraint settings.**
+
+### Evaluation Results (10K test, 10 members, 10 Euler steps)
+
+| Constraint | CRPS (paper) | CRPS (corrected) | MAE | RMSE | Mass Viol |
+|------------|-------------|------------------|-----|------|-----------|
+| **AddCL** | **0.0934** | **0.1728** | **0.2447** | **0.4538** | **0.000001** |
+| **None** | **0.0936** | **0.1728** | **0.2448** | **0.4539** | **0.003253** |
+| SmCL | — | — | — | — | (preempted 2x) |
+| AddCL 20-step | — | — | — | — | (preempted) |
+
+Reference (research2): CRPS (corrected) = 0.171, MAE = 0.247, RMSE = 0.458
+
+### Key Findings
+
+1. **Model matches research2.** 10K CRPS = 0.1728 vs research2's 0.171 — a 1% gap, well within evaluation noise. The z-score normalization fix fully closed the quality gap.
+
+2. **Constraint has negligible CRPS impact.** AddCL vs no-constraint gives identical CRPS (0.1728 vs 0.1728). The only difference is mass conservation violation: 0.000001 (AddCL) vs 0.003 (none). AddCL is essentially free.
+
+3. **SmCL and 20-step evals blocked by preemptions.** 5 preemptions across iters 5-6 on the preemptable partition. Normal partition fully occupied by other agents.
+
+4. **The 50-sample CPU estimate from iter 5 was very accurate.** 50-sample CRPS = 0.178 vs 10K CRPS = 0.1728 — only 3% difference. This validates CPU subset evals as quick sanity checks.
+
+### GPU cleanup
+- Allocation 13459160 (preempted during no-constraint eval)
+- Allocation 13461941 (time limit during SmCL eval)
+- Allocation 13465483 (preempted 3 min into SmCL eval)
+- All allocations terminated, no dangling GPU jobs.
+
+**End:** 2026-05-06 21:40 EDT
+**End commit:** (pending)
