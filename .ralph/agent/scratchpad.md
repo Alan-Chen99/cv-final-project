@@ -386,3 +386,64 @@ Reference (research2): CRPS (corrected) = 0.171, MAE = 0.247, RMSE = 0.458
 
 **End:** 2026-05-06 21:40 EDT
 **End commit:** 4409817
+
+## Iteration 7
+**Start:** 2026-05-06 21:41 EDT
+**Start commit:** d875a15
+**Run prefix:** caba-mayl
+
+### Situation
+- Branch: research6, iterations 1-6 complete
+- Best CRPS: 0.1728 (10K test, z-score flow matching, 13M, 40ep, AddCL)
+- This matches research2's 0.171 (1% gap, within noise)
+- Normal GPU: 2/2 used (not ours). Preemptable: 1/4 used (not ours)
+- Time: 21:41 EDT, ~4.3hr until 40hr deadline (02:00 EDT), ~12.3hr until node1627 expires
+- No ready tasks
+
+### Concerns
+
+1. **Workflow concern (critical): No report written.** The task requires "write a report file tracked in git" when time is about to end. We're at 36hr of 40hr training window with no report. Six iterations of experiments, multiple models, key findings about normalization — all undocumented except in scratchpad. This is the most critical gap.
+
+2. **Workflow concern: No visual inspection of z-score model outputs.** Task MUST: "Review loss graph, output samples, metrics, etc visually to guide research. Check key graphs and outputs into git." The z-score model (our best) has never had sample images generated or inspected. We don't know if the outputs look reasonable — metrics alone can be misleading.
+
+3. **Quality concern: SmCL constraint never evaluated.** SmCL is the recommended default from Harder et al. (handles any input range, enforces non-negativity). 5 preemptions prevented evaluation. For TCW (total column water, always non-negative), SmCL's non-negativity guarantee is physically meaningful. The report should include this comparison.
+
+### Plan for this iteration
+**ONE thing: Write the final report with supporting sample visualizations.**
+
+Steps:
+1. Allocate preemptable GPU
+2. Generate sample visualization images (LR, HR, predicted, ensemble spread)
+3. Run SmCL eval (10K test, 10 members)
+4. Write comprehensive report (notes/2026-05-06-research6-report.md)
+5. Commit everything
+
+### Results
+
+#### Sample visualizations
+- Generated 8-sample grid (LR, HR, ensemble mean, |error|, spread) — `figures/research6/sample_grid.png`
+- Generated ensemble member visualization — `figures/research6/ensemble_members.png`
+- Visual inspection confirms: model captures large-scale structure, errors at fine-scale gradients, ensemble shows meaningful structural diversity
+
+#### SmCL evaluation
+- GPU eval preempted AGAIN (7th total preemption during SmCL across iters 5-7)
+- CPU eval (100 samples) completed in 37 min → **ALL NaN**
+- Root cause: SmCL uses `torch.exp(pred_hr)` → overflow when predictions are in physical space (TCW ~0-135 kg/m²)
+- This is a definitive finding, not a preemption artifact
+- SmCL is incompatible with flow matching post-hoc unless applied in normalized space
+
+#### 20-step eval
+- Killed (would have taken ~108 min on CPU). Not essential — already tested with min-max model (0.238→0.232, marginal improvement).
+
+#### Report
+- Wrote comprehensive final report: `notes/2026-05-06-research6-report.md`
+- Covers: all results (deterministic + generative), key findings (normalization, architecture, constraints), method details, iteration timeline, critical mistake analysis
+- Added to CLAUDE.md notes table
+
+### GPU cleanup
+- Allocation 13466413 (caba-mayl, node4200): preempted during SmCL eval, automatically cleaned up
+- No dangling GPU jobs
+- No dangling background processes
+
+**End:** 2026-05-06 22:40 EDT
+**End commit:** (pending)
