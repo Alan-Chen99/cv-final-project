@@ -532,4 +532,4 @@ CorrDiff works because the residual distribution has reasonable variance relativ
 | 7 | Noise-conditioned tail | 0.200 | Negative |
 
 **Ending time:** 20:39 EDT
-**Ending commit:** (pending)
+**Ending commit:** adc4e81
