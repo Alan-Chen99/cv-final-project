@@ -636,3 +636,66 @@ Sbatch job 13452309 (hroi-guye-eval), ran 18:21-19:51 EDT.
 - Even wider? Diminishing returns likely at 2hr budget
 
 **End:** 2026-05-06 19:55 EDT
+
+## Iteration 10
+**Start:** 2026-05-06 20:00 EDT, commit 24c7dfa
+**Run prefix:** qwkn-tzal
+
+### Orientation
+- Best: UNet v2 wide96 (28.4M) CRPS 0.1676 (midpoint_5_addcl, 10K, 10 ens)
+- 40hr mark: ~02:00 EDT May 7 (~6hr remaining)
+- wide96 trained with T_max=40 but only ran 25 epochs (suboptimal cosine schedule)
+- GPU queue congested: 2 other agents on mit_normal_gpu, my preemptable allocation pending
+- Non-mine GPU jobs: zbhh-axx (node3008), urfm-oeb (node3512), zlkd-epvq (node3003)
+
+### Concerns (3+)
+
+1. **Quality:** The wide96 cosine LR schedule decayed too fast. With T_max=40, by epoch 15 the LR was already ~50% of peak, and by epoch 25 it was 0.000031 (effectively zero). A proper T_max=25 schedule would maintain higher LR through the full training, potentially improving convergence significantly (the model was still improving at epoch 25).
+
+2. **Quality:** Ensemble size has NEVER been varied from M=10. The CRPS estimator at M=10 has sampling noise. Testing M=20 on wide96 would show if CRPS improves with better estimation. This is free (no training) and would validate the metric itself.
+
+3. **Workflow:** GPU resources are scarce. My preemptable allocation is pending with "Priority" reason. If queue wait exceeds ~1hr, training wide96 with T_max=25 won't complete before the 40hr mark. Need a fallback plan (report writing or CPU-only work).
+
+4. **Workflow:** 6hr remain before the 40hr "no new training" cutoff. If queue wait is short, training (2.5hr) + eval (0.5hr) is feasible. If queue wait is long, should pivot to final evaluation/reporting.
+
+### Plan for this iteration
+**ONE thing:** Train wide96 from scratch with T_max=25 (matching actual epoch count) + AMP + uniform t.
+- Same architecture: base_channels=96, channel_mults=(1,2,4), attn_heads=4
+- Expected: ~5.9 min/epoch * 25 epochs = ~148 min on L40S
+- Fallback: if GPU doesn't allocate within 30min, evaluate M=20 ensemble on CPU instead
+
+### Training: UNet v2 wide96 T_max=25 (node4402, L40S — PREEMPTED)
+**Training:** 22/25 epochs completed before SIGTERM preemption at 22:24 EDT.
+- Job 13460913 on mit_preemptable, node4402
+- Model: 28.4M params (same as iter-7)
+- ~5.9 min/epoch, 130 min total before kill
+- Best val_loss: **0.2495** at epoch 22
+
+**Val loss trajectory (T_max=25):**
+
+| Epoch | Val Loss | LR |
+|-------|----------|-----|
+| 5 | 0.2975 | 9.0e-5 |
+| 10 | 0.2705 | 6.5e-5 |
+| 15 | 0.2558 | 3.5e-5 |
+| 18 | 0.2504 | 1.8e-5 |
+| 20 | 0.2520 | 1.0e-5 |
+| 22 | **0.2495** | 4e-6 |
+
+**Comparison with iter-7 (T_max=40, same architecture):**
+
+| Schedule | Best Val Loss | Epoch at Best | CRPS (10K) |
+|----------|-------------|---------------|-----------|
+| T_max=40 (iter-7) | **0.2432** | 25 | **0.1676** |
+| T_max=25 (this iter) | 0.2495 | 22 | not evaluated (clearly worse) |
+
+**KEY FINDING: T_max=25 is WORSE than T_max=40.**
+- T_max=40 keeps LR higher throughout: at epoch 15, LR=5.0e-5 (T_max=40) vs 3.5e-5 (T_max=25)
+- At epoch 20: LR=3.5e-5 (T_max=40) vs 1.0e-5 (T_max=25)
+- T_max=25 decays to zero too fast → model stops learning in final epochs
+- T_max=40 was the BETTER schedule because training budget (25ep) < T_max → LR stays productive
+- Lesson: when training is shorter than cosine period, the "incomplete" cosine is GOOD (acts like warm-down rather than full decay)
+
+**Concern 1 from orientation was WRONG.** T_max=40 was not "suboptimal" — it was actually optimal for a 25-epoch budget. The model WAS still improving at epoch 25 because it still had meaningful LR.
+
+**End:** 2026-05-06 22:25 EDT
