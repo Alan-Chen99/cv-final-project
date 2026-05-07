@@ -58,24 +58,30 @@ Ensures `AvgPool(pred_HR) == LR` exactly (mass conservation). Zero-cost at infer
 
 ### 3.1 Main Comparison (Full 10K Test Set)
 
-| # | Model | Params | Epochs | Wall-Clock | CRPS ↓ | MAE ↓ | RMSE ↓ | Mass Viol ↓ |
-|---|-------|--------|--------|------------|--------|-------|--------|-------------|
-| 1 | **OT-CFM + Logit-Normal FT** | 13M | 67 | 67 min FT | **0.1840** | **0.2425** | **0.4506** | 0.000001 |
-| 2 | OT-CFM Baseline | 13M | 55 | ~4h | 0.1865 | 0.2453 | 0.4552 | 0.000001 |
-| 3 | DDPM VP-SDE | 13M | 40 | ~3h | 0.1907 | 0.2504 | 0.4781 | 0.000001 |
-| 4 | OT-CFM + CFG | 13M | 25 | ~2h | 0.1960 | 0.2580 | 0.4870 | 0.000001 |
-| 5 | LR-Anchor Flow (research) | 5.2M | 200 | ~4.5h | 0.1990 | 0.2580 | 0.4810 | 0.000131 |
-| 6 | OT-CFM + Spectral + Aug | 13M | 40 | ~3h | 0.2036 | 0.2671 | 0.5219 | 0.000001 |
-| 7 | DiT Flow Matching | 14.6M | 40 | ~3h | 0.2430 | 0.3150 | 0.6430 | 0.000001 |
+| # | Model | Params | Epochs | Wall-Clock | Budget | CRPS ↓ | MAE ↓ | RMSE ↓ | Mass Viol ↓ |
+|---|-------|--------|--------|------------|--------|--------|-------|--------|-------------|
+| 1 | **OT-CFM + Logit-Normal FT** | 13M | 67 | 67 min FT | ✓† | **0.1840** | **0.2425** | **0.4506** | 0.000001 |
+| 2 | OT-CFM Baseline | 13M | 55 | ~4h | ✗ | 0.1865 | 0.2453 | 0.4552 | 0.000001 |
+| 3 | DDPM VP-SDE | 13M | 40 | ~3h | ✗ | 0.1907 | 0.2504 | 0.4781 | 0.000001 |
+| 4 | OT-CFM + CFG | 13M | 25 | ~2h | ≈ | 0.1960 | 0.2580 | 0.4870 | 0.000001 |
+| 5 | LR-Anchor Flow (research) | 5.2M | 200 | ~4.5h | ✗ | 0.1990 | 0.2580 | 0.4810 | 0.000131 |
+| 6 | OT-CFM + Spectral + Aug | 13M | 40 | ~3h | ✗ | 0.2036 | 0.2671 | 0.5219 | 0.000001 |
+| 7 | DiT Flow Matching | 14.6M | 40 | ~3h | ✗ | 0.2430 | 0.3150 | 0.6430 | 0.000001 |
+
+**Budget column:** ≤2h wall-clock training constraint. †Fine-tune from prior checkpoint (allowed per task spec). ≈Borderline (110min training).
 
 ### 3.2 Reference Baselines (from cross-comparison, corrected CRPS)
 
-| Model | Params | CRPS | Source |
-|-------|--------|------|--------|
-| OT-CFM (research2 branch) | 13M | 0.171 (2K test) | Cross-comparison note |
-| GAN (re-evaluated) | 204K | 0.307 (10K test) | Cross-comparison note |
+| Model | Params | CRPS | Source | Notes |
+|-------|--------|------|--------|-------|
+| OT-CFM (research2 branch) | 13M | 0.171 (2K test, M*(M-1) formula) | Cross-comparison note | See note below |
+| GAN (re-evaluated) | 204K | 0.307 (10K test, Gneiting M²) | Cross-comparison note | |
 
-**Note:** The research2 model uses an identical OT-CFM formulation and architecture. The ~8% CRPS gap (0.171 vs 0.184) between research2 and research4 is attributed to random seed variation and minor code differences, not formulation differences. The research2 result on 2K test may also use a slightly different CRPS formula (M*(M-1) vs M² denominator).
+**Note on research2 comparison:** The research2 model uses an identical OT-CFM formulation and architecture. However, the reported CRPS=0.171 uses the M*(M-1) unbiased estimator on a 2K test subset. Converting to comparable terms:
+- Formula correction (M*(M-1) → M²): adds ~spread/(M-1) ≈ +0.007 → ~0.178
+- Test-set size correction (2K → 10K): based on consistent 1.3–1.7% 1K→10K gap → ~0.181
+
+**Estimated comparable gap: ~1.6%** (0.181 vs 0.184), likely attributable to random seed variation. The apparent "8%" gap is an artifact of comparing different CRPS formulas on different test set sizes. Research2 model weights are not available on this branch for direct verification.
 
 ### 3.3 Iteration-by-Iteration Progression
 
@@ -110,11 +116,13 @@ Ensures `AvgPool(pred_HR) == LR` exactly (mass conservation). Zero-cost at infer
 
 | Finding | Evidence | Why |
 |---------|----------|-----|
-| **CFG hurts strongly-conditioned tasks** | +5.1% CRPS regression (0.196 vs 0.1865) | LR→HR conditioning is unambiguous; guidance_scale=1.0 is optimal |
+| **CFG hurts strongly-conditioned tasks** | +5.1% CRPS regression (0.196 vs 0.1865)* | LR→HR conditioning is unambiguous; guidance_scale=1.0 is optimal |
 | **Spectral loss on flow matching** | +9.2% CRPS regression (0.2036 vs 0.1865) | FFT of reconstructed x1 = x_t + (1-t)·v is noisy at small t; conflicting gradients |
 | **DiT backbone** | +30% CRPS regression (0.243 vs 0.1865) | Lacks local spatial bias; may need more training or smaller patches |
 | **SmCL post-hoc** | NaN/overflow | exp() on arbitrary-range residual predictions causes overflow |
 | **EMA with cosine schedule** | No improvement | Redundant when learning rate already decays to zero |
+
+*CFG comparison is confounded with training length (25ep CFG vs 55ep no-CFG). However, guidance_scale sweep at inference confirmed optimal scale=1.0 (i.e., no guidance), supporting the conclusion that CFG is unhelpful here.
 
 ### 4.3 Methodology Notes
 
@@ -124,15 +132,17 @@ Ensures `AvgPool(pred_HR) == LR` exactly (mass conservation). Zero-cost at infer
 
 ## 5. Limitations and Open Questions
 
-1. **Harder et al. baselines not reproduced.** Published CNN/GAN CRPS numbers use a buggy formula and cannot be directly compared. We re-evaluated GAN (CRPS=0.307) but not CNN with corrected CRPS.
+1. **Training budget compliance.** Most methods exceeded the 2hr wall-clock constraint during iterative development (see Budget column in §3.1). Only the logit-normal fine-tune (67min from prior checkpoint) clearly complies. The 55ep baseline was built over two training stages across iterations (~4h total). For fair comparison under equal compute, the 25ep CFG model (~2h) is the proper "single-run" baseline — its CRPS=0.196 vs logit-normal FT's 0.184 shows a 6.1% improvement from the combination of longer training + logit-normal t schedule.
 
-2. **Data augmentation not isolated.** Iter7 confounded augmentation with spectral loss. Whether random flips help TCW downscaling remains unknown.
+2. **Harder et al. baselines not reproduced.** Published CNN/GAN CRPS numbers use a buggy formula and cannot be directly compared. We re-evaluated GAN (CRPS=0.307) but not CNN with corrected CRPS. GPU constraints prevented running their code.
 
-3. **research2 gap unexplained.** The identical-architecture OT-CFM model on research2 achieves ~0.171 CRPS (2K test) vs our 0.1840 (10K). Possible causes: random seed, subtle code differences, CRPS formula variant. Weights not available on this branch for verification.
+3. **Data augmentation not isolated.** Iter7 confounded augmentation with spectral loss. Whether random flips help TCW downscaling remains unknown.
 
-4. **Single variable only.** All experiments use TCW (Total Column Water). Multi-variable downscaling with cross-variable constraints is untested.
+4. **research2 gap.** After correcting for CRPS formula differences (M*(M-1) → M²) and test set size (2K → 10K), the estimated gap is ~1.6% (0.181 vs 0.184), not the apparent ~8%. Likely attributable to random seed variation. Weights not available on this branch for direct verification.
 
-5. **No spectral evaluation.** Power spectral density, radially-averaged spectra, and scale-dependent metrics were not computed. CRPS alone may not capture all quality dimensions.
+5. **Single variable only.** All experiments use TCW (Total Column Water). Multi-variable downscaling with cross-variable constraints is untested.
+
+6. **No spectral evaluation.** Power spectral density, radially-averaged spectra, and scale-dependent metrics were not computed. CRPS alone may not capture all quality dimensions.
 
 ## 6. Compute Summary
 
@@ -172,8 +182,8 @@ python src/exp-spatial-4x-crps-v1/unet_cfg_flow.py \
 ### Key Commits
 | Commit | Description |
 |--------|-------------|
-| de52396 | Latest (iter9 complete) |
-| 166cfad | Logit-normal fine-tune results |
+| 2b5ce9c | Experiment report (iter10) |
+| 166cfad | Logit-normal fine-tune results (best model) |
 | 09c694b | Logit-normal t sampling implementation |
 | eda0f41 | Spectral loss experiment |
 | 97f7e72 | DDPM full eval |
@@ -181,10 +191,12 @@ python src/exp-spatial-4x-crps-v1/unet_cfg_flow.py \
 
 ## 8. Conclusions
 
-1. **OT-CFM flow matching with logit-normal t sampling achieves the best CRPS (0.1840)** for 32x32→128x128 TCW downscaling under a 2-hour training budget. This represents a 1.3% improvement over uniform-t flow matching and 40% improvement over GAN baselines.
+1. **OT-CFM flow matching with logit-normal t sampling achieves the best CRPS (0.1840)** for 32x32→128x128 TCW downscaling. The logit-normal fine-tune (67min from a prior checkpoint) is the only method that clearly satisfies both the 2hr budget and achieves the best result. It represents a 1.3% improvement over uniform-t flow matching and 40% improvement over GAN baselines.
 
-2. **Training recipe matters more than architecture.** The UNet architecture remained constant across the top 4 results. Improvements came from: longer training (+5%), logit-normal t schedule (+1.3%), and proper loss function (no CFG, no spectral).
+2. **Training recipe matters more than architecture.** The UNet architecture remained constant across the top 4 results. Improvements came from: longer training (+5%), logit-normal t schedule (+1.3%), and proper loss function (no CFG, no spectral). Architecture changes (DiT) hurt dramatically (−30%).
 
 3. **Hard physical constraints (AddCL) are compatible with flow matching** and come at zero CRPS cost while eliminating mass violation. SmCL cannot be applied post-hoc but AddCL works as a simple additive projection.
 
 4. **Logit-normal t sampling is a novel contribution to climate downscaling.** No prior climate downscaling work uses non-uniform timestep sampling for flow matching. The SD3 insight that concentrating training on intermediate timesteps improves sample quality transfers directly to this domain.
+
+5. **Fair comparison caveat.** The best result depends on a pre-trained 55ep checkpoint (built over ~4h across iterations). Under a strict single-run 2hr budget starting from scratch, the expected CRPS would be between 0.184 (FT) and 0.196 (25ep CFG). The logit-normal schedule's benefit is real (+1.3%) but the total training investment in the base model exceeds the stated budget.

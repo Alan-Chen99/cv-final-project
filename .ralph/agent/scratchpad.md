@@ -730,3 +730,32 @@ Created `notes/2026-05-06-research4-report.md` — comprehensive report covering
 **End**: 2026-05-06 22:11 EDT, commit: 2b5ce9c
 **Duration**: ~10min
 **GPU time**: 0 (no GPU available)
+
+## Iteration 11
+**Start**: 2026-05-06 22:11 EDT, commit 24062bc
+**Prefix**: (report revision, no GPU needed)
+
+### Concerns (3+)
+
+1. **Fact (IMPORTANT)**: Report claims "~8% CRPS gap" between research2 (0.171 on 2K) and research4 (0.184 on 10K). This compares different CRPS formulas (M*(M-1) vs M²) on different test set sizes (2K vs 10K). After correcting both: Gneiting equivalent ≈ 0.178 (2K) → ~0.181 (10K). Actual gap is ~1.6%, not 8%. Misleading.
+
+2. **Quality**: Report does not address which methods comply with the ≤2hr training budget. Only the logit-normal fine-tune (67min from checkpoint) and CFG 25ep (~2h) are clearly within budget. The 55ep baseline (4h total) and most other methods exceed it.
+
+3. **Quality**: The CFG "what fails" analysis compares 25ep CFG (0.196) vs 55ep no-CFG (0.1865), conflating training length with the CFG effect. Needs footnote.
+
+### Plan for Iteration 11
+
+**Goal**: Revise the experiment report to fix the three factual/quality issues above.
+
+**Changes made**:
+1. Fixed research2 comparison: clarified formula conversion, changed "~8% gap" to "~1.6% estimated comparable gap"
+2. Added "Budget" column to main results table showing ≤2hr compliance
+3. Added footnote to CFG analysis acknowledging training-length confound
+4. Added fair-comparison caveat to conclusions (conclusion #5)
+5. Restructured limitations section with budget compliance note
+6. Updated key commits table
+
+### End of Iteration 11
+**End**: 2026-05-06 22:15 EDT, commit: (pending)
+**Duration**: ~4min
+**GPU time**: 0
