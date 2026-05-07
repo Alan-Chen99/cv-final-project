@@ -16,8 +16,9 @@
 
 Checkpoint: `pool/datasets/research3/models/unet_wide96_amp/best_flow.pt`
 
-**Improvement over prior branches:**
-- vs research2 base64 (13M, euler 10): **0.1676 vs 0.1709** = 1.9% better
+**Improvement over prior work:**
+- vs research3 base64 (13M, midpoint 5): **0.1676 vs 0.1709** = 1.9% better
+- vs research2 base64 (13M, euler 10): **0.1676 vs ~0.174** = ~3.7% better
 - vs research base (5.2M, euler 20): **0.1676 vs 0.199** = 15.8% better
 - vs GAN baseline (Harder et al.): **0.1676 vs 0.307** = 45.4% better
 
@@ -174,14 +175,16 @@ def apply_addcl(pred_hr, lr_orig, upsampling_factor=4):
 **Train (requires GPU, ~2.5hr on L40S):**
 ```bash
 python src/exp-spatial-4x-crps-v1/flow_matching_v2.py --mode train \
-    --epochs 40 --batch_size 64 --base_channels 96 --amp
+    --epochs 40 --batch_size 64 --base_channels 96 --amp \
+    --save_dir pool/datasets/research3/models/unet_wide96_amp
 ```
+Note: With `--epochs 40`, the cosine LR schedule uses T_max=40. On L40S, the model completes ~25 epochs in 2.5hr (~5.9 min/epoch). Training early-stops via time limit; the best checkpoint is saved automatically. The "incomplete" cosine schedule (T_max > actual epochs) is intentional — it keeps LR productive and outperforms T_max=25.
 
 **Evaluate (requires GPU, ~45min on L40S):**
 ```bash
 python src/exp-spatial-4x-crps-v1/inference_ablation.py \
-    --checkpoint pool/datasets/research3/models/unet_wide96_amp/best_flow.pt \
-    --configs midpoint_5_addcl euler_10_addcl \
+    --save_dir pool/datasets/research3/models/unet_wide96_amp \
+    --configs "midpoint_5_addcl,euler_10_addcl" \
     --n_ensemble 10 --split test
 ```
 Note: `base_channels` and `channel_mults` are read from the checkpoint's saved args automatically.

@@ -731,3 +731,28 @@ Sbatch job 13452309 (hroi-guye-eval), ran 18:21-19:51 EDT.
 - Next iteration should: review and revise for accuracy, check if any claims need verification
 
 **End:** 2026-05-06 22:35 EDT
+
+## Iteration 12
+**Start:** 2026-05-06 22:32 EDT, commit 0b7a4c4
+**Run prefix:** (report revision — no GPU needed)
+
+### Orientation
+- Final report written at `notes/2026-05-06-research3-report.md`
+- Best: CRPS 0.1676 (wide96, 28.4M)
+- 40hr mark passed. Task: review and revise report for accuracy.
+- ~11.5hr remain on allocation (~10:00 EDT May 7)
+
+### Concerns (3+)
+
+1. **Workflow:** Report reproduction section had WRONG command-line flags. `--checkpoint path/to/best_flow.pt` should be `--save_dir path/to/dir/`. Configs are comma-separated not space-separated. Anyone trying to reproduce would hit an immediate error. **FIXED.**
+
+2. **Fact:** Report claimed "vs research2 base64 (13M, euler 10): 0.1676 vs 0.1709 = 1.9% better" but 0.1709 is research3's own base64 (with midpoint solver). research2's estimate is ~0.174 per cross-comparison note. Misleading attribution. **FIXED.**
+
+3. **Quality:** Report does not include bilinear interpolation CRPS as a lower-bound reference. For deterministic bilinear, CRPS = MAE = 0.341 (from cross-comparison). This would strengthen the "45% over GAN" comparison by showing the full range. Minor — not fixing.
+
+### Changes made
+- Fixed reproduction eval command: `--save_dir` (directory) instead of `--checkpoint` (file), comma-separated configs
+- Fixed "Improvement over prior work" section: properly attributed research3 vs research2 numbers
+- Added training reproduction note explaining intentional T_max > epochs design choice
+
+**End:** 2026-05-06 22:35 EDT
