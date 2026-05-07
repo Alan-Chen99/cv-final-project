@@ -1,103 +1,86 @@
 #!/bin/bash
-#SBATCH --job-name=zbhh-axxo
-#SBATCH --partition=mit_normal_gpu
-#SBATCH --gres=gpu:1
-#SBATCH --cpus-per-task=4
+#SBATCH -p mit_normal_gpu
+#SBATCH -J zbhh-axxo
+#SBATCH -G 1
+#SBATCH -c 4
 #SBATCH --mem=32G
-#SBATCH --time=02:00:00
-#SBATCH --output=/workspace/logs/logit_normal_finetune_%j.out
+#SBATCH -t 02:00:00
+#SBATCH -o /home/chenxy/orcd/scratch/logs/logit-normal-ft-%j.log
+#SBATCH -e /home/chenxy/orcd/scratch/logs/logit-normal-ft-%j.log
 
-set -e
+set -euo pipefail
 
-echo "=== LOGIT-NORMAL FINE-TUNE + EVAL ==="
-echo "Job: $SLURM_JOB_ID, Node: $(hostname), GPU: $(nvidia-smi -L 2>/dev/null | head -1)"
-date '+%Y-%m-%d %H:%M:%S %Z'
+PROJECT_DIR='/home/chenxy/repos/workspace/research4'
+SIF='/home/chenxy/orcd/pool/cuda:13.0.2-cudnn-devel-ubuntu24.04.sif'
 
-CONTAINER="/home/chenxy/.apptainer/images/pytorch_24.07-py3.sif"
-WORKSPACE="/workspace"
-SCRIPT="src/exp-spatial-4x-crps-v1/unet_cfg_flow.py"
-SAVE_DIR="models/unet_logit_normal"
-POOL_DIR="/home/chenxy/orcd/pool/datasets/research4/models"
+echo "Job $SLURM_JOB_ID started on $(hostname) at $(date)"
+echo "GPUs: $CUDA_VISIBLE_DEVICES"
+nvidia-smi
+
+module load apptainer
+
+run_cmd() {
+    local NAME="$1"
+    shift
+    echo ""
+    echo "=== $NAME ==="
+    echo "Start: $(date)"
+    singularity exec --nv \
+      --cleanenv \
+      --mount 'type=bind,source=/orcd,destination=/orcd' \
+      --mount 'type=bind,source=/home/chenxy/nix_store,destination=/nix,ro' \
+      --mount "type=bind,source=$PROJECT_DIR,destination=/workspace" \
+      --env PREPEND_PATH=/nix/state/profile/bin:/nix/nix_path/bin \
+      --env NIX_REMOTE=daemon \
+      --env BASH_ENV="$HOME/.bashrc" \
+      "$SIF" \
+      bash -c "cd /workspace && source .venv/bin/activate && $*"
+    echo "End: $(date)"
+}
 
 # --- SETUP: copy best model for resume ---
-echo ""
 echo "=== SETUP: copying best 55ep model ==="
-mkdir -p "$WORKSPACE/$SAVE_DIR"
-cp "$WORKSPACE/models/unet_cfg/best_flow.pt" "$WORKSPACE/$SAVE_DIR/best_flow.pt"
-cp "$WORKSPACE/models/unet_cfg/norm_stats.pt" "$WORKSPACE/$SAVE_DIR/norm_stats.pt"
+mkdir -p "$PROJECT_DIR/models/unet_logit_normal"
+cp "$PROJECT_DIR/models/unet_cfg/best_flow.pt" "$PROJECT_DIR/models/unet_logit_normal/best_flow.pt"
+cp "$PROJECT_DIR/models/unet_cfg/norm_stats.pt" "$PROJECT_DIR/models/unet_logit_normal/norm_stats.pt"
 echo "Copied best model (epoch 51, val_loss=0.251)"
 
-# --- TRAINING: fine-tune with logit-normal t ---
-echo ""
-echo "=== TRAINING: fine-tune 15 epochs with logit-normal t ==="
-date '+%Y-%m-%d %H:%M:%S'
-
-singularity exec --nv \
-  --bind /home/chenxy/orcd/pool:/home/chenxy/orcd/pool \
-  --bind "$WORKSPACE:$WORKSPACE" \
-  "$CONTAINER" \
-  python "$WORKSPACE/$SCRIPT" \
+# --- TRAINING: fine-tune 15 epochs with logit-normal t ---
+run_cmd "Fine-tune 15ep logit-normal" \
+    python src/exp-spatial-4x-crps-v1/unet_cfg_flow.py \
     --mode train \
-    --basedir "$WORKSPACE/external/constrained-downscaling" \
-    --save_dir "$WORKSPACE/$SAVE_DIR" \
-    --resume \
-    --finetune_lr 5e-5 \
     --epochs 67 \
     --batch_size 64 \
     --cfg_prob 0 \
+    --resume \
+    --finetune_lr 5e-5 \
     --t_schedule logit_normal \
     --logit_normal_mean 0.0 \
-    --logit_normal_std 1.0
+    --logit_normal_std 1.0 \
+    --save_dir models/unet_logit_normal
 
-echo ""
-echo "=== TRAINING COMPLETE ==="
-date '+%Y-%m-%d %H:%M:%S'
+echo "Training complete"
 
 # Copy model to pool
+POOL_DIR="/home/chenxy/orcd/pool/datasets/research4/models"
 mkdir -p "$POOL_DIR"
-cp "$WORKSPACE/$SAVE_DIR/best_flow.pt" "$POOL_DIR/unet_logit_normal_best.pt"
-cp "$WORKSPACE/$SAVE_DIR/norm_stats.pt" "$POOL_DIR/unet_logit_normal_norm_stats.pt"
+cp "$PROJECT_DIR/models/unet_logit_normal/best_flow.pt" "$POOL_DIR/unet_logit_normal_best.pt"
+cp "$PROJECT_DIR/models/unet_logit_normal/norm_stats.pt" "$POOL_DIR/unet_logit_normal_norm_stats.pt"
 echo "Model copied to pool"
 
 # --- EVAL 1: 1K test, AddCL ---
-echo ""
-echo "=== EVAL: logit-normal finetune, 1K test, AddCL ==="
-date '+%Y-%m-%d %H:%M:%S'
+run_cmd "Eval 1K AddCL" \
+    python src/exp-spatial-4x-crps-v1/unet_cfg_flow.py \
+    --mode eval --save_dir models/unet_logit_normal \
+    --n_ensemble 10 --ode_steps 10 --constraint addcl \
+    --guidance_scale 1.0 --max_samples 1000 --split test
 
-singularity exec --nv \
-  --bind /home/chenxy/orcd/pool:/home/chenxy/orcd/pool \
-  --bind "$WORKSPACE:$WORKSPACE" \
-  "$CONTAINER" \
-  python "$WORKSPACE/$SCRIPT" \
-    --mode eval \
-    --basedir "$WORKSPACE/external/constrained-downscaling" \
-    --save_dir "$WORKSPACE/$SAVE_DIR" \
-    --split test \
-    --max_samples 1000 \
-    --n_ensemble 10 \
-    --ode_steps 10 \
-    --constraint addcl \
-    --solver euler
-
-# --- EVAL 2: 10K test, AddCL (if time permits) ---
-echo ""
-echo "=== EVAL: logit-normal finetune, 10K test, AddCL ==="
-date '+%Y-%m-%d %H:%M:%S'
-
-singularity exec --nv \
-  --bind /home/chenxy/orcd/pool:/home/chenxy/orcd/pool \
-  --bind "$WORKSPACE:$WORKSPACE" \
-  "$CONTAINER" \
-  python "$WORKSPACE/$SCRIPT" \
-    --mode eval \
-    --basedir "$WORKSPACE/external/constrained-downscaling" \
-    --save_dir "$WORKSPACE/$SAVE_DIR" \
-    --split test \
-    --n_ensemble 10 \
-    --ode_steps 10 \
-    --constraint addcl \
-    --solver euler
+# --- EVAL 2: 10K test, AddCL ---
+run_cmd "Eval 10K AddCL" \
+    python src/exp-spatial-4x-crps-v1/unet_cfg_flow.py \
+    --mode eval --save_dir models/unet_logit_normal \
+    --n_ensemble 10 --ode_steps 10 --constraint addcl \
+    --guidance_scale 1.0 --split test
 
 echo ""
-echo "=== ALL DONE ==="
-date '+%Y-%m-%d %H:%M:%S'
+echo "Job $SLURM_JOB_ID finished at $(date)"

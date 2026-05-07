@@ -8,6 +8,10 @@
 
 ## Decisions
 
+### mem-1778119206-11fe
+> Logit-normal t sampling fine-tune (15ep on top of 55ep baseline, mean=0, std=1): CRPS=0.1840 on full 10K test (Gneiting M^2, AddCL, Euler 10). 1.3% better than uniform-t baseline (0.1865). Val loss improved 0.251→0.247. SD3 insight transfers to climate downscaling. New best result on research4 branch. Model at pool/datasets/research4/models/unet_logit_normal_best.pt.
+<!-- tags: logit-normal, crps, flow-matching, t-schedule | created: 2026-05-07 -->
+
 ### mem-1778096424-d7fd
 > Spectral loss (FFT L1 on reconstructed x1, weight=0.1) + data augmentation (random H/V flips) on OT-CFM flow matching: CRPS=0.2036 on full 10K test (Gneiting M^2, AddCL). 9.2% WORSE than MSE-only baseline (0.1865). Spectral loss fails because x1_pred = x_t + (1-t)*v_pred is noisy at small t, making FFT targets meaningless. Data augmentation was not isolated.
 <!-- tags: spectral-loss, crps, flow-matching, augmentation | created: 2026-05-06 -->
@@ -37,6 +41,10 @@
 <!-- tags: dit, flow-matching, crps, architecture | created: 2026-05-05 -->
 
 ## Fixes
+
+### mem-1778119208-e9a6
+> sbatch scripts must use SIF='/home/chenxy/orcd/pool/cuda:13.0.2-cudnn-devel-ubuntu24.04.sif', module load apptainer, --cleanenv with proper bind mounts, and bash -c 'source .venv/bin/activate && python ...' pattern. Wrong SIF path causes exit code 0:53. Also must use ≤4 CPUs to avoid QOSMaxCpuPerUserLim.
+<!-- tags: sbatch, slurm, container | created: 2026-05-07 -->
 
 ### mem-1778080609-8eec
 > salloc+srun (via gpu_run.py) is unreliable for long-running commands from within Apptainer container on node1627. Quick commands work but eval/training srun steps hang silently. sbatch works reliably because singularity exec runs directly on the GPU node. Always use sbatch for eval and training jobs.

@@ -652,3 +652,43 @@ SmCL (SoftmaxConstraints) CANNOT be applied post-hoc to flow matching or DDPM mo
 2. Submit to queue (will start ~18:49 when nova-tango finishes)
 3. Monitor via /long-running-commands
 4. Record results, compare to CRPS=0.1865 baseline
+
+### Infrastructure
+
+- Job 13449537 (mit_normal_gpu, zbhh-axxo): FAILED (exit 0:53) — wrong container SIF path (`/home/chenxy/.apptainer/images/pytorch_24.07-py3.sif` doesn't exist). Fixed to use `/home/chenxy/orcd/pool/cuda:13.0.2-cudnn-devel-ubuntu24.04.sif` with proper bind mounts, `module load apptainer`, and `bash -c "cd /workspace && source .venv/bin/activate && python ..."` pattern.
+- Job 13456588 (mit_normal_gpu, zbhh-axxo): PENDING → cancelled (QOSMaxCpuPerUserLim — requested 16 CPUs, limit exceeded). Reduced to 4 CPUs.
+- Job 13459216 (mit_normal_gpu, zbhh-axxo, 4 CPUs, node3008 L40S): SUCCESS — training + both evals completed.
+
+### Training Results
+
+15 epochs fine-tuning (ep 52→67), 13M AttentionUNet, logit-normal t (mean=0, std=1):
+- Best epoch: 67 (final), val loss: **0.247329** (vs baseline 0.251212 = 1.5% improvement)
+- Training time: 66.7 min
+- Val loss trajectory: 0.256→0.254→0.252→0.253→0.251→0.252→0.249→0.248→0.249→0.250→0.248→0.247
+
+### Evaluation Results
+
+| Model | Epochs | t-schedule | Test Set | CRPS (Gneiting M²) | MAE | RMSE | Mass Viol |
+|-------|--------|-----------|----------|---------------------|-----|------|-----------|
+| **Logit-normal FT** | **67** | **logit-normal** | **1K** | **0.1810** | 0.2386 | 0.4465 | 0.000001 |
+| **Logit-normal FT** | **67** | **logit-normal** | **10K** | **0.1840** | 0.2425 | 0.4506 | 0.000001 |
+| Baseline UNet 55ep | 55 (ep51) | uniform | 10K | 0.1865 | 0.2453 | 0.4552 | 0.000001 |
+
+**Logit-normal fine-tuning improves CRPS by 1.3%** (0.1840 vs 0.1865 on 10K). Improvement is consistent across all metrics (MAE -1.1%, RMSE -1.0%).
+
+### Key Findings
+
+1. **Logit-normal t sampling HELPS**: 1.3% CRPS improvement on 10K. SD3's insight that concentrating training on intermediate timesteps improves flow matching quality transfers to climate downscaling.
+2. **Fine-tuning is efficient**: 67min for 15 epochs vs 180min for 40 from-scratch. The val loss improvement (0.251→0.247) directly translates to CRPS improvement.
+3. **1K→10K gap**: 0.1810→0.1840 (+1.7%), consistent with prior results (~1.3-1.6%).
+4. **New best CRPS on this branch: 0.1840** (10K, Gneiting M², AddCL).
+
+### Model saved
+- Checkpoint: `models/unet_logit_normal/best_flow.pt` (epoch 67, val_loss=0.247329)
+- Pool: `/home/chenxy/orcd/pool/datasets/research4/models/unet_logit_normal_best.pt`
+- Pool: `/home/chenxy/orcd/pool/datasets/research4/models/unet_logit_normal_norm_stats.pt`
+
+### End of Iteration 9
+**End**: 2026-05-06 21:59 EDT, commit: (pending)
+**Duration**: ~5.5h (mostly waiting for GPU)
+**GPU time**: ~97min (67min training + 3min 1K eval + 31min 10K eval)
