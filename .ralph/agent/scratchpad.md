@@ -477,3 +477,13 @@ Steps:
 2. Flag training time budget violation; add note about 2hr mark
 3. Remove or clearly qualify CNN baseline from cross-branch table
 4. Minor: add note about missing spread values for z-score model
+
+### Changes made
+1. Cross-branch table: "Flow v2 (OT-CFM)" → "Flow v2 (z-score)" — consistent with the report's own OT coupling debunking
+2. Added training budget violation note in Training section (178 min > 120 min budget, 2hr mark = epoch 27)
+3. Removed CNN baseline from cross-branch table (Harder et al. paper uses different normalization, metrics not comparable)
+4. Added iter 7 to timeline table
+5. Updated reproduction comment to note --epochs 27 for budget compliance
+
+**End:** 2026-05-06 22:44 EDT
+**End commit:** c7bb09d
