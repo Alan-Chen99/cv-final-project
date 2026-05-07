@@ -207,7 +207,7 @@ python src/exp-pretrained-sr/train_swinir_flow.py --mode eval \
 | 2 | L40S (normal) | 2.0 hr | 18 | Completed |
 | 3 | L40S (normal) | 2.0 hr | 27 | Completed |
 | 4 | L40S (normal) | 2.0 hr | 20 | Completed |
-| 5 | L40S (preemptable) | 2.1 hr | 200 | Completed |
+| 5 | H100 (preemptable) | 2.0 hr | 184 | Completed |
 | 6 | L40S (normal) | 1.8 hr | 100 | Completed |
 | 7 | L40S (normal) | 2.0 hr | 33 | Completed |
 | 8 | L40S (normal+preemptable) | 2.0+2.0 hr | 26 | Completed (eval extended) |
@@ -253,8 +253,7 @@ All under `pool/datasets/research5/models/`:
 | `crps_ensemble/` | Multi-head K=8 | 18 |
 | `crps_residual/` | Multi-head residual K=8 | 27 |
 | `crps_unfreeze2/` | Multi-head unfreeze-2 | 20 |
-| `residual_flow/` | Residual flow UNet + SwinIR preds | 200 |
+| `residual_flow/` | Residual flow UNet + SwinIR preds | 184 |
 | `dit_flow/` | DiT flow matching | 84 |
 | `noise_swinir/` | Noise-conditioned SwinIR | 20 |
 | `swinir_flow/` | SwinIR-conditioned OT-CFM (best) | 26 |
-| `pretrained_weights/` | Original SwinIR weights |  |

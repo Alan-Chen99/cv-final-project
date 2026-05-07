@@ -665,3 +665,28 @@ Past the 40hr mark. Focus on evaluation summary and report writing. No new exper
 
 **Ending time:** ~03:05 EDT
 **Ending commit:** ffdfb4d
+
+## Iteration 10 — 2026-05-07 03:02 EDT
+**Starting commit:** 58c2e6b
+
+### Current State
+- Time: ~42hr elapsed. Well past 40hr mark. Report review phase.
+- GPU: none from this branch. node4210 sweep-gpu1 (not ours).
+- Best CRPS: 0.173 (SwinIR-conditioned OT-CFM, 20 steps, 10K test)
+
+### Concerns (3 problems)
+
+1. **Fact: Report listed `pretrained_weights/` in file inventory but directory doesn't exist in pool.** Only 8 model directories exist. Fixed by removing the stale entry.
+
+2. **Fact: Report stated iter 5 trained 200 epochs; actual was 184 on H100 (not L40S).** Scratchpad clearly says "184 epochs in 120.4 min (H100)". Fixed in both compute summary and file inventory.
+
+3. **Quality: Report is otherwise accurate and comprehensive.** All training scripts verified to exist, all model checkpoints verified in pool, figures tracked in git. CRPS comparison with research2 correctly noted the 2K vs 10K distinction.
+
+### Direction: Minor report corrections only
+
+Fixed 3 factual errors in the report:
+- Removed `pretrained_weights/` from file inventory (dir doesn't exist)
+- Corrected iter 5 epochs: 200 → 184
+- Corrected iter 5 GPU type: L40S → H100
+
+**Ending time:** ~03:06 EDT
