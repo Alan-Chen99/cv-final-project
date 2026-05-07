@@ -699,3 +699,35 @@ Sbatch job 13452309 (hroi-guye-eval), ran 18:21-19:51 EDT.
 **Concern 1 from orientation was WRONG.** T_max=40 was not "suboptimal" — it was actually optimal for a 25-epoch budget. The model WAS still improving at epoch 25 because it still had meaningful LR.
 
 **End:** 2026-05-06 22:25 EDT
+
+## Iteration 11
+**Start:** 2026-05-06 22:27 EDT, commit 42e01a2
+**Run prefix:** jead-csab
+
+### Orientation
+- Best: UNet v2 wide96 (28.4M) CRPS 0.1676 (midpoint_5_addcl, 10K, 10 ens) — confirmed by GPU eval
+- 40hr mark: ~02:00 EDT May 7. ~3.5hr remain. Training is risky (2.5hr + queue wait + eval).
+- T_max=25 was a negative result (iter-10). T_max=40 is optimal for 25-epoch budget.
+- No new training directions with clear upside remain. Capacity scaling (wider model) worked; further widening has diminishing returns within 2hr budget.
+- Time to start final reporting.
+
+### Concerns (3+)
+
+1. **Workflow:** No final report exists yet. The objective requires: "write a report file tracked in git" when time is about to end. We're at ~36.5hr with 3.5hr before the 40hr cutoff. Report must be started NOW to leave time for revisions in subsequent iterations.
+
+2. **Quality:** The CRPS numbers between branches use different baselines. research2 report shows "CRPS (paper) = 0.094" using the buggy Harder et al. formula. research3 uses corrected energy CRPS = 0.1676. The final report MUST use ONLY the corrected formula and clearly state this. All numbers must be on the same scale.
+
+3. **Quality:** Ensemble size M=10 has never been varied. CRPS estimator at M=10 has sampling noise. This is a known limitation that should be acknowledged in the report, though it's unlikely to change rankings.
+
+4. **Fact:** The cross-comparison note estimates research2 base64 at ~0.174 corrected CRPS on 10K test. research3 base64 gets 0.1709 on the same test set. The gap (0.174 vs 0.1709) may be due to uniform t training + midpoint solver. Both improvements originated in research3.
+
+### Plan for this iteration
+**ONE thing:** Write the final report (`notes/2026-05-06-research3-report.md`) covering all research3 experiments, results, and findings. This is the primary deliverable.
+
+### Report written
+- Created `notes/2026-05-06-research3-report.md` with comprehensive results
+- Updated CLAUDE.md notes table
+- Report covers: all 11 iterations, cross-branch comparison, method details, positive/negative findings, reproduction instructions, limitations
+- Next iteration should: review and revise for accuracy, check if any claims need verification
+
+**End:** 2026-05-06 22:35 EDT
