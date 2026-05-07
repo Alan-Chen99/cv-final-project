@@ -6,7 +6,7 @@
 **Dataset:** Harder et al. `era5_sr_data` -- 40K train / 10K val / 10K test
 **Compute budget:** 2hr wall-clock per experiment, ~40hr total exploration
 **Starting commit:** 7cbd4e4
-**Final commit:** (this report)
+**Final commit:** b62ec11
 
 ## Best Result
 
