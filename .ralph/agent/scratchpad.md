@@ -794,3 +794,28 @@ Created `notes/2026-05-06-research4-report.md` — comprehensive report covering
 **End**: 2026-05-06 22:20 EDT, commit: 67747d6
 **Duration**: ~4min
 **GPU time**: 0
+
+## Iteration 13
+**Start**: 2026-05-06 22:21 EDT, commit 4684aab
+**Prefix**: (fixed-point verification)
+
+### Concerns (3+)
+
+1. **Timing**: 22:21 EDT, ~3.5hr before exploration deadline. No GPU available. Report is the only remaining deliverable and has been revised twice.
+
+2. **Quality**: Verified reproduction commands in report §7 against actual argparse definitions in `unet_cfg_flow.py`. ALL flags exist and are correctly specified: `--mode`, `--save_dir`, `--epochs`, `--batch_size`, `--lr`, `--t_schedule`, `--logit_normal_mean`, `--logit_normal_std`, `--resume`, `--finetune_lr`, `--cfg_prob`, `--split`, `--n_ensemble`, `--ode_steps`, `--constraint`. Model directories (`models/unet_cfg/`, `models/unet_logit_normal/`) contain expected files (`best_flow.pt`, `norm_stats.pt`).
+
+3. **Workflow**: No remaining tasks. Two report revisions (iter11: CRPS comparison fix + budget column; iter12: reproduction commands + conclusion reframe) addressed all identified issues. No new factual errors found.
+
+### Assessment
+
+Report is at **fixed-point**:
+- Factually correct (verified against code)
+- Reproduction-ready (all flags exist, model files present)
+- No GPU available for further experiments
+- No outstanding tasks or concerns that require file changes outside .ralph/
+
+### End of Iteration 13
+**End**: 2026-05-06 22:22 EDT, commit: 4684aab (no new commits — fixed-point)
+**Duration**: ~1min
+**GPU time**: 0
