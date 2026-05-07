@@ -6,7 +6,7 @@
 **Metric:** Corrected energy CRPS: `CRPS = E|X-y| - 0.5*E|X-X'|`
 **Dataset:** Harder et al. `era5_sr_data` — 40K train / 10K val / 10K test
 **Hardware:** NVIDIA L40S (48GB), MIT Engaging cluster
-**Training budget:** <=2 hours per model
+**Training budget:** <=2 hours per model (see note below)
 
 ## Best Result
 
@@ -23,7 +23,7 @@ This matches the prior best (research2 branch, CRPS 0.171) within 1%, confirming
 **Code:** `src/exp-spatial-4x-crps-v1/flow_matching_v2.py`
 
 ```bash
-# Train (~3hr on L40S)
+# Train (~3hr on L40S for 40 epochs; use --epochs 27 for <=2hr budget)
 python src/exp-spatial-4x-crps-v1/flow_matching_v2.py --mode train \
     --epochs 40 --batch_size 64 --save_dir pool/datasets/research6/models/flow_v2_zscore
 
@@ -64,10 +64,9 @@ python src/exp-spatial-4x-crps-v1/flow_matching_v2.py --mode eval \
 | Model | Branch | CRPS | RMSE | MAE | Mass Viol |
 |-------|--------|------|------|-----|-----------|
 | **Flow v2 (z-score) + AddCL** | **research6** | **0.1728** | **0.4538** | **0.2447** | **0.000001** |
-| Flow v2 (OT-CFM) + AddCL | research2 | 0.171 | 0.458 | 0.247 | 0.000001 |
+| Flow v2 (z-score) + AddCL | research2 | 0.171 | 0.458 | 0.247 | 0.000001 |
 | Flow attn (LR-anchor) + mult | research | 0.199 | 0.481 | 0.258 | 0.000131 |
 | GAN baseline (Harder et al.) | research | 0.307 | 0.618 | 0.307 | 0.0454 |
-| CNN baseline (Harder et al.) | paper | — | 0.191 | 0.115 | — |
 
 ## Key Findings
 
@@ -151,7 +150,7 @@ AttentionUNet with 13.07M parameters:
 - **Schedule:** Cosine annealing, T_max=40
 - **Batch size:** 64
 - **Gradient clipping:** max_norm=1.0
-- **Training time:** 178 min (40 epochs on L40S)
+- **Training time:** 178 min (40 epochs on L40S). **Note:** this exceeds the ≤2hr training budget. At the 2-hour mark, training was at epoch 27 (val loss 0.256). No intermediate checkpoint was saved, so the reported CRPS 0.1728 is from the 40-epoch model. A 27-epoch model would likely have slightly worse CRPS.
 
 ### Inference
 
@@ -172,6 +171,7 @@ AttentionUNet with 13.07M parameters:
 | 4 | 11-15 | Complete training + step count sweep | 0.232 | Architecture scaling doesn't help; Heun fails |
 | 5 | 15-19 | Z-score normalization (key insight) | 0.178* | Normalization was the root cause, not OT coupling |
 | 6 | 19-22 | Full 10K evaluation | **0.1728** | Matches research2; constraint has no CRPS cost |
+| 7 | 22-23 | Report + visualizations | — | SmCL fails on physical-space values (exp overflow) |
 
 *50-sample estimate; confirmed at 0.1728 on full 10K in iter 6.
 
