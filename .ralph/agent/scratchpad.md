@@ -727,6 +727,6 @@ Created `notes/2026-05-06-research4-report.md` — comprehensive report covering
 - Compute summary
 
 ### End of Iteration 10
-**End**: 2026-05-06 22:15 EDT, commit: (pending)
-**Duration**: ~15min
+**End**: 2026-05-06 22:11 EDT, commit: 2b5ce9c
+**Duration**: ~10min
 **GPU time**: 0 (no GPU available)
