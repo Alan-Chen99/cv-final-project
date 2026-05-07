@@ -692,3 +692,41 @@ SmCL (SoftmaxConstraints) CANNOT be applied post-hoc to flow matching or DDPM mo
 **End**: 2026-05-06 22:00 EDT, commit: 166cfad
 **Duration**: ~5.5h (mostly waiting for GPU)
 **GPU time**: ~97min (67min training + 3min 1K eval + 31min 10K eval)
+
+## Iteration 10
+**Start**: 2026-05-06 22:01 EDT, commit de52396
+**Prefix**: ykoh-zqgs
+
+### Concerns (3+)
+
+1. **Timing (CRITICAL)**: ~36 hours elapsed out of 40-hour exploration deadline (02:00 EDT). GPU access completely blocked — mit_normal_gpu queued until 2026-05-07 17:40, mit_preemptable until 12:10. No more training possible. Must transition to report writing.
+
+2. **Workflow (persistent, 6th time raised)**: No Harder et al. baselines ever reproduced. The objective says "start with baseline and report these too." We cited their published numbers but never ran their code ourselves. GPU constraints made this impossible from iter6 onward. The Harder et al. published CRPS numbers use a buggy formula (underestimates by ~50%) and cannot be directly compared to our corrected CRPS.
+
+3. **Quality**: Data augmentation was never isolated from spectral loss (iter7 confound). The question "does augmentation alone help?" remains unanswered. Cannot run this experiment without GPU access.
+
+### Plan for Iteration 10
+
+**Goal**: Write the comprehensive research report.
+
+**Why**:
+- GPU access blocked, no more training/eval possible
+- 36/40 hours of exploration elapsed
+- 9 iterations of experiments completed with clear results
+- Report needs multiple revision iterations before node expires (~10:00 EDT tomorrow)
+- Most impactful use of remaining time
+
+### Report Written
+
+Created `notes/2026-05-06-research4-report.md` — comprehensive report covering:
+- CRPS formula clarification (buggy vs corrected)
+- All 7 methods tested with full results table
+- Analysis: what works (OT-CFM, logit-normal, AddCL, UNet) and what fails (CFG, spectral, DiT, SmCL)
+- Limitations: Harder et al. baselines not reproduced, augmentation not isolated, research2 gap unexplained
+- Reproduction instructions and model checkpoint locations
+- Compute summary
+
+### End of Iteration 10
+**End**: 2026-05-06 22:15 EDT, commit: (pending)
+**Duration**: ~15min
+**GPU time**: 0 (no GPU available)
