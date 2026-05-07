@@ -449,3 +449,87 @@ CorrDiff works because the residual distribution has reasonable variance relativ
 
 **Ending time:** ~18:20 EDT
 **Ending commit:** 0320bda
+
+## Iteration 7 — 2026-05-06 18:23 EDT
+**Starting commit:** 5b6fcec
+**Run prefix:** urfm-oebd
+
+### Current State
+- Time: ~32hr elapsed. ~8hr to 40hr mark (2026-05-07 02:00 EDT). 2 iterations max.
+- GPU: no allocation from this branch. 1 normal slot + 0-1 preemptable GPU available.
+- Best CRPS: 0.183 (multi-head SwinIR K=8)
+- Target: OT-CFM CRPS=0.171
+
+### Concerns (3+ problems)
+
+1. **Quality: 6 iterations, zero improvement over the research2 baseline (0.171).** Multi-head SwinIR caps at 0.183. Residual flow (0.207) and DiT (0.204) both significantly worse. The only thing that beats 0.183 is OT-CFM UNet, which uses fundamentally different architecture + training.
+
+2. **Quality: Multi-head diversity is structurally wrong.** K=8 heads sharing frozen features learn unstructured pixel-level noise (spread=0.272 > MAE=0.250 = over-dispersed). Need calibrated, spatially-structured diversity. Flow matching provides this but requires ODE integration.
+
+3. **Workflow: Never tried noise-conditioned generation on SwinIR.** All SwinIR experiments used K fixed heads (discrete diversity). Injecting continuous noise into the reconstruction tail gives a different diversity mechanism: (a) no gradient conflict (single head), (b) continuous noise space → arbitrary K at test time, (c) can optimize CRPS directly. This is genuinely under-explored.
+
+### Direction: Noise-Conditioned SwinIR Tail
+
+**Architecture:**
+1. Frozen SwinIR backbone → features (B, 180, 32, 32)
+2. Concat with noise channels z~N(0,I) of shape (B, 16, 32, 32) → (B, 196, 32, 32)
+3. Single reconstruction tail: Conv(196→64) → PixelShuffle(4x) → Conv(64→1)
+4. Train with CRPS loss: K=8 noise draws per sample
+
+**Why this might work:**
+- Noise enters at feature level (32x32), not pixel level — must be processed by conv layers
+- Single head = no gradient conflict between heads
+- CRPS loss directly optimizes ensemble calibration (both accuracy + spread)
+- Pretrained backbone preserves representation quality
+
+**Why this might NOT work:**
+- Backbone features may dominate noise channels → near-zero diversity
+- 16 noise channels at 32x32 may be too few/many
+- The tail may ignore noise if it can minimize CRPS with a constant output
+
+**Risk mitigation:** Use larger noise dim (16 channels) + initialize noise path with non-trivial weights
+
+### Training Log
+- 18:30 — GPU allocation: node3512 (L40S, normal partition, 3hr limit)
+- 18:31 — Test run (1 epoch): 3.7min/epoch, 482K trainable params. Works.
+- 18:36 — Training started: 100 epochs, BS=32, LR=5e-4, cosine T_max=18, K=8
+- 20:36 — Training complete: 33 epochs in 121.6 min, best val=0.001566 at epoch 20
+- 20:38 — Eval complete (10K test, K=8)
+- 20:39 — GPU cancelled
+
+### Results: Noise-Conditioned SwinIR (10K test)
+| Method | CRPS | MAE | RMSE | Spread | Mass Viol |
+|--------|------|-----|------|--------|-----------|
+| Noise-Cond K=8 | 0.200 | 0.258 | 0.494 | 0.197 | 0.039 |
+| Noise-Cond + AddCL | 0.206 | 0.255 | — | — | 0.000001 |
+| Multi-Head K=8 (iter 2) | **0.183** | 0.250 | 0.482 | 0.272 | 0.005 |
+| OT-CFM UNet (research2) | **0.171** | 0.247 | 0.458 | — | 0.000001 |
+
+### Analysis: Negative Result — Noise Injection Ignored by Tail
+
+**Noise-conditioned SwinIR achieves CRPS=0.200, significantly worse than multi-head (0.183).**
+
+**Root cause: Backbone features dominate, tail learns to ignore noise.**
+- Spread = 0.197 < MAE = 0.258 → **under-dispersed** (opposite of multi-head which was over-dispersed)
+- The t2 (spread term) stayed at 0.0017 throughout training — barely changed from epoch 1 to 33
+- Noise projection → 64 channels competing with 180 backbone channels
+- Backbone-initialized weights in the first conv layer mean noise path starts at zero → gradient landscape favors keeping noise contribution small
+- Energy score loss can be minimized by producing accurate but identical members (CRPS ≈ MAE when spread=0)
+
+**AddCL makes CRPS WORSE (0.206 vs 0.200):** constraint reduces spread further for already under-dispersed ensemble.
+
+**Key insight:** Simple noise concatenation cannot compete with the pretrained backbone signal. The tail learns a deterministic mapping from backbone features and treats noise as negligible perturbation. Multi-head succeeds at diversity because each head has independent weights that diverge during training. Noise injection requires the weights to learn to amplify noise, which is not favored by the loss landscape when deterministic accuracy is already good.
+
+### Summary: 7 Iterations, Best = Multi-Head SwinIR CRPS=0.183
+| Iter | Direction | CRPS | Verdict |
+|------|-----------|------|---------|
+| 1 | SwinIR finetune (det.) | 0.250 | Baseline |
+| 2 | Multi-head K=8 direct | **0.183** | Best SwinIR |
+| 3 | Multi-head K=8 residual | 0.183 | Same ceiling |
+| 4 | Multi-head unfreeze-2 | 0.183 | Same ceiling |
+| 5 | Residual flow matching | 0.207 | Negative |
+| 6 | DiT flow matching | 0.204 | Negative |
+| 7 | Noise-conditioned tail | 0.200 | Negative |
+
+**Ending time:** 20:39 EDT
+**Ending commit:** (pending)
