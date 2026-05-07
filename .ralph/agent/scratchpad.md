@@ -782,3 +782,15 @@ Created `notes/2026-05-06-research4-report.md` — comprehensive report covering
 3. Add setup step (copy baseline checkpoint) to reproduction
 4. Soften conclusion 5 — fine-tuning is explicitly allowed
 5. Commit and emit
+
+### Changes made
+1. Fixed `--eval_n 10000` → removed (flag doesn't exist; `--max_samples` is correct, default=all is fine for full test set)
+2. Added `--save_dir models/unet_logit_normal` to both train and eval commands
+3. Added checkpoint setup step (copy baseline to fine-tune dir)
+4. Reframed conclusion 5 from "fair comparison caveat" to "budget compliance" — fine-tuning IS explicitly allowed
+5. Simplified limitation 1 wording
+
+### End of Iteration 12
+**End**: 2026-05-06 22:20 EDT, commit: 67747d6
+**Duration**: ~4min
+**GPU time**: 0
