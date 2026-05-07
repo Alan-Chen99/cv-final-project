@@ -759,3 +759,26 @@ Created `notes/2026-05-06-research4-report.md` — comprehensive report covering
 **End**: 2026-05-06 22:15 EDT, commit: 8d19a58
 **Duration**: ~4min
 **GPU time**: 0
+
+## Iteration 12
+**Start**: 2026-05-06 22:16 EDT, commit 581a481
+**Prefix**: (report QA, no GPU needed)
+
+### Concerns (3+)
+
+1. **Workflow (CRITICAL)**: Report §7 reproduction commands have WRONG FLAGS. `--eval_n 10000` does not exist — the correct flag is `--max_samples 10000`. Both train and eval commands are missing `--save_dir models/unet_logit_normal`. Anyone trying to reproduce from the report would get argparse errors or load wrong checkpoints.
+
+2. **Quality**: Conclusion 5 frames the logit-normal FT as a "fair comparison caveat" but the task spec EXPLICITLY allows fine-tuning from prior checkpoints ("Finetuning pretrained weights (from prior iterations, foundation models, pretrained backbones) is allowed — the 2hr wall-clock budget applies to the finetune run as well"). The 67-min fine-tune is fully budget-compliant, not a caveat.
+
+3. **Timing**: 22:16 EDT, ~4 hours before exploration deadline (02:00 EDT). No GPU available. Report is the main remaining deliverable. Should be approaching fixed-point after this.
+
+### Plan for Iteration 12
+
+**Goal**: Fix reproduction commands and clean up conclusion 5 framing.
+
+**Steps**:
+1. Fix `--eval_n` → `--max_samples` (or omit since default=all)
+2. Add `--save_dir models/unet_logit_normal` to both commands
+3. Add setup step (copy baseline checkpoint) to reproduction
+4. Soften conclusion 5 — fine-tuning is explicitly allowed
+5. Commit and emit

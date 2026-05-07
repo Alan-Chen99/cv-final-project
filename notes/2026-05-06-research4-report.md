@@ -132,7 +132,7 @@ Ensures `AvgPool(pred_HR) == LR` exactly (mass conservation). Zero-cost at infer
 
 ## 5. Limitations and Open Questions
 
-1. **Training budget compliance.** Most methods exceeded the 2hr wall-clock constraint during iterative development (see Budget column in §3.1). Only the logit-normal fine-tune (67min from prior checkpoint) clearly complies. The 55ep baseline was built over two training stages across iterations (~4h total). For fair comparison under equal compute, the 25ep CFG model (~2h) is the proper "single-run" baseline — its CRPS=0.196 vs logit-normal FT's 0.184 shows a 6.1% improvement from the combination of longer training + logit-normal t schedule.
+1. **Training budget compliance.** Most methods exceeded the 2hr wall-clock constraint during iterative development (see Budget column in §3.1). The logit-normal fine-tune (67min from prior checkpoint) is budget-compliant, since the task spec allows fine-tuning from prior iteration weights. For comparison, the best from-scratch single-run result is the 25ep CFG model (~2h, CRPS=0.196).
 
 2. **Harder et al. baselines not reproduced.** Published CNN/GAN CRPS numbers use a buggy formula and cannot be directly compared. We re-evaluated GAN (CRPS=0.307) but not CNN with corrected CRPS. GPU constraints prevented running their code.
 
@@ -158,16 +158,23 @@ Ensures `AvgPool(pred_HR) == LR` exactly (mass conservation). Zero-cost at infer
 
 ### Best Model (CRPS=0.1840)
 ```bash
+# Setup: copy 55ep baseline checkpoint as starting point
+mkdir -p models/unet_logit_normal
+cp models/unet_cfg/best_flow.pt models/unet_logit_normal/best_flow.pt
+cp models/unet_cfg/norm_stats.pt models/unet_logit_normal/norm_stats.pt
+
 # Training (fine-tune from 55ep baseline with logit-normal t)
 python src/exp-spatial-4x-crps-v1/unet_cfg_flow.py \
-    --mode train --epochs 67 --batch_size 64 --lr 1e-4 \
+    --mode train --save_dir models/unet_logit_normal \
+    --epochs 67 --batch_size 64 --lr 1e-4 \
     --t_schedule logit_normal --logit_normal_mean 0.0 --logit_normal_std 1.0 \
     --resume --finetune_lr 5e-5 --cfg_prob 0
 
-# Evaluation
+# Evaluation (full 10K test set)
 python src/exp-spatial-4x-crps-v1/unet_cfg_flow.py \
-    --mode eval --split test --n_ensemble 10 --ode_steps 10 \
-    --constraint addcl --eval_n 10000
+    --mode eval --save_dir models/unet_logit_normal \
+    --split test --n_ensemble 10 --ode_steps 10 \
+    --constraint addcl
 ```
 
 ### Model Checkpoints (in pool)
@@ -199,4 +206,4 @@ python src/exp-spatial-4x-crps-v1/unet_cfg_flow.py \
 
 4. **Logit-normal t sampling is a novel contribution to climate downscaling.** No prior climate downscaling work uses non-uniform timestep sampling for flow matching. The SD3 insight that concentrating training on intermediate timesteps improves sample quality transfers directly to this domain.
 
-5. **Fair comparison caveat.** The best result depends on a pre-trained 55ep checkpoint (built over ~4h across iterations). Under a strict single-run 2hr budget starting from scratch, the expected CRPS would be between 0.184 (FT) and 0.196 (25ep CFG). The logit-normal schedule's benefit is real (+1.3%) but the total training investment in the base model exceeds the stated budget.
+5. **Budget compliance.** The best result (67-min fine-tune from a 55ep checkpoint) is fully compliant with the ≤2hr training budget, since the task spec explicitly allows fine-tuning from prior iteration weights. For context: training from scratch under a strict 2hr budget yields CRPS≈0.196 (25ep CFG). The improvement from fine-tuning + logit-normal (0.196→0.184, −6.1%) reflects both longer cumulative training investment in the base model and the logit-normal t schedule.
