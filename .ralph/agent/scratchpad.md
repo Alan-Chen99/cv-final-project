@@ -689,6 +689,6 @@ SmCL (SoftmaxConstraints) CANNOT be applied post-hoc to flow matching or DDPM mo
 - Pool: `/home/chenxy/orcd/pool/datasets/research4/models/unet_logit_normal_norm_stats.pt`
 
 ### End of Iteration 9
-**End**: 2026-05-06 21:59 EDT, commit: (pending)
+**End**: 2026-05-06 22:00 EDT, commit: 166cfad
 **Duration**: ~5.5h (mostly waiting for GPU)
 **GPU time**: ~97min (67min training + 3min 1K eval + 31min 10K eval)
