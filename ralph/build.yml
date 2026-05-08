@@ -36,6 +36,7 @@ core:
     - "Within an iteration, hold compute resources with `salloc`. Avoid talking to nodes you did not allocate. `scancel` all allocations before the next iteration."
     - "Do not send jobs to nodes not created by you — They are working on unrelated tasks."
     - "Track ALL files in git — scratchpad, notes, intermediate results, everything. You can always delete later; untracked files are invisible to future iterations."
+    - "Experiment workflows: all code, scripts, logs, and figures go directly in the experiment directory (experiments/<name>/) as specified in PROMPT.md. Do not create experiment files at repo root."
     - "Allocations: generate a 2-word random prefix at the start of each run (e.g. `shuf -n2 /usr/share/dict/words | tr '\\n' '-' | tr '[:upper:]' '[:lower:]'`). Use this prefix for all salloc job names, temp dirs, and output files. Scope: one prefix per run chain (worker→worker→...→worker→summarizer). Persist the prefix in scratchpad.md. If you find dangling allocations matching your chain's prefix, they're yours — safe to kill."
 
 # Note: topics such as `build.done` and `review.done` are special-cased for evidence in ralph-orchestrator;
@@ -93,7 +94,7 @@ hats:
     name: "Summarizer"
     description: "Summarize workflow, with a focus on structural flaws that can invalidate output (ex: is claims verified in the workflow?) rather than output flaws (is the claim true?). Write output to TASK_SUMMARY.md as a report to user."
     triggers: ["work.fixed-point"]
-    publishes: ["LOOP_COMPLETE"]
+    publishes: ["summary.done", "LOOP_COMPLETE"]
     default_publishes: "LOOP_COMPLETE"
     instructions: |
       Summarize workflow: Understand what happened in the workflow; write summary to TASK_SUMMARY.md for user to read.
@@ -111,3 +112,26 @@ hats:
       1. Table of what happened each iteration
       2. Table of all claims made: claim, what verification is done, whether you were able to reproduce the verification (if it is just a command, or are directly actionable).
       3. Problems and concerns
+
+      Routing: If this is an experiment workflow (PROMPT.md references experiments/<name>/), publish `summary.done` to trigger cleanup. Otherwise publish `LOOP_COMPLETE`.
+
+  # Cleaner runs after summarizer — only for experiment workflows
+  cleaner:
+    name: "Cleaner"
+    description: "Post-experiment cleanup: relocate ralph working files into the experiment directory and commit."
+    triggers: ["summary.done"]
+    publishes: ["LOOP_COMPLETE"]
+    default_publishes: "LOOP_COMPLETE"
+    instructions: |
+      1. Identify the experiment directory from PROMPT.md (e.g. experiments/<name>/).
+         Create it if it does not exist.
+      2. Move ralph agent state into the experiment directory:
+         - .ralph/agent/scratchpad.md → experiments/<name>/scratchpad.md
+         - .ralph/agent/decisions.md  → experiments/<name>/decisions.md
+         - .ralph/agent/memories.md   → experiments/<name>/memories.md
+         - TASK_SUMMARY.md            → experiments/<name>/task_summary.md
+         Skip any files that do not exist. Do not overwrite existing files — rename to <file>_ralph.md if conflict.
+      3. `git add experiments/<name>/` and commit: "cleanup: move ralph state to experiments/<name>/"
+      4. Publish LOOP_COMPLETE.
+
+      After this, only .ralph/ and PROMPT.md remain for the user to remove.
