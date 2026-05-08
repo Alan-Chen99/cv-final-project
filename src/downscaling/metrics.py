@@ -26,11 +26,17 @@ def crps_energy(observation: np.ndarray, forecasts: np.ndarray) -> float:
     # E|X - y|: mean absolute error across ensemble members
     mae_term = np.mean(np.abs(forecasts - observation[None, ...]), axis=0)
 
+    if M == 1:
+        return float(np.mean(mae_term))
+
     # E|X - X'|: spread term via sorted ensemble (Gneiting formula)
+    # For sorted X_0 <= ... <= X_{M-1}:
+    #   sum_{i<j} (X_j - X_i) = sum_j (2j - M + 1) * X_j
+    # Then CRPS = mae - (1/(M*(M-1))) * sum_j (2j - M + 1) * X_j
     fc_sorted = np.sort(forecasts, axis=0)
     spread = np.zeros_like(observation)
     for j in range(M):
-        w = (2.0 * (j + 1) - M - 1.0) / (M * M)
+        w = (2.0 * j - M + 1.0) / (M * (M - 1))
         spread += w * fc_sorted[j]
 
     crps = mae_term - spread

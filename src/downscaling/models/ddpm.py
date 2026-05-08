@@ -37,7 +37,7 @@ class DDPMSchedule:
         self.sqrt_alpha_bar = torch.sqrt(alpha_bar).to(device)
         self.sqrt_one_minus_alpha_bar = torch.sqrt(1.0 - alpha_bar).to(device)
 
-    def to(self, device: str | torch.device) -> "DDPMSchedule":
+    def to(self, device: str | torch.device) -> DDPMSchedule:
         self.betas = self.betas.to(device)
         self.alphas = self.alphas.to(device)
         self.alpha_bar = self.alpha_bar.to(device)
@@ -111,11 +111,7 @@ def ddim_sample(
         )
         dir_xt = torch.sqrt(1 - alpha_bar_prev - sigma_t**2) * eps_pred
 
-        noise = (
-            torch.randn_like(x)
-            if (eta > 0 and i < steps - 1)
-            else torch.zeros_like(x)
-        )
+        noise = torch.randn_like(x) if (eta > 0 and i < steps - 1) else torch.zeros_like(x)
         x = torch.sqrt(alpha_bar_prev) * x0_pred + dir_xt + sigma_t * noise
 
     return x

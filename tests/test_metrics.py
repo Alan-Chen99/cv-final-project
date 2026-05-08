@@ -36,6 +36,29 @@ class TestCRPSEnergy:
         forecasts = np.random.rand(10, 16, 16).astype(np.float32) * 100
         assert crps_energy(obs, forecasts) >= 0
 
+    def test_symmetric_ensemble_is_zero(self):
+        """obs=1, forecasts=[0, 2] → CRPS = 0 (ensemble brackets truth symmetrically)."""
+        obs = np.ones((4, 4), dtype=np.float32)
+        forecasts = np.array([np.zeros((4, 4)), np.full((4, 4), 2.0)], dtype=np.float32)
+        np.testing.assert_allclose(crps_energy(obs, forecasts), 0.0, atol=1e-6)
+
+    def test_matches_pairwise_reference(self):
+        """O(M log M) sorted formula matches O(M^2) pairwise reference."""
+        np.random.seed(99)
+        obs = np.random.rand(16, 16).astype(np.float32) * 10
+        forecasts = np.random.rand(10, 16, 16).astype(np.float32) * 10
+        # Reference: pairwise computation from experiment code
+        M = forecasts.shape[0]
+        abs_diff = np.mean(np.abs(forecasts - obs[None, ...]), axis=0)
+        fc_sorted = np.sort(forecasts, axis=0)
+        spread = np.zeros_like(obs)
+        for i in range(M):
+            for j in range(i + 1, M):
+                spread += np.abs(fc_sorted[j] - fc_sorted[i])
+        spread = spread * 2.0 / (M * (M - 1))
+        ref_crps = float(np.mean(abs_diff - 0.5 * spread))
+        np.testing.assert_allclose(crps_energy(obs, forecasts), ref_crps, rtol=1e-5)
+
     def test_paper_version_differs(self):
         """Paper version (buggy) should differ from correct energy CRPS."""
         np.random.seed(1)

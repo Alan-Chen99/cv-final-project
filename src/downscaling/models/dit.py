@@ -71,9 +71,7 @@ class DiTBlock(nn.Module):
     ):
         super().__init__()
         self.norm1 = nn.LayerNorm(hidden_dim, elementwise_affine=False, eps=1e-6)
-        self.attn = nn.MultiheadAttention(
-            hidden_dim, num_heads, dropout=dropout, batch_first=True
-        )
+        self.attn = nn.MultiheadAttention(hidden_dim, num_heads, dropout=dropout, batch_first=True)
         self.norm2 = nn.LayerNorm(hidden_dim, elementwise_affine=False, eps=1e-6)
         mlp_hidden = int(hidden_dim * mlp_ratio)
         self.mlp = nn.Sequential(
@@ -194,9 +192,7 @@ class DiT(nn.Module):
         x = x.reshape(-1, c, gs * ps, gs * ps)
         return x
 
-    def forward(
-        self, x: torch.Tensor, t: torch.Tensor, condition: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, t: torch.Tensor, condition: torch.Tensor) -> torch.Tensor:
         x = torch.cat([x, condition], dim=1)
         x = self.patch_embed(x) + self.pos_embed
         t_emb = self.time_embed(t)

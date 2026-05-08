@@ -61,3 +61,45 @@ Leave for future iterations:
 - Coverage: 100% on core logic (metrics, constraints, data)
 
 **End:** 2026-05-08 19:25 EDT | commit: c3565c3
+
+## Iteration 2
+**Start:** 2026-05-08 19:21 EDT | commit: 3ceae78
+**Prefix:** vypq-pczs
+
+### Orientation
+
+Reviewed all code from iteration 1 + experiment code. Found critical bug in the primary
+evaluation metric.
+
+### Top 3 Concerns
+
+1. **Fact: crps_energy() formula is WRONG** — Denominator uses M*M instead of M*(M-1),
+   and missing M=1 guard. For M=2 with obs=1, forecasts=[0,2]: produces 0.5 instead of 0.0.
+   This is the primary metric for all evaluations. The O(M²) pairwise reference in
+   experiments/spatial-4x-flow-matching/src/flow_matching_v2.py:crps_ensemble_correct()
+   uses the correct formula. Tests didn't catch it because they used property-based checks
+   rather than known-answer regression tests.
+
+2. **Workflow: Missing training code** — src/downscaling has no training loop code.
+   The task explicitly asks for "organize all code in a good way in ./src: training and eval
+   and plotting". Training loops are duplicated across 4 experiment dirs. Need to extract
+   a canonical training loop.
+
+3. **Workflow: Missing visualization code** — Task (6) explicitly asks for visualization code.
+   Experiment dirs have plotting code (visualize_samples.py, visualize_results.py) but nothing
+   is in src/. Also no report file yet (task 7).
+
+### Work Done
+
+- **Fixed crps_energy()**: Changed denominator from M*M to M*(M-1), added M=1 early return
+- **Added regression tests**:
+  - test_symmetric_ensemble_is_zero: obs=1, forecasts=[0,2] → CRPS=0
+  - test_matches_pairwise_reference: verifies O(M log M) matches O(M²) reference
+- **Fixed pre-existing lint issues**: zip strict=True, format fixes
+- All checks pass: 24 tests, 0 ruff errors, 0 basedpyright errors
+
+### Next iterations should focus on
+- Task (3): Extract training loop into src/downscaling/training.py
+- Task (5): Evaluation baselines (bilinear, bilinear+AddCL, etc.)
+- Task (6): Visualization code
+- Task (7): Report file

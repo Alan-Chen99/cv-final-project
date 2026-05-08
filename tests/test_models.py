@@ -3,7 +3,6 @@
 Tests assume GPU availability and verify forward pass shapes/gradients.
 """
 
-import pytest
 import torch
 
 from downscaling.models.ddpm import DDPMSchedule, ddim_sample
@@ -39,8 +38,13 @@ class TestAttentionUNet:
 class TestDiT:
     def test_forward_shape(self, device):
         model = DiT(
-            img_size=64, patch_size=8, in_channels=2, out_channels=1,
-            hidden_dim=64, depth=2, num_heads=4
+            img_size=64,
+            patch_size=8,
+            in_channels=2,
+            out_channels=1,
+            hidden_dim=64,
+            depth=2,
+            num_heads=4,
         ).to(device)
         x = torch.randn(2, 1, 64, 64, device=device)
         t = torch.rand(2, device=device)
@@ -51,8 +55,13 @@ class TestDiT:
     def test_adaln_zero_init(self, device):
         """DiT blocks start as identity due to zero-init alpha gates."""
         model = DiT(
-            img_size=64, patch_size=8, in_channels=2, out_channels=1,
-            hidden_dim=64, depth=2, num_heads=4
+            img_size=64,
+            patch_size=8,
+            in_channels=2,
+            out_channels=1,
+            hidden_dim=64,
+            depth=2,
+            num_heads=4,
         ).to(device)
         # Final layer linear should be zero-initialized
         assert model.final_layer.linear.weight.abs().max().item() == 0.0

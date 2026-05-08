@@ -134,10 +134,12 @@ class AttentionUNet(nn.Module):
         for mult in channel_mults:
             out_ch = base_channels * mult
             self.down_blocks.append(
-                nn.ModuleList([
-                    ResBlock(ch, out_ch, time_emb_dim, dropout),
-                    ResBlock(out_ch, out_ch, time_emb_dim, dropout),
-                ])
+                nn.ModuleList(
+                    [
+                        ResBlock(ch, out_ch, time_emb_dim, dropout),
+                        ResBlock(out_ch, out_ch, time_emb_dim, dropout),
+                    ]
+                )
             )
             self.down_samples.append(Downsample(out_ch))
             ch = out_ch
@@ -153,10 +155,12 @@ class AttentionUNet(nn.Module):
         for mult in reversed(channel_mults):
             out_ch = base_channels * mult
             self.up_blocks.append(
-                nn.ModuleList([
-                    ResBlock(ch + out_ch, out_ch, time_emb_dim, dropout),
-                    ResBlock(out_ch, out_ch, time_emb_dim, dropout),
-                ])
+                nn.ModuleList(
+                    [
+                        ResBlock(ch + out_ch, out_ch, time_emb_dim, dropout),
+                        ResBlock(out_ch, out_ch, time_emb_dim, dropout),
+                    ]
+                )
             )
             self.up_samples.append(Upsample(ch))
             ch = out_ch
@@ -164,15 +168,13 @@ class AttentionUNet(nn.Module):
         self.final_norm = nn.GroupNorm(min(32, ch), ch)
         self.final_conv = nn.Conv2d(ch, out_channels, 1)
 
-    def forward(
-        self, x: torch.Tensor, t: torch.Tensor, condition: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, t: torch.Tensor, condition: torch.Tensor) -> torch.Tensor:
         x = torch.cat([x, condition], dim=1)
         t_emb = self.time_mlp(t * 1000.0)
         h = self.init_conv(x)
 
         skips: list[torch.Tensor] = []
-        for down_pair, downsample in zip(self.down_blocks, self.down_samples):
+        for down_pair, downsample in zip(self.down_blocks, self.down_samples, strict=True):
             assert isinstance(down_pair, nn.ModuleList)
             for block in down_pair:
                 h = block(h, t_emb)
@@ -183,7 +185,7 @@ class AttentionUNet(nn.Module):
         h = self.mid_attn(h)
         h = self.mid_block2(h, t_emb)
 
-        for up_pair, upsample in zip(self.up_blocks, self.up_samples):
+        for up_pair, upsample in zip(self.up_blocks, self.up_samples, strict=True):
             assert isinstance(up_pair, nn.ModuleList)
             h = upsample(h)
             h = torch.cat([h, skips.pop()], dim=1)
