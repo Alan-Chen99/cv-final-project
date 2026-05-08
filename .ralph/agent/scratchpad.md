@@ -91,3 +91,28 @@ Iteration 1 completed project structure (tasks 1-3). All source code reviewed. N
 - Test full pipeline (model → sampling → evaluation)
 - Test training (2 epochs with synthetic data)
 - Run tests, verify coverage ≥90%
+
+### Iteration 2 Progress
+**Completed task 4 (integration tests)**:
+- Wrote 50 integration tests across 4 files:
+  - test_metrics.py: 10 tests (CRPS energy/paper correctness, consistency)
+  - test_constraints.py: 8 tests (AddCL/SmCL conservation, non-negativity)
+  - test_pipeline.py: 25 tests (model forward/backward, ODE samplers, EMA,
+    training loop, checkpoint save/resume, evaluation pipeline)
+  - test_data.py: 7 tests (ERA5 loading with actual pool data)
+- Coverage: 94% total (exceeds 90% threshold)
+  - 100%: metrics, constraints, sampling, data, ema, init files
+  - 98%: evaluation (SmCL path in evaluate_flow_model uncovered)
+  - 82%: flow_matching.py (train() orchestration = boilerplate)
+- Discovered and fixed:
+  1. UNet GroupNorm bug: `min(32, ch)` fails when ch=48. Fixed with `_num_groups()`.
+  2. models/ package untracked: .gitignore had `models/` matching src/downscaling/models/.
+     Fixed to `/models/` (anchored to root).
+  3. models/__init__.py and models/unet.py never committed in iter1 despite claims.
+
+### Still needed (future iterations)
+- Task 5: Additional evaluation methods (bicubic baseline, SwinIR zero-shot, etc.)
+- Task 6: Visualization code for key results
+- Task 7: Report file
+
+**End**: 2026-05-08 19:45 EDT | **Ending commit**: 516aa0b
