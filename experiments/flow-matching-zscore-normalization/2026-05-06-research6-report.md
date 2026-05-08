@@ -209,7 +209,7 @@ The actual difference was normalization: research2 uses z-score normalization (s
 
 ## Sample Visualizations
 
-See `figures/research6/` for output images:
+See `figures/` (relative to this experiment directory) for output images:
 
 - **`sample_grid.png`** — 8 test samples showing LR bilinear, HR ground truth, ensemble mean, |error|, and ensemble spread. The model captures large-scale structure well. Errors concentrate at fine-scale gradients and boundaries. Ensemble spread is spatially distributed but higher in regions with sharp features.
 
@@ -220,7 +220,7 @@ See `figures/research6/` for output images:
 | Artifact | Path |
 |----------|------|
 | Training/eval code | `src/exp-spatial-4x-crps-v1/flow_matching_v2.py` |
-| Visualization script | `src/exp-spatial-4x-crps-v1/visualize_samples.py` |
+| Visualization script | `src/exp-spatial-4x-crps-v1/visualize_samples.py` (in experiment dir) |
 | Best model weights | `pool/datasets/research6/models/flow_v2_zscore/best_flow.pt` |
 | Normalization stats | `pool/datasets/research6/models/flow_v2_zscore/norm_stats.pt` |
 | Prior model (min-max) | `pool/datasets/research6/models/flow_residual/` |

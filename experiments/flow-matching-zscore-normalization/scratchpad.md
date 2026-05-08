@@ -562,18 +562,3 @@ Still need to move:
 
 ### Plan
 Delegate to Worker to: git mv all files, copy workflow files, commit.
-
-### Changes made
-1. `git mv` all experiment-specific files into `experiments/flow-matching-zscore-normalization/`:
-   - `figures/research6/` (2 PNGs) → `figures/`
-   - `logs/` (5 log files) → `logs/`
-   - `notes/2026-05-06-zeroshot-baselines.md` → `notes/`
-   - `src/exp-spatial-4x-crps-v1/visualize_samples.py` → `src/exp-spatial-4x-crps-v1/`
-   - `src/zero_shot_eval/` (3 files) → `src/zero_shot_eval/`
-2. Copied `.ralph/agent/decisions.md` and `scratchpad.md` into experiments/ (originals kept)
-3. Updated report's internal path references (figures, visualization script)
-4. Updated CLAUDE.md notes table to point to new report location
-5. Removed empty parent directories (`figures/research6/`, `logs/`, `src/zero_shot_eval/`, `src/exp-spatial-4x-crps-v1/`)
-
-**End:** 2026-05-08 18:06 EDT
-**End commit:** (pending)
