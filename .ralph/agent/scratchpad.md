@@ -61,4 +61,4 @@ SLURM: 2 preemptable jobs running (not ours). 0 normal. Can use either partition
 - Task 6: Visualization code for key results
 - Task 7: Report file
 
-**End**: 2026-05-08 19:XX EDT | **Ending commit**: TBD (about to commit)
+**End**: 2026-05-08 19:23 EDT | **Ending commit**: a230ceb
