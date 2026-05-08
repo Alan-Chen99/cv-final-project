@@ -601,3 +601,10 @@ Delegate to Worker to: git mv all files, copy workflow files, commit.
 
 ### Plan
 **ONE thing: Fix the 2 stale path references from the file reorganization.**
+
+### Changes made
+1. Fixed report self-reference: `notes/2026-05-06-research6-report.md` → `experiments/flow-matching-zscore-normalization/2026-05-06-research6-report.md`
+2. Fixed task_summary.md report link: used relative path `2026-05-06-research6-report.md` (both files are in the same directory)
+
+**End:** 2026-05-08 18:08 EDT
+**End commit:** fff5dd6
