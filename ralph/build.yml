@@ -22,12 +22,13 @@ event_loop:
 core:
   guardrails:
     - "Fresh context each iteration — save learnings to memories for next time"
-    # - "Verification is mandatory — tests/typecheck/lint/audit must pass"
+    - "Verification is mandatory — tests/typecheck/lint/audit must pass"
     - "Automatic checks are NOT sufficient. Review blind spots manually."
     - "YAGNI ruthlessly — no speculative features"
     - "KISS always — simplest solution that works"
     - "Non-obvious decisions MUST be written to decisions.md"
 
+    - "Visualize all results: summary data + sample output artifacts"
     - "Reproducibility: all results reproducible, scripts checked into git, commit used specified"
     - "One experiment at a time. Do not batch-submit or work on multiple experiments concurrently."
     - "No cross-iteration jobs. Experiments started must finish within the same iteration before proceeding."
@@ -36,7 +37,7 @@ core:
     - "Within an iteration, hold compute resources with `salloc`. Avoid talking to nodes you did not allocate. `scancel` all allocations before the next iteration."
     - "Do not send jobs to nodes not created by you — They are working on unrelated tasks."
     - "Track ALL files in git — scratchpad, notes, intermediate results, everything. You can always delete later; untracked files are invisible to future iterations."
-    - "Allocations: generate a 2-word random prefix at the start of each run (e.g. `shuf -n2 /usr/share/dict/words | tr '\\n' '-' | tr '[:upper:]' '[:lower:]'`). Use this prefix for all salloc job names, temp dirs, and output files. Scope: one prefix per run chain (worker→worker→...→worker→summarizer). Persist the prefix in scratchpad.md. If you find dangling allocations matching your chain's prefix, they're yours — safe to kill."
+    - "Allocations: generate a 2-word random prefix at the start of each run (e.g. `shuf -n2 /usr/share/dict/words | tr '\\n' '-' | tr '[:upper:]' '[:lower:]'`). Use this prefix for all salloc job names, temp dirs, and output files. Scope: one prefix per run. Persist the prefix in scratchpad.md. If you find dangling allocations matching your chain's prefix, they're yours — safe to kill."
 
 # Note: topics such as `build.done` and `review.done` are special-cased for evidence in ralph-orchestrator;
 # Detection is fragile though, so not used here
@@ -47,6 +48,7 @@ hats:
     triggers: ["work.start", "work.iteration", "work.interrupted"]
     publishes: ["work.iteration", "work.fixed-point"]
     default_publishes: "work.interrupted"
+    # FIXME: on --continue the router "ralph" does not get these instructions and may assume "work is done" esp on a followup prompt change
     instructions: |
       Start: Load /long-running-commands, /slurm-preemptable skills; Write down current commit and current time.
 
@@ -111,3 +113,5 @@ hats:
       1. Table of what happened each iteration
       2. Table of all claims made: claim, what verification is done, whether you were able to reproduce the verification (if it is just a command, or are directly actionable).
       3. Problems and concerns
+
+      Commit TASK_SUMMARY.md into git.
