@@ -60,4 +60,4 @@ Leave for future iterations:
 - All linters pass: ruff, ruff format, basedpyright (0 errors)
 - Coverage: 100% on core logic (metrics, constraints, data)
 
-**End:** 2026-05-08 19:XX EDT | commit: TBD (about to commit)
+**End:** 2026-05-08 19:25 EDT | commit: c3565c3
