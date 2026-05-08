@@ -576,4 +576,28 @@ Delegate to Worker to: git mv all files, copy workflow files, commit.
 5. Removed empty parent directories (`figures/research6/`, `logs/`, `src/zero_shot_eval/`, `src/exp-spatial-4x-crps-v1/`)
 
 **End:** 2026-05-08 18:06 EDT
-**End commit:** (pending)
+**End commit:** 4c5c97b
+
+## Iteration 11 (post-completion review)
+**Start:** 2026-05-08 18:06 EDT
+**Start commit:** 4c5c97b
+
+### Situation
+- Branch: research6, iterations 1-10 complete
+- Research at fixed-point since iteration 9
+- File reorganization done in iteration 10 (commit 4c5c97b)
+- Git is clean, no pending tasks
+
+### Concerns
+
+1. **Workflow concern (minor): Stale path references left after file reorganization.** Iteration 10 said it "Updated report's internal path references" but missed two references:
+   - Report line 228: `notes/2026-05-06-research6-report.md` (self-reference) — file is now at `experiments/flow-matching-zscore-normalization/2026-05-06-research6-report.md`
+   - task_summary.md line 6: same stale path to old report location
+   These are the only non-scratchpad references still using the old `notes/` path.
+
+2. **Quality concern (negligible): 4 untracked eval logs in /workspace/logs/.** These are gitignored (`.gitignore` has `logs/`). They contain eval progress from preempted SmCL/20-step runs. No useful metrics — just progress counters. Not worth force-adding.
+
+3. **Quality concern (negligible): Scratchpad copy in experiments/ is stale.** The copy was made at iteration 10 and won't reflect iterations 11+. This is expected — it's a snapshot, not a live file.
+
+### Plan
+**ONE thing: Fix the 2 stale path references from the file reorganization.**

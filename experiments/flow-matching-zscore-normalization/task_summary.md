@@ -3,7 +3,7 @@
 **Branch:** research6
 **Duration:** ~22 hours wall-clock (9 iterations, 2026-05-06 00:58 - 22:46 EDT)
 **Final result:** CRPS 0.1728 (10K test, 10 members, AddCL), matching research2's 0.171 within 1%
-**Report:** [notes/2026-05-06-research6-report.md](notes/2026-05-06-research6-report.md)
+**Report:** [2026-05-06-research6-report.md](2026-05-06-research6-report.md)
 
 ## Iteration Timeline
 

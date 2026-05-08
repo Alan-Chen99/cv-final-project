@@ -225,4 +225,4 @@ See `figures/` (relative to this experiment directory) for output images:
 | Normalization stats | `pool/datasets/research6/models/flow_v2_zscore/norm_stats.pt` |
 | Prior model (min-max) | `pool/datasets/research6/models/flow_residual/` |
 | SwinIR finetune | `pool/datasets/research6/models/swinir_finetune/` |
-| This report | `notes/2026-05-06-research6-report.md` |
+| This report | `experiments/flow-matching-zscore-normalization/2026-05-06-research6-report.md` |
