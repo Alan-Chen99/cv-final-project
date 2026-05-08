@@ -33,3 +33,9 @@ Previous iterations produced reports — treat as context (verify claims before 
 - [notes/2026-05-05-cross-comparison.md](notes/2026-05-05-cross-comparison.md) — unified cross-comparison of both branches under corrected CRPS
 
 </request>
+
+<followup added="original (end of loop1)" from="user" commit="6f7f36e" time="2026-05-05 16:08 EDT">
+
+git move all files created in this session chain into `./experiments/<your exp>`. this include all files in git including scratchpad, prompt etc. Exceptions: feature additions or bug fix to shared code stay in position. commit changes.
+
+</followup>
