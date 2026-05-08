@@ -105,3 +105,57 @@ evaluation metric.
 - Task (5): Evaluation baselines (bilinear, bilinear+AddCL, etc.)
 - Task (6): Visualization code
 - Task (7): Report file
+
+## Iteration 3
+**Start:** 2026-05-08 19:28 EDT | commit: b88863f
+**Prefix:** 62edcbc7
+
+### Orientation
+
+Reviewed ALL code in src/downscaling/ and experiments/. Prior iterations set up project
+structure (iter1) and fixed CRPS bug (iter2). No training code in src/ yet.
+
+### Top 3 Concerns
+
+1. **Workflow: No training code in src/** — Task (3) explicitly asks to organize "training
+   and eval and plotting" into src/. All 4 experiment dirs duplicate the OT-CFM training
+   loop. The canonical training code is in experiments/spatial-4x-flow-matching/src/flow_matching_v2.py.
+   Best result: wide96 UNet (28.4M params), 25 epochs, CRPS 0.1676.
+
+2. **Workflow: No visualization code** — Task (6) asks for visualization code using pre-trained
+   weights. Experiment dirs have plotting code (visualize_samples.py, visualize_results.py)
+   but nothing extracted to src/ yet.
+
+3. **Quality: Pre-existing test failure** — test_gradient_flow used base_channels=16 with
+   channel_mults=(1,2), causing GroupNorm incompatibility (48 channels not divisible by 32).
+   The skip connection concatenation (ch=32 + out_ch=16 = 48) triggered the error. Prior
+   iterations didn't catch this because they may have only run CPU-level checks.
+
+### Work Done
+
+- **Created src/downscaling/training.py** — Extracted canonical OT-CFM training loop from
+  experiments/spatial-4x-flow-matching/src/flow_matching_v2.py:
+  - `TrainConfig` dataclass: epochs, lr, weight_decay, grad_clip, amp, save_dir, t_sampling
+  - `TrainResult` dataclass: per-epoch losses, best_val_loss, best_epoch, total_time
+  - `train_flow_matching()`: Full training loop with AdamW, cosine LR, AMP, grad clipping,
+    checkpoint saving. Validation always uses uniform timesteps for comparability.
+  - `train_step()`: Single training step for custom loops and integration tests.
+  - Deliberately excluded features proven harmful at <50 epochs: EMA, data augmentation.
+
+- **Created tests/test_training.py** — 5 integration tests (GPU-required):
+  - test_loss_is_finite: single step produces valid loss
+  - test_loss_decreases_over_steps: 20 steps overfit on fixed batch
+  - test_amp_step: AMP works correctly
+  - test_logit_normal_timesteps: logit-normal sampling works
+  - test_gradient_clipping: tight clip bounds gradients
+
+- **Fixed pre-existing test bug**: test_gradient_flow base_channels 16→32
+
+- All checks pass: 38 tests, 0 ruff errors, 0 basedpyright errors
+
+**End:** 2026-05-08 19:36 EDT | commit: (pending)
+
+### Next iterations should focus on
+- Task (5): Evaluation baselines (bilinear, bilinear+AddCL, bilinear+SmCL)
+- Task (6): Visualization code using pre-trained weights
+- Task (7): Report file

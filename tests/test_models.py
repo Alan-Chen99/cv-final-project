@@ -23,7 +23,7 @@ class TestAttentionUNet:
 
     def test_gradient_flow(self, device):
         model = AttentionUNet(
-            in_channels=2, out_channels=1, base_channels=16, channel_mults=(1, 2)
+            in_channels=2, out_channels=1, base_channels=32, channel_mults=(1, 2)
         ).to(device)
         x = torch.randn(1, 1, 64, 64, device=device)
         t = torch.rand(1, device=device)
