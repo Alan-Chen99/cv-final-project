@@ -1,0 +1,18 @@
+[2026-05-06T09:03:48.331] error: couldn't chdir to `/workspace': No such file or directory: going to /tmp instead
+[2026-05-06T09:03:48.332] error: couldn't chdir to `/workspace': No such file or directory: going to /tmp instead
+Training flow matching model on cuda
+Args: epochs=60, bs=64, lr=0.0001, channels=64,128,256, euler_steps=10
+Residual mode: learning on (HR - bilinear(LR)) space
+Data augmentation: random h/v flips enabled
+Train: 40000 samples, Val: 10000 samples
+Normalization: min=0.0444, max=130.8358
+Model params: 12,456,705 (n_res_blocks=2)
+EMA enabled: decay=0.999
+Epoch   1/60 | train=0.017264 val=0.049816 | lr=9.99e-05 | 3.0min
+Epoch  10/60 | train=0.002988 val=0.002466 | lr=9.33e-05 | 29.6min
+Epoch  20/60 | train=0.002494 val=0.002316 | lr=7.50e-05 | 59.2min
+[2026-05-06T10:22:09.324] error: *** STEP 13423225.0 ON node4208 CANCELLED AT 2026-05-06T10:22:09 DUE TO PREEMPTION ***
+srun: Job step aborted: Waiting up to 32 seconds for job step to finish.
+INFO:    Terminating squashfuse_ll after timeout
+INFO:    Timeouts can be caused by a running background process
+srun: error: node4208: task 0: Terminated

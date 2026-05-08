@@ -1,0 +1,24 @@
+[2026-05-06T10:25:37.242] error: couldn't chdir to `/workspace': No such file or directory: going to /tmp instead
+[2026-05-06T10:25:37.244] error: couldn't chdir to `/workspace': No such file or directory: going to /tmp instead
+Loaded flow_best.pth, euler_steps=10, n_members=10, constraint=addcl, solver=euler, lr_anchor=False, noise_std=0.5, residual=True
+Test samples: 10000
+  Batch 10/79 (233s)
+  Batch 20/79 (466s)
+  Batch 30/79 (700s)
+  Batch 40/79 (933s)
+  Batch 50/79 (1167s)
+  Batch 60/79 (1401s)
+  Batch 70/79 (1634s)
+Generation done in 1824s
+
+========================================
+CRPS:            0.261832
+MSE:             0.375768
+RMSE:            0.612999
+MAE:             0.340155
+Ensemble Spread: 0.513623
+Mass Violation:  0.000001
+Ensemble Size:   10
+N Samples:       10000
+========================================
+Saved predictions to /home/chenxy/orcd/pool/datasets/era5_sr_data/prediction/flow_flow_v2_addcl_test_ensemble.pt
