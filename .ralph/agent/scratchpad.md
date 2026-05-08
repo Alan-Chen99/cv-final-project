@@ -62,3 +62,32 @@ SLURM: 2 preemptable jobs running (not ours). 0 normal. Can use either partition
 - Task 7: Report file
 
 **End**: 2026-05-08 19:23 EDT | **Ending commit**: a230ceb
+
+## Iteration 2
+**Start**: 2026-05-08 19:24 EDT | **Commit**: b591dfb
+**Prefix**: dram-boggle
+
+### Orientation
+Iteration 1 completed project structure (tasks 1-3). All source code reviewed. No ready tasks.
+
+### Top Concerns
+
+1. **Workflow (highest priority)**: No tests exist at all. This is the most critical gap — the code
+   was "verified" by the prior agent only by reading, not by actually running it. Must write and
+   run integration tests to verify correctness.
+
+2. **Quality**: `evaluate_flow_model()` hardcodes `pool = nn.AvgPool2d(kernel_size=4)` on line 106,
+   ignoring any upsampling_factor parameter. Minor since we always use 4x, but inconsistent with
+   the parameterized versions in constraint layers and evaluate_ensemble.
+
+3. **Quality**: data loader `era5.py` uses `inp[:, 0, :, :, :]` which assumes a specific temporal
+   dimension in the data. This was likely correct for the experiment code but needs verification
+   against actual pool data.
+
+### Plan for this iteration
+**DO ONE THING**: Write integration tests (task 4 from prompt)
+- Test metrics (CRPS correctness with known analytical results)
+- Test constraints (conservation enforcement)
+- Test full pipeline (model → sampling → evaluation)
+- Test training (2 epochs with synthetic data)
+- Run tests, verify coverage ≥90%

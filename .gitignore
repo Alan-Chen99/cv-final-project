@@ -11,7 +11,7 @@ wheels/
 
 # Training artifacts (stay on disk, not in git)
 logs/
-models/
+/models/
 scripts/*.sh.disabled
 
 # Coverage
