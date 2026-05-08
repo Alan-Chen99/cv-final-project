@@ -8,8 +8,8 @@ residual flow (iteration 5).
 Architecture: AttentionUNet with in_channels=3 [x_t, lr_up, swinir_pred].
 
 Usage:
-  python src/exp-pretrained-sr/train_swinir_flow.py --mode train --epochs 150
-  python src/exp-pretrained-sr/train_swinir_flow.py --mode eval --n_ensemble 10
+  python experiments/pretrained-sr-downscaling/src/train_swinir_flow.py --mode train --epochs 150
+  python experiments/pretrained-sr-downscaling/src/train_swinir_flow.py --mode eval --n_ensemble 10
 """
 
 import argparse

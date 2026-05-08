@@ -11,7 +11,7 @@ from pathlib import Path
 POOL = Path("/home/chenxy/orcd/pool/datasets")
 DATA_DIR = POOL / "era5_sr_data"
 SAVE_DIR = POOL / "research5" / "models" / "swinir_ft"
-OUT_DIR = Path("/home/chenxy/repos/workspace/research5/src/exp-pretrained-sr/figures")
+OUT_DIR = Path("/home/chenxy/repos/workspace/research5/experiments/pretrained-sr-downscaling/figures")
 
 
 def plot_loss_curves():

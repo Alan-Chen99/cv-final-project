@@ -13,8 +13,8 @@ Loss:
 This directly optimizes the CRPS metric used for evaluation.
 
 Usage:
-    python src/exp-pretrained-sr/train_crps_ensemble.py --K 8 --epochs 100 --lr 5e-4
-    python src/exp-pretrained-sr/train_crps_ensemble.py --mode eval --checkpoint best
+    python experiments/pretrained-sr-downscaling/src/train_crps_ensemble.py --K 8 --epochs 100 --lr 5e-4
+    python experiments/pretrained-sr-downscaling/src/train_crps_ensemble.py --mode eval --checkpoint best
 """
 
 import argparse

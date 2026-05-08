@@ -12,8 +12,8 @@ Key difference from multi-head approach:
   - Can sample any K at test time without retraining
 
 Usage:
-    python src/exp-pretrained-sr/train_noise_swinir.py --noise_dim 16 --K 8 --epochs 100
-    python src/exp-pretrained-sr/train_noise_swinir.py --mode eval --K 10
+    python experiments/pretrained-sr-downscaling/src/train_noise_swinir.py --noise_dim 16 --K 8 --epochs 100
+    python experiments/pretrained-sr-downscaling/src/train_noise_swinir.py --mode eval --K 10
 """
 
 import argparse

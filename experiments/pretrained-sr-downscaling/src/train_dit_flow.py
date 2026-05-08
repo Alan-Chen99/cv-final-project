@@ -13,8 +13,8 @@ Architecture:
 Training: OT-CFM on residuals (HR - bilinear(LR)), same as flow_matching_v2.py.
 
 Usage:
-    python src/exp-pretrained-sr/train_dit_flow.py --mode train --epochs 50 --batch_size 64
-    python src/exp-pretrained-sr/train_dit_flow.py --mode eval --n_ensemble 10 --split test
+    python experiments/pretrained-sr-downscaling/src/train_dit_flow.py --mode train --epochs 50 --batch_size 64
+    python experiments/pretrained-sr-downscaling/src/train_dit_flow.py --mode eval --n_ensemble 10 --split test
 """
 
 import argparse

@@ -4,7 +4,7 @@
 **Duration:** ~42 hours (2026-05-06 00:45 to 2026-05-07 03:10 EDT)
 **Iterations:** 12 total (8 experiments + 3 report/review + 1 summarizer)
 **Best CRPS:** 0.173 (SwinIR-conditioned OT-CFM, 20 Euler steps, 10K test)
-**Report:** `notes/2026-05-07-research5-pretrained-sr-report.md`
+**Report:** `experiments/pretrained-sr-downscaling/2026-05-07-research5-pretrained-sr-report.md`
 
 ## Iteration Log
 
@@ -30,7 +30,7 @@
 | 1 | Best CRPS=0.173 (10K test, 20 steps) | Scratchpad training log at iter 8 | Logged, not re-run (needs GPU) |
 | 2 | Multi-head ceiling at CRPS=0.183 | 3 independent experiments converge | Consistent pattern across iters 2-4 |
 | 3 | research5 0.173 matches research2 ~0.174 (10K) | Cross-comparison note: research2 0.171 on 2K, estimated +1.7% for 10K | **Estimate only** -- research2 10K CRPS was never directly measured |
-| 4 | Training scripts exist (10 listed) | `ls src/exp-pretrained-sr/` + `scripts/eval_crps.py` | **Verified** -- all 10 files confirmed |
+| 4 | Training scripts exist (10 listed) | `ls experiments/pretrained-sr-downscaling/src/` + `scripts/eval_crps.py` | **Verified** -- all 10 files confirmed |
 | 5 | Model checkpoints exist (8 dirs) | `ls pool/datasets/research5/models/` | **Verified** -- all 8 directories confirmed |
 | 6 | Figure committed (dit_flow_training.png) | `ls figures/` | **Verified** |
 | 7 | AddCL works on best model | Partial eval timed out at 2624/10000 | **Incomplete** -- extrapolated from other experiments |
@@ -64,7 +64,7 @@ Iterations 10-12 performed three review passes. They caught: stale inventory ent
 
 ### 4. Only 1 figure committed (rule violation)
 
-The task requires: "Check key graphs and outputs into git." Only `figures/dit_flow_training.png` (from iter 6) was committed. Seven of eight experiments have no training curve or output visualization in git. Iteration 11 noted this as a limitation but didn't attempt retrospective figure generation.
+The task requires: "Check key graphs and outputs into git." Only `experiments/pretrained-sr-downscaling/figures/dit_flow_training.png` (from iter 6) was committed. Seven of eight experiments have no training curve or output visualization in git. Iteration 11 noted this as a limitation but didn't attempt retrospective figure generation.
 
 ### 5. Best model undertrained (26/200 epochs)
 

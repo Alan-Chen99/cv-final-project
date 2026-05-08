@@ -4,7 +4,7 @@ Evaluates: bilinear, bicubic, SwinIR zero-shot
 Uses correct energy CRPS for ensemble, MAE for deterministic.
 
 Run on GPU node:
-    srun --jobid=<JOB_ID> python src/exp-pretrained-sr/run_zeroshot_eval.py
+    srun --jobid=<JOB_ID> python experiments/pretrained-sr-downscaling/src/run_zeroshot_eval.py
 """
 
 import time

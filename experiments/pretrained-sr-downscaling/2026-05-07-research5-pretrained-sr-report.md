@@ -57,7 +57,7 @@ Prior work (research, research2) trained flow matching models from scratch. This
 
 Zero-shot SwinIR (trained on natural images, bicubic degradation) produced CRPS=1.28 -- completely failed on climate data due to domain gap. After finetuning (frozen backbone, trainable reconstruction tail, 19 epochs, 2hr), CRPS dropped to 0.250 (= MAE for deterministic model).
 
-**Key files:** `src/exp-pretrained-sr/finetune_swinir.py`, `src/exp-pretrained-sr/eval_zeroshot.py`
+**Key files:** `experiments/pretrained-sr-downscaling/src/finetune_swinir.py`, `experiments/pretrained-sr-downscaling/src/eval_zeroshot.py`
 **Checkpoint:** `pool/datasets/research5/models/swinir_ft/best_swinir.pt`
 
 #### Iteration 2: Multi-Head SwinIR (K=8, Direct CRPS)
@@ -68,7 +68,7 @@ Attached 8 independent reconstruction heads to the frozen SwinIR backbone. Train
 
 Analysis: Spread (0.272) > MAE (0.250) indicates slight over-dispersion. Each head sees the same features and must diversify through weight divergence alone.
 
-**Key files:** `src/exp-pretrained-sr/train_crps_ensemble.py`
+**Key files:** `experiments/pretrained-sr-downscaling/src/train_crps_ensemble.py`
 **Checkpoint:** `pool/datasets/research5/models/crps_ensemble/best_ensemble.pt`
 
 #### Iteration 3: Multi-Head Residual Parameterization
@@ -111,9 +111,9 @@ CRPS=0.201-0.204 -- worse than both UNet (0.171) and multi-head SwinIR (0.183).
 
 **Positive finding:** DiT trains fast (1.1 min/ep), converges well, and AddCL works perfectly on DiT output.
 
-**Key files:** `src/exp-pretrained-sr/train_dit_flow.py`
+**Key files:** `experiments/pretrained-sr-downscaling/src/train_dit_flow.py`
 **Checkpoint:** `pool/datasets/research5/models/dit_flow/best_flow.pt`
-**Figure:** `figures/dit_flow_training.png`
+**Figure:** `experiments/pretrained-sr-downscaling/figures/dit_flow_training.png`
 
 #### Iteration 7: Noise-Conditioned SwinIR Tail (Negative Result)
 
@@ -143,7 +143,7 @@ CRPS=0.173 (20 steps, 10K test) -- 5.5% improvement over multi-head ceiling (0.1
 3. 3-channel conditioning gives the model strictly more information than 2-channel
 4. Only 26 epochs trained (~4.5min/ep on slow L40S node) -- model still improving
 
-**Key files:** `src/exp-pretrained-sr/train_swinir_flow.py`
+**Key files:** `experiments/pretrained-sr-downscaling/src/train_swinir_flow.py`
 **Checkpoint:** `pool/datasets/research5/models/swinir_flow/best_flow.pt`
 **Norm stats:** `pool/datasets/research5/models/swinir_flow/norm_stats.pt`
 
@@ -151,19 +151,19 @@ CRPS=0.173 (20 steps, 10K test) -- 5.5% improvement over multi-head ceiling (0.1
 
 Train (requires GPU, ~2hr on L40S):
 ```bash
-python src/exp-pretrained-sr/train_swinir_flow.py --mode train \
+python experiments/pretrained-sr-downscaling/src/train_swinir_flow.py --mode train \
     --epochs 200 --batch_size 64 --lr 1e-4 --ema_decay 0.999 --time_limit 120
 ```
 
 Evaluate (requires GPU, ~30min on L40S):
 ```bash
-python src/exp-pretrained-sr/train_swinir_flow.py --mode eval \
+python experiments/pretrained-sr-downscaling/src/train_swinir_flow.py --mode eval \
     --n_ensemble 10 --split test --ode_steps 20
 ```
 
 With AddCL constraint:
 ```bash
-python src/exp-pretrained-sr/train_swinir_flow.py --mode eval \
+python experiments/pretrained-sr-downscaling/src/train_swinir_flow.py --mode eval \
     --n_ensemble 10 --split test --ode_steps 20 --constraint addcl
 ```
 
@@ -232,15 +232,15 @@ Total GPU time: ~18 hr across 8 experiments.
 
 | File | Experiment |
 |------|-----------|
-| `src/exp-pretrained-sr/eval_zeroshot.py` | Zero-shot evaluation |
-| `src/exp-pretrained-sr/run_zeroshot_eval.py` | Zero-shot runner |
-| `src/exp-pretrained-sr/finetune_swinir.py` | SwinIR finetuning + multi-head + unfreeze |
-| `src/exp-pretrained-sr/train_crps_ensemble.py` | Multi-head CRPS training |
-| `src/exp-pretrained-sr/train_residual_flow.py` | Residual flow (iter 5) |
-| `src/exp-pretrained-sr/train_dit_flow.py` | DiT flow (iter 6) |
-| `src/exp-pretrained-sr/train_noise_swinir.py` | Noise-conditioned SwinIR (iter 7) |
-| `src/exp-pretrained-sr/train_swinir_flow.py` | SwinIR-conditioned OT-CFM (iter 8, best) |
-| `src/exp-pretrained-sr/visualize_results.py` | Visualization utilities |
+| `experiments/pretrained-sr-downscaling/src/eval_zeroshot.py` | Zero-shot evaluation |
+| `experiments/pretrained-sr-downscaling/src/run_zeroshot_eval.py` | Zero-shot runner |
+| `experiments/pretrained-sr-downscaling/src/finetune_swinir.py` | SwinIR finetuning + multi-head + unfreeze |
+| `experiments/pretrained-sr-downscaling/src/train_crps_ensemble.py` | Multi-head CRPS training |
+| `experiments/pretrained-sr-downscaling/src/train_residual_flow.py` | Residual flow (iter 5) |
+| `experiments/pretrained-sr-downscaling/src/train_dit_flow.py` | DiT flow (iter 6) |
+| `experiments/pretrained-sr-downscaling/src/train_noise_swinir.py` | Noise-conditioned SwinIR (iter 7) |
+| `experiments/pretrained-sr-downscaling/src/train_swinir_flow.py` | SwinIR-conditioned OT-CFM (iter 8, best) |
+| `experiments/pretrained-sr-downscaling/src/visualize_results.py` | Visualization utilities |
 | `scripts/eval_crps.py` | Corrected CRPS evaluation |
 
 ### Checkpoints (in pool, not in git)

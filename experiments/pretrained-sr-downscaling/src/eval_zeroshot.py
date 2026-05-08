@@ -4,9 +4,9 @@ Computes correct energy CRPS: CRPS = E|X-y| - 0.5*E|X-X'|
 For deterministic models, CRPS = MAE (since X=X' always, the second term is 0).
 
 Usage:
-    python src/exp-pretrained-sr/eval_zeroshot.py --method bilinear
-    python src/exp-pretrained-sr/eval_zeroshot.py --method bicubic
-    python src/exp-pretrained-sr/eval_zeroshot.py --method swinir --device cuda
+    python experiments/pretrained-sr-downscaling/src/eval_zeroshot.py --method bilinear
+    python experiments/pretrained-sr-downscaling/src/eval_zeroshot.py --method bicubic
+    python experiments/pretrained-sr-downscaling/src/eval_zeroshot.py --method swinir --device cuda
 """
 
 import argparse

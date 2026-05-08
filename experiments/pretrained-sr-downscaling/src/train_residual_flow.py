@@ -9,10 +9,10 @@ This separates mean accuracy from stochastic diversity (CorrDiff principle).
 The flow matching produces structured spatial diversity unlike multi-head approaches.
 
 Usage:
-    python src/exp-pretrained-sr/train_residual_flow.py --mode precompute  # step 1
-    python src/exp-pretrained-sr/train_residual_flow.py --mode train       # step 2
-    python src/exp-pretrained-sr/train_residual_flow.py --mode eval        # evaluate
-    python src/exp-pretrained-sr/train_residual_flow.py --mode all         # all three
+    python experiments/pretrained-sr-downscaling/src/train_residual_flow.py --mode precompute  # step 1
+    python experiments/pretrained-sr-downscaling/src/train_residual_flow.py --mode train       # step 2
+    python experiments/pretrained-sr-downscaling/src/train_residual_flow.py --mode eval        # evaluate
+    python experiments/pretrained-sr-downscaling/src/train_residual_flow.py --mode all         # all three
 """
 
 import argparse

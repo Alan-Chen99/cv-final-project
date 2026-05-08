@@ -11,8 +11,8 @@ Training:
 - 2hr wall-clock budget
 
 Usage:
-    python src/exp-pretrained-sr/finetune_swinir.py --epochs 50 --batch_size 64 --lr 2e-4
-    python src/exp-pretrained-sr/finetune_swinir.py --mode eval --checkpoint best
+    python experiments/pretrained-sr-downscaling/src/finetune_swinir.py --epochs 50 --batch_size 64 --lr 2e-4
+    python experiments/pretrained-sr-downscaling/src/finetune_swinir.py --mode eval --checkpoint best
 """
 
 import argparse
