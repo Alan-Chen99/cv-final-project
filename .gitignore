@@ -10,8 +10,6 @@ wheels/
 .venv
 
 # Training artifacts (stay on disk, not in git)
-logs/
-models/
+/logs/
+/models/
 scripts/*.sh.disabled
-models/
-logs/
