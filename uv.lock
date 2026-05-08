@@ -2084,6 +2084,23 @@ wheels = [
 ]
 
 [[package]]
+name = "spandrel"
+version = "0.4.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "einops" },
+    { name = "numpy" },
+    { name = "safetensors" },
+    { name = "torch" },
+    { name = "torchvision" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/2a/8f/ab4565c23dd67a036ab72101a830cebd7ca026b2fddf5771bbf6284f6228/spandrel-0.4.2.tar.gz", hash = "sha256:fefa4ea966c6a5b7721dcf24f3e2062a5a96a395c8bedcb570fb55971fdcbccb", size = 247544, upload-time = "2026-02-21T01:52:26.342Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/74/31/411ea965835534c43d4b98d451968354876e0e867ea1fd42669e4cca0732/spandrel-0.4.2-py3-none-any.whl", hash = "sha256:6c93e3ecbeb0e548fd2df45a605472b34c1614287c56b51bb33cdef7ae5235b5", size = 320811, upload-time = "2026-02-21T01:52:25.015Z" },
+]
+
+[[package]]
 name = "stack-data"
 version = "0.6.3"
 source = { registry = "https://pypi.org/simple" }
@@ -2123,7 +2140,7 @@ wheels = [
 
 [[package]]
 name = "timm"
-version = "1.0.26"
+version = "1.0.27"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "huggingface-hub" },
@@ -2132,9 +2149,9 @@ dependencies = [
     { name = "torch" },
     { name = "torchvision" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7b/1e/e924b3b2326a856aaf68586f9c52a5fc81ef45715eca408393b68c597e0e/timm-1.0.26.tar.gz", hash = "sha256:f66f082f2f381cf68431c22714c8b70f723837fa2a185b155961eab90f2d5b10", size = 2419859, upload-time = "2026-03-23T18:12:10.272Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/08/54/ece85b0eef3700c90db8271a43669b05a0ebbe2edb1962329c34374a297e/timm-1.0.27.tar.gz", hash = "sha256:315dfe63186ca9fb7ff941268941231fd5be259f2b4bb4afa28560ae1015cb9a", size = 2439861, upload-time = "2026-05-08T19:38:36.844Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6f/e9/bebf3d50e3fc847378988235f87c37ad3ac26d386041ab915d15e92025cd/timm-1.0.26-py3-none-any.whl", hash = "sha256:985c330de5ccc3a2aa0224eb7272e6a336084702390bb7e3801f3c91603d3683", size = 2568766, upload-time = "2026-03-23T18:12:08.062Z" },
+    { url = "https://files.pythonhosted.org/packages/1f/2e/26bab7686ff4aed48f8f5f6c23e2aa37b7a37ddd9effe3aa61e908fd518f/timm-1.0.27-py3-none-any.whl", hash = "sha256:5ff07c9ddf53cbada88eab1c93ff175c64cab683b5a2fddf863bcee985926f89", size = 2589280, upload-time = "2026-05-08T19:38:35.034Z" },
 ]
 
 [[package]]
@@ -2362,6 +2379,7 @@ dependencies = [
     { name = "rich" },
     { name = "scikit-image" },
     { name = "scipy" },
+    { name = "spandrel" },
     { name = "timm" },
     { name = "torch" },
     { name = "torchgeometry" },
@@ -2393,6 +2411,7 @@ requires-dist = [
     { name = "rich", specifier = ">=15.0.0" },
     { name = "scikit-image", specifier = ">=0.26.0" },
     { name = "scipy", specifier = ">=1.17.1" },
+    { name = "spandrel", specifier = ">=0.4.2" },
     { name = "timm", specifier = ">=1.0.26" },
     { name = "torch", specifier = ">=2.11.0" },
     { name = "torchgeometry", specifier = ">=0.1.2" },
