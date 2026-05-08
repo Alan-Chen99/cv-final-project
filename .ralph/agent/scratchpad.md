@@ -819,3 +819,50 @@ Report is at **fixed-point**:
 **End**: 2026-05-06 22:22 EDT, commit: 4684aab (no new commits — fixed-point)
 **Duration**: ~1min
 **GPU time**: 0
+
+## Iteration 14
+**Start**: 2026-05-08 ~18:00 EDT, commit ad8a4a9
+**Prefix**: (file reorganization, no GPU needed)
+
+### Concerns
+
+1. **Workflow (followup)**: The followup request asks to `git mv` ALL session files into `experiments/flow-matching-alternatives/`. Only the report and task_summary were moved (dd02cff). Many files remain: experiment scripts, logs, src/exp-spatial-4x-crps-v1/, PROMPT.md, .ralph/agent/{scratchpad,decisions,memories}.md.
+
+2. **Constraint**: `.ralph/agent/scratchpad.md` is auto-injected by the orchestration loop. Moving it will break the loop. Solution: copy to experiments/ rather than move, or move after emitting final event.
+
+### Plan for Iteration 14
+
+**Goal**: Complete the file reorganization followup — move all session-created files to `experiments/flow-matching-alternatives/`, commit, then finalize.
+
+**Files to move (git mv)**:
+- `src/exp-spatial-4x-crps-v1/` → `experiments/flow-matching-alternatives/src/`
+- `scripts/sbatch_logit_normal.sh` → `experiments/flow-matching-alternatives/scripts/`
+- `scripts/sbatch_logit_normal_finetune.sh` → `experiments/flow-matching-alternatives/scripts/`
+- `scripts/eval_ddpm_10k.sh` → `experiments/flow-matching-alternatives/scripts/`
+- `scripts/eval_spectral.sh` → `experiments/flow-matching-alternatives/scripts/`
+- `scripts/train_spectral.sh` → `experiments/flow-matching-alternatives/scripts/`
+- `logs/` → `experiments/flow-matching-alternatives/logs/`
+- `PROMPT.md` → `experiments/flow-matching-alternatives/PROMPT.md`
+
+**Files to copy (needed by orchestration)**:
+- `.ralph/agent/scratchpad.md` → `experiments/flow-matching-alternatives/scratchpad.md`
+- `.ralph/agent/decisions.md` → `experiments/flow-matching-alternatives/decisions.md`
+- `.ralph/agent/memories.md` → `experiments/flow-matching-alternatives/memories.md`
+
+**Exceptions (shared code, stay in place)**:
+- Changes to `src/exp-spatial-4x-crps-v1/unet_cfg_flow.py` that are feature additions (logit-normal, etc.) — but this is experiment-specific code, so it moves too.
+
+### Completed
+
+All files moved successfully (commit cebb407):
+- `src/exp-spatial-4x-crps-v1/` → `experiments/flow-matching-alternatives/src/`
+- 5 scripts → `experiments/flow-matching-alternatives/scripts/`
+- 3 log files → `experiments/flow-matching-alternatives/logs/`
+- `PROMPT.md` → `experiments/flow-matching-alternatives/`
+- Copied scratchpad.md, decisions.md, memories.md → `experiments/flow-matching-alternatives/`
+- Shared scripts (container.sh, gpu_run.sh, etc.) remain in `scripts/`
+
+### End of Iteration 14
+**End**: 2026-05-08 17:57 EDT, commit: cebb407
+**Duration**: ~2min
+**GPU time**: 0
