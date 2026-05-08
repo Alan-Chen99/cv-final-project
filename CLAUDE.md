@@ -125,7 +125,7 @@ IMPORTANT: prior agent notes MUST be taken as CONTEXT ONLY. Verify all claims be
 | 2026-05-05 | Spatial 4x CRPS Experiment (research2 branch report) | [notes/2026-05-05-spatial-4x-crps-experiment.md](notes/2026-05-05-spatial-4x-crps-experiment.md) |
 | 2026-05-05 | Cross-Comparison: Flow Matching Experiments | [notes/2026-05-05-cross-comparison.md](notes/2026-05-05-cross-comparison.md) |
 | 2026-05-05 | Ralph Workflow Hang Diagnosis: research3/research4 | [notes/2026-05-05-ralph-hang-diagnosis.md](notes/2026-05-05-ralph-hang-diagnosis.md) |
-| 2026-05-06 | research3 Branch Report: Architecture & Training Optimization | [notes/2026-05-06-research3-report.md](notes/2026-05-06-research3-report.md) |
+| 2026-05-06 | research3 Branch Report: Architecture & Training Optimization | [experiments/spatial-4x-flow-matching/2026-05-06-research3-report.md](experiments/spatial-4x-flow-matching/2026-05-06-research3-report.md) |
 
 # Papers
 

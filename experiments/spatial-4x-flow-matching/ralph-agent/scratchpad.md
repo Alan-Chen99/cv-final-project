@@ -807,29 +807,3 @@ Report has reached fixed-point. All substantive claims verified. Remaining issue
 **ONE thing:** Delegate to Worker to move all session files into experiments/ and commit.
 
 After worker completes, this objective is done → emit work.fixed-point → Summarizer → LOOP_COMPLETE.
-
-## Iteration 15
-**Start:** 2026-05-08 17:51 EDT, commit 2b19c5b
-
-### Orientation
-- Prior iteration (14) planned the file moves but did not execute them
-- Task: move all session-created files into `experiments/spatial-4x-flow-matching/`
-
-### Concerns (3+)
-
-1. **Workflow:** Prior iteration 14 planned the moves but delegated to a Worker that never executed. The files were still in their original locations. This iteration must do the actual work.
-
-2. **Quality:** `.ralph/agent/` files are needed by the workflow system for context injection. Moving them would break the next iteration's scratchpad loading. Solution: COPY to experiments/ rather than move.
-
-3. **Workflow:** The CLAUDE.md notes table still pointed to `notes/2026-05-06-research3-report.md` but the file was already at `experiments/spatial-4x-flow-matching/2026-05-06-research3-report.md`. Path was stale since iter-14's commit 6f7f36e.
-
-### Actions taken
-- Created `experiments/spatial-4x-flow-matching/{ralph-agent,logs,scripts,src}/`
-- `git mv` 9 log files → experiments/.../logs/
-- `git mv` 7 session scripts → experiments/.../scripts/
-- `git mv` 8 session src files → experiments/.../src/
-- `git mv PROMPT.md` → experiments/.../
-- Copied .ralph/agent/{decisions,memories,scratchpad}.md → experiments/.../ralph-agent/ (kept originals for workflow)
-- Updated CLAUDE.md notes table path to experiments/ location
-
-**End:** 2026-05-08 17:55 EDT
