@@ -715,3 +715,71 @@ The only actionable change is updating the report's final commit field. After th
 
 **Ending time:** ~03:08 EDT
 **Ending commit:** 82ac024
+
+## Iteration 12 — 2026-05-07 03:09 EDT
+**Starting commit:** a542ebf
+
+### Current State
+- Time: ~42hr elapsed. Well past 40hr mark.
+- GPU: none from this branch. node4210 (sweep-gpu1) not ours.
+- Best CRPS: 0.173 (SwinIR-conditioned OT-CFM, 20 steps, 10K test)
+- Report: written (iter 9), corrected (iter 10), final commit fixed (iter 11)
+- Git: clean (only .ralph/ runtime files untracked)
+- Tasks: none ready
+
+### Concerns (3 problems)
+
+1. **Quality: Report is complete, verified, and stable.** Three consecutive review iterations (9-11) each made smaller changes. Iteration 9 wrote the full report. Iteration 10 fixed 3 factual errors. Iteration 11 fixed the final commit placeholder. No errors or omissions found in this review.
+
+2. **Workflow: No further work possible.** Past 40hr mark, no GPU, no open tasks. The objective specified "no more new ideas or new training jobs" after 40hr. Report writing and review is complete.
+
+3. **Quality: Convergence confirmed.** Iterations 10→11→12 show diminishing returns: factual fixes → placeholder fix → nothing to change. This is textbook fixed-point convergence.
+
+### Direction: Declare fixed-point
+
+No changes to any non-`.ralph/` files. Report and all artifacts are final.
+
+**Ending time:** ~03:10 EDT
+**Ending commit:** a542ebf (no new commits)
+
+## Iteration 13 — 2026-05-08 (resumed)
+
+### Current State
+- Research work: complete, fixed-point at iteration 12
+- Report: written, corrected, finalized
+- Followup file reorganization: INCOMPLETE
+- Only report + task_summary moved to `experiments/pretrained-sr-downscaling/`
+- Still in original locations: `src/exp-pretrained-sr/` (9 scripts + 3 figures), `figures/dit_flow_training.png`, `PROMPT.md`
+
+### Concerns
+
+1. **Followup not fully addressed.** The user requested ALL session files moved to `experiments/pretrained-sr-downscaling/`. Only report + task_summary were moved (commit 892f4b3). Training scripts, figures, and PROMPT.md remain in original locations.
+
+2. **Scratchpad should be copied.** Followup says "scratchpad, prompt etc" should be included. Copy scratchpad to experiment dir (can't move since .ralph/ is runtime state).
+
+### Direction: Complete file reorganization
+
+Delegate to Worker to:
+1. `git mv src/exp-pretrained-sr/ experiments/pretrained-sr-downscaling/src/`
+2. `git mv figures/dit_flow_training.png experiments/pretrained-sr-downscaling/figures/`
+3. `git mv PROMPT.md experiments/pretrained-sr-downscaling/`
+4. Copy scratchpad to `experiments/pretrained-sr-downscaling/scratchpad.md`
+5. Update CLAUDE.md notes table path if needed
+6. Commit
+
+Exceptions (stay in position per followup): CLAUDE.md changes, pyproject.toml, uv.lock (shared code/deps)
+
+### Completed
+- Moved all 9 training scripts from `src/exp-pretrained-sr/` → `experiments/pretrained-sr-downscaling/src/`
+- Moved 3 figures from `src/exp-pretrained-sr/figures/` → `experiments/pretrained-sr-downscaling/figures/`
+- Moved `figures/dit_flow_training.png` → `experiments/pretrained-sr-downscaling/figures/`
+- Moved `PROMPT.md` → `experiments/pretrained-sr-downscaling/`
+- Copied scratchpad to `experiments/pretrained-sr-downscaling/scratchpad.md`
+- Updated all path references in report, task_summary, and 9 scripts
+- Updated CLAUDE.md notes table with new report path
+- Cleaned up empty `src/exp-pretrained-sr/` and `figures/` directories
+
+**Starting time:** 17:56 EDT
+**Starting commit:** a6b91d5
+**Ending time:** 18:02 EDT
+**Ending commit:** 6286fd5
