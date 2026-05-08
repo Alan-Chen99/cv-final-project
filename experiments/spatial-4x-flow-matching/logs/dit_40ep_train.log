@@ -1,0 +1,111 @@
+[2026-05-05T16:32:03.794] error: couldn't chdir to `/workspace': No such file or directory: going to /tmp instead
+[2026-05-05T16:32:03.795] error: couldn't chdir to `/workspace': No such file or directory: going to /tmp instead
+=== DiT Flow Training ===
+Date: Tue May  5 16:32:04 EDT 2026
+Node: node3404
+JobID: 13360243
+Loading data...
+DiT: patch_size=8, hidden=256, depth=12, heads=4
+#params: 14,580,032
+#patches: 256
+Epoch 1/40, Train: 0.900436, Val: 0.630769, LR: 0.000100, Time: 0.6min
+  -> New best! Saved checkpoint.
+Epoch 2/40, Train: 0.589340, Val: 0.557402, LR: 0.000099, Time: 1.1min
+  -> New best! Saved checkpoint.
+Epoch 3/40, Train: 0.540273, Val: 0.523282, LR: 0.000099, Time: 1.6min
+  -> New best! Saved checkpoint.
+Epoch 4/40, Train: 0.515631, Val: 0.506108, LR: 0.000098, Time: 2.1min
+  -> New best! Saved checkpoint.
+Epoch 5/40, Train: 0.499913, Val: 0.492087, LR: 0.000096, Time: 2.7min
+  -> New best! Saved checkpoint.
+Epoch 6/40, Train: 0.489680, Val: 0.481052, LR: 0.000095, Time: 3.2min
+  -> New best! Saved checkpoint.
+Epoch 7/40, Train: 0.478020, Val: 0.473096, LR: 0.000093, Time: 3.7min
+  -> New best! Saved checkpoint.
+Epoch 8/40, Train: 0.468809, Val: 0.466556, LR: 0.000090, Time: 4.2min
+  -> New best! Saved checkpoint.
+Epoch 9/40, Train: 0.462092, Val: 0.456940, LR: 0.000088, Time: 4.8min
+  -> New best! Saved checkpoint.
+Epoch 10/40, Train: 0.453159, Val: 0.451164, LR: 0.000085, Time: 5.3min
+  -> New best! Saved checkpoint.
+Epoch 11/40, Train: 0.448223, Val: 0.448184, LR: 0.000082, Time: 5.8min
+  -> New best! Saved checkpoint.
+Epoch 12/40, Train: 0.443780, Val: 0.442330, LR: 0.000079, Time: 6.3min
+  -> New best! Saved checkpoint.
+Epoch 13/40, Train: 0.436635, Val: 0.436107, LR: 0.000076, Time: 6.9min
+  -> New best! Saved checkpoint.
+Epoch 14/40, Train: 0.434284, Val: 0.433787, LR: 0.000073, Time: 7.4min
+  -> New best! Saved checkpoint.
+Epoch 15/40, Train: 0.431417, Val: 0.430170, LR: 0.000069, Time: 7.9min
+  -> New best! Saved checkpoint.
+Epoch 16/40, Train: 0.427784, Val: 0.424850, LR: 0.000065, Time: 8.4min
+  -> New best! Saved checkpoint.
+Epoch 17/40, Train: 0.425151, Val: 0.425907, LR: 0.000062, Time: 9.0min
+Epoch 18/40, Train: 0.421066, Val: 0.420467, LR: 0.000058, Time: 9.5min
+  -> New best! Saved checkpoint.
+Epoch 19/40, Train: 0.420034, Val: 0.419189, LR: 0.000054, Time: 10.0min
+  -> New best! Saved checkpoint.
+Epoch 20/40, Train: 0.416350, Val: 0.415137, LR: 0.000050, Time: 10.6min
+  -> New best! Saved checkpoint.
+Epoch 21/40, Train: 0.414414, Val: 0.413087, LR: 0.000046, Time: 11.1min
+  -> New best! Saved checkpoint.
+Epoch 22/40, Train: 0.409755, Val: 0.407490, LR: 0.000042, Time: 11.6min
+  -> New best! Saved checkpoint.
+Epoch 23/40, Train: 0.406526, Val: 0.403147, LR: 0.000038, Time: 12.1min
+  -> New best! Saved checkpoint.
+Epoch 24/40, Train: 0.399114, Val: 0.398743, LR: 0.000035, Time: 12.7min
+  -> New best! Saved checkpoint.
+Epoch 25/40, Train: 0.394094, Val: 0.394193, LR: 0.000031, Time: 13.2min
+  -> New best! Saved checkpoint.
+Epoch 26/40, Train: 0.389115, Val: 0.387112, LR: 0.000027, Time: 13.7min
+  -> New best! Saved checkpoint.
+Epoch 27/40, Train: 0.383802, Val: 0.383948, LR: 0.000024, Time: 14.2min
+  -> New best! Saved checkpoint.
+Epoch 28/40, Train: 0.380979, Val: 0.383683, LR: 0.000021, Time: 14.8min
+  -> New best! Saved checkpoint.
+Epoch 29/40, Train: 0.379660, Val: 0.378657, LR: 0.000018, Time: 15.3min
+  -> New best! Saved checkpoint.
+Epoch 30/40, Train: 0.377023, Val: 0.377079, LR: 0.000015, Time: 15.8min
+  -> New best! Saved checkpoint.
+Epoch 31/40, Train: 0.373659, Val: 0.375554, LR: 0.000012, Time: 16.3min
+  -> New best! Saved checkpoint.
+Epoch 32/40, Train: 0.371768, Val: 0.372730, LR: 0.000010, Time: 16.9min
+  -> New best! Saved checkpoint.
+Epoch 33/40, Train: 0.369242, Val: 0.370216, LR: 0.000007, Time: 17.4min
+  -> New best! Saved checkpoint.
+Epoch 34/40, Train: 0.367020, Val: 0.368591, LR: 0.000005, Time: 17.9min
+  -> New best! Saved checkpoint.
+Epoch 35/40, Train: 0.368640, Val: 0.368566, LR: 0.000004, Time: 18.4min
+  -> New best! Saved checkpoint.
+Epoch 36/40, Train: 0.365879, Val: 0.365949, LR: 0.000002, Time: 19.0min
+  -> New best! Saved checkpoint.
+Epoch 37/40, Train: 0.365646, Val: 0.367422, LR: 0.000001, Time: 19.5min
+Epoch 38/40, Train: 0.365302, Val: 0.367359, LR: 0.000001, Time: 20.0min
+Epoch 39/40, Train: 0.364024, Val: 0.362542, LR: 0.000000, Time: 20.5min
+  -> New best! Saved checkpoint.
+Epoch 40/40, Train: 0.363633, Val: 0.366404, LR: 0.000000, Time: 21.1min
+
+Training complete. Best val loss: 0.362542
+Total time: 21.1 min
+TRAINING COMPLETE
+Evaluating 2000 samples, 10 ensemble, 10 Euler steps, constraint=addcl...
+Model: DiT, patch_size=8, hidden=256, depth=12
+Model epoch: 39, val_loss: 0.362542
+  Processed 32/2000...
+  Processed 352/2000...
+  Processed 672/2000...
+  Processed 992/2000...
+  Processed 1312/2000...
+  Processed 1632/2000...
+  Processed 1952/2000...
+
+Results (test, 10 ens, 10 Euler steps, constraint=addcl):
+  CRPS (paper/buggy): 0.116846
+  CRPS (correct):     0.216116
+  MAE:                0.301705
+  RMSE:               0.625541
+  Mass violation:     0.000001
+EVAL COMPLETE
+
+=== Done ===
+Date: Tue May  5 16:54:12 EDT 2026
