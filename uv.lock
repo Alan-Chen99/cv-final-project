@@ -2139,6 +2139,22 @@ wheels = [
 ]
 
 [[package]]
+name = "timm"
+version = "1.0.27"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "huggingface-hub" },
+    { name = "pyyaml" },
+    { name = "safetensors" },
+    { name = "torch" },
+    { name = "torchvision" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/08/54/ece85b0eef3700c90db8271a43669b05a0ebbe2edb1962329c34374a297e/timm-1.0.27.tar.gz", hash = "sha256:315dfe63186ca9fb7ff941268941231fd5be259f2b4bb4afa28560ae1015cb9a", size = 2439861, upload-time = "2026-05-08T19:38:36.844Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1f/2e/26bab7686ff4aed48f8f5f6c23e2aa37b7a37ddd9effe3aa61e908fd518f/timm-1.0.27-py3-none-any.whl", hash = "sha256:5ff07c9ddf53cbada88eab1c93ff175c64cab683b5a2fddf863bcee985926f89", size = 2589280, upload-time = "2026-05-08T19:38:35.034Z" },
+]
+
+[[package]]
 name = "torch"
 version = "2.11.0"
 source = { registry = "https://pypi.org/simple" }
@@ -2345,6 +2361,7 @@ name = "workspace"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [
+    { name = "einops" },
     { name = "gcsfs" },
     { name = "gdown" },
     { name = "huggingface-hub" },
@@ -2363,6 +2380,7 @@ dependencies = [
     { name = "scikit-image" },
     { name = "scipy" },
     { name = "spandrel" },
+    { name = "timm" },
     { name = "torch" },
     { name = "torchgeometry" },
     { name = "torchmetrics" },
@@ -2375,6 +2393,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
+    { name = "einops", specifier = ">=0.8.2" },
     { name = "gcsfs", specifier = ">=2026.3.0" },
     { name = "gdown", specifier = ">=6.0.0" },
     { name = "huggingface-hub", specifier = ">=1.12.2" },
@@ -2393,6 +2412,7 @@ requires-dist = [
     { name = "scikit-image", specifier = ">=0.26.0" },
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "spandrel", specifier = ">=0.4.2" },
+    { name = "timm", specifier = ">=1.0.26" },
     { name = "torch", specifier = ">=2.11.0" },
     { name = "torchgeometry", specifier = ">=0.1.2" },
     { name = "torchmetrics", specifier = ">=1.9.0" },
