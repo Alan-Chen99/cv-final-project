@@ -19,6 +19,21 @@ Project skills live in `skills/` (symlinked from `.claude/skills`). Use them —
 .
 ├── .claude/
 │   └── skills -> ../skills       # symlink
+├── src/downscaling/               # persistent, maintained library code
+│   ├── models/                    #   UNet, building blocks
+│   ├── data/                      #   ERA5 data loading
+│   ├── metrics/                   #   CRPS (energy + paper), MAE, RMSE
+│   ├── constraints/               #   AddCL, SmCL constraint layers
+│   ├── sampling/                  #   ODE solvers, timestep strategies
+│   ├── training/                  #   Flow matching trainer, EMA
+│   ├── evaluation/                #   Model evaluation pipelines
+│   └── plotting/                  #   Visualization code
+├── tests/                         # integration tests (GPU required)
+├── experiments/                   # frozen experiment code (read-only after merge)
+│   ├── spatial-4x-flow-matching/  # research2-3: core flow matching + ablations
+│   ├── flow-matching-alternatives/ # research4: DDPM, DiT, CFG variants
+│   ├── flow-matching-zscore-normalization/ # research6: z-score norm + zero-shot
+│   └── pretrained-sr-downscaling/ # research5: pretrained SwinIR approaches
 ├── skills/                        # project-wide Claude skills
 │   ├── long-running-commands/
 │   └── slurm-preemptable/
@@ -34,6 +49,24 @@ Project skills live in `skills/` (symlinked from `.claude/skills`). Use them —
 ├── CLAUDE.md
 ├── pyproject.toml
 └── uv.lock
+```
+
+### src/ vs experiments/
+
+- **`src/downscaling/`**: Maintained library. Canonical implementations of models, metrics,
+  constraints, data loading. All new code goes here. Must pass ruff, basedpyright, tests.
+- **`experiments/`**: Frozen experiment snapshots from research branches. Each subdirectory
+  was active during a research iteration and is frozen after merge. Do not modify — use as
+  reference only. New experiments should import from `src/downscaling/`.
+
+### Dev tools
+
+```bash
+ruff check src/ tests/       # lint
+ruff format src/ tests/      # format
+basedpyright src/            # type check
+pytest tests/ -v             # integration tests (GPU)
+pytest --cov=downscaling     # coverage
 ```
 
 # Project

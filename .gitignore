@@ -13,5 +13,8 @@ wheels/
 logs/
 models/
 scripts/*.sh.disabled
-models/
-logs/
+
+# Coverage
+.coverage
+htmlcov/
+coverage.xml
