@@ -98,6 +98,8 @@ evaluation metric.
 - **Fixed pre-existing lint issues**: zip strict=True, format fixes
 - All checks pass: 24 tests, 0 ruff errors, 0 basedpyright errors
 
+**End:** 2026-05-08 19:27 EDT | commit: 740d936
+
 ### Next iterations should focus on
 - Task (3): Extract training loop into src/downscaling/training.py
 - Task (5): Evaluation baselines (bilinear, bilinear+AddCL, etc.)
