@@ -53,29 +53,6 @@ Since that work, diffusion models have become the state of the art for both imag
 - **GenDiff** (2404.17752): Generative diffusion-based downscaling across climate variables. Ensemble generation for uncertainty quantification.
 - **WassDiff** (2410.00381): Score-based diffusion with Wasserstein distance regularization. Better extreme value capture than standard score matching.
 
-## Research Directions
-
-### Bridging foundation models and task-specific downscaling
-
-These directions exploit the gap between the two disconnected lineages (see [notes/2026-04-27](notes/2026-04-27-foundation-models-vs-downscaling.md)).
-
-6. **Pretrained ViT backbone + diffusion head + constraints**: Use frozen/LoRA'd Prithvi WxC as encoder in CorrDiff-style two-stage setup. SmCL on deterministic mean, diffusion for stochastic residuals. No existing work combines all three.
-7. **DiT for climate downscaling**: All downscaling diffusion papers use UNet backbones. Transformer-based score networks (DiT) are untested in climate downscaling and are a natural fit with foundation model pretraining.
-8. **Foundation model on real GCM→RCM distribution shift**: Prithvi WxC only demonstrated perfect-model downscaling (coarsen-then-recover). Testing on actual GCM→RCM pairs measures whether pretrained representations transfer across the distribution gap.
-
-### Constraints + modern generative models
-
-1. **Constraint layers + diffusion**: Can SmCL/AddCL be applied to the output of a diffusion denoising step or to the final sample? The constraint is a differentiable projection — it should compose with any generator.
-2. **Latent diffusion for efficiency**: Harder et al. used 128x128 patches. Latent diffusion (2112.10752) compresses to a lower-dim latent space, enabling higher resolution and faster sampling. Constraints could be applied after decoding.
-3. **Residual diffusion with constraints**: CorrDiff's two-step (mean + stochastic residual) naturally separates the conservation-satisfying component (mean) from fine detail (residual). Constraining only the mean prediction and letting diffusion handle texture may be cleaner than constraining the full output.
-4. **Constrained stochastic interpolants**: CDSI outperforms CorrDiff, starts from LR field instead of noise. SmCL on the final output is straightforward. Probably lowest-hanging fruit for constraints + modern generative model.
-5. **Multi-variable constraints in generative framework**: 1EMD shows multi-variable ViT downscaling works but has no constraints. Multi-variable constraints paper (2308.01868) only handles Tmin/Tmean/Tmax in UNet. Combining both in a generative model is open.
-
-### Extensions
-
-6. **Spatiotemporal extension**: Harder et al.'s FlowConvGRU was a first attempt at joint spatial-temporal SR. Video diffusion (STVD) is a more capable framework for this. Conservation constraints across time frames remain unexplored.
-7. **Extreme events**: WassDiff shows standard diffusion underestimates extremes. Wasserstein regularization or tail-aware losses could combine with hard constraints that already help in coastal/mountainous regions.
-
 # Pool data (not in git)
 
 Located on `/home/chenxy/orcd/pool/datasets/` (pool disk). Data MUST go here, never in `/workspace` or worktrees. Symlink into worktrees as needed.
