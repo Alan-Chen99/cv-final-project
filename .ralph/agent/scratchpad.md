@@ -343,3 +343,31 @@ Fixed 3 issues:
 All checks pass: ruff lint clean, ruff format clean, basedpyright 0 errors (2 PyTorch warnings)
 
 **End**: 2026-05-08 20:49 EDT | **Ending commit**: 72cec91
+
+## Iteration 7
+**Start**: 2026-05-08 20:50 EDT | **Commit**: c4307a9
+**Prefix**: fpxk-fmqf
+
+### Orientation
+All 7 original tasks completed in iterations 1-6. Iteration 6 was a review pass.
+This iteration: continued review with actual test execution.
+
+### Top Concerns
+
+1. **FACT (critical)**: REPORT.md line 239 claims "51 tests in tests/, 94% coverage."
+   Actual measured coverage is **62%**. The 94% was valid in iteration 2 when only 9 source
+   modules existed. Iterations 3-4 added 4 new modules (baselines.py, checkpoints.py,
+   plotting/metrics.py, plotting/samples.py) with ZERO test coverage. No iteration after #2
+   re-measured coverage. The claim is now false.
+
+2. **Quality**: evaluation/baselines.py has 30% coverage (11/37 stmts). This module computes
+   the baseline numbers in the report table. If the code has bugs, the comparison is invalid.
+   The task requires "100% coverage on core logic." Baselines ARE core logic.
+
+3. **Quality (minor)**: flow_matching.py resume path (line 210) fast-forwards scheduler with
+   scheduler.step() before optimizer.step(), triggering PyTorch warning. Functionally correct
+   but should save/load scheduler state dict instead. Low priority.
+
+### Plan for this iteration
+**DO ONE THING**: Fix coverage gap — add tests for baselines.py + checkpoints.py, configure
+coverage to exclude plotting (boilerplate), and update REPORT.md with accurate numbers.

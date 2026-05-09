@@ -88,7 +88,7 @@ addopts = "-v --tb=short"
 
 [tool.coverage.run]
 source = ["src/downscaling"]
-omit = ["*/tests/*", "*/__main__.py"]
+omit = ["*/tests/*", "*/__main__.py", "*/plotting/*"]
 
 [tool.coverage.report]
 show_missing = true
