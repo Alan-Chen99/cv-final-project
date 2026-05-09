@@ -176,5 +176,5 @@ Verified: 64→32→16→8→4→2→conv1(padding=1)→4→avgpool→1. Accepta
 - Train SwinIR on NorESM (zero-shot + finetuned) — or skip if SwinIR doesn't support 2x
 - Then evaluate all models and produce eval_results JSON
 
-### Ending commit: (pending)
-### Ending time: (pending)
+### Ending commit: 152957a
+### Ending time: 2026-05-09T23:09:47Z
