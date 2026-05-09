@@ -32,18 +32,6 @@
       "n_ensemble": 1
     },
     {
-      "method": "bilinear",
-      "constraint": "smcl",
-      "crps": NaN,
-      "crps_paper": NaN,
-      "mae": NaN,
-      "rmse": NaN,
-      "mass_violation": NaN,
-      "spread": 0.0,
-      "n_samples": 200,
-      "n_ensemble": 1
-    },
-    {
       "method": "bicubic",
       "constraint": "none",
       "crps": 0.410631464952603,
@@ -63,18 +51,6 @@
       "mae": 0.37857615591026844,
       "rmse": 0.7500194012906606,
       "mass_violation": 1.4108299001236445e-06,
-      "spread": 0.0,
-      "n_samples": 200,
-      "n_ensemble": 1
-    },
-    {
-      "method": "bicubic",
-      "constraint": "smcl",
-      "crps": NaN,
-      "crps_paper": NaN,
-      "mae": NaN,
-      "rmse": NaN,
-      "mass_violation": NaN,
       "spread": 0.0,
       "n_samples": 200,
       "n_ensemble": 1

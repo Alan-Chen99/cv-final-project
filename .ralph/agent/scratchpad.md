@@ -288,8 +288,56 @@ verified numbers. No visualization code in src/, no report file.
   members show meaningful diversity (MAE 0.666-0.743), constraint effect clearly visible
 - All checks pass: 31 non-GPU tests, 0 ruff errors, 0 basedpyright errors
 
-**End:** 2026-05-08 20:55 EDT | commit: (pending)
+**End:** 2026-05-08 20:55 EDT | commit: 86f8599
 
 ### Next iterations should focus on
 - Task (7): Write report file
 - Clean up eval_results.json (remove NaN SmCL entries)
+
+## Iteration 6
+**Start:** 2026-05-08 20:53 EDT | commit: 86f8599
+**Prefix:** iter6-8020
+
+### Orientation
+
+Iters 1-5 built the complete shared library, ran evaluations, and generated visualizations.
+No report file exists. This is the last remaining task item.
+
+### Top 3 Concerns
+
+1. **Workflow: No report file** — Task (7) explicitly requests "write a report file tracked in git.
+   Have subsequent iterations review and revise." This is the primary remaining gap. All data
+   and figures exist; just need to synthesize into a coherent document.
+
+2. **Quality: 200-sample flow model numbers vs 10K baseline numbers** — The eval_200samples.json
+   contains flow model results on 200 test samples only, while baselines were evaluated on
+   full 10K. The report must clearly distinguish these sample sizes to avoid misleading
+   comparisons. Research3 report has 10K flow model numbers (CRPS=0.1676) which are more
+   authoritative.
+
+3. **Quality: eval_results.json contains NaN entries** — First eval run included SmCL
+   which produces NaN. This file should be cleaned up or clearly marked as superseded by
+   eval_200samples.json.
+
+### Plan for this iteration
+
+**Focus: Task (7) — Write REPORT.md**
+
+Synthesize all results, methodology, and findings into a single report document.
+Use verified numbers from results/*.json and research3 branch report.
+
+### Completed
+
+- **Created REPORT.md** — comprehensive report covering:
+  - Results tables (200-sample and 10K where available)
+  - Method description (OT-CFM, UNet architecture, AddCL constraint)
+  - Training recipe
+  - Solver comparison
+  - 8 key findings
+  - Project structure
+  - Reproducibility instructions
+  - Limitations and future work
+- All linters pass: ruff, basedpyright, 31 non-GPU tests passing
+- Report clearly distinguishes 200-sample vs 10K evaluation counts
+
+**End:** 2026-05-08 20:56 EDT | commit: 65e86ac
