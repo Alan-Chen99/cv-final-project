@@ -522,3 +522,35 @@ Both are in the same section and constitute a single documentation accuracy fix.
 - Visually inspected all 6 figures — all match JSON data, no anomalies
 
 **End:** 2026-05-08 21:26 EDT | commit: ac97a80
+
+## Iteration 11
+**Start:** 2026-05-08 21:28 EDT | commit: e747d94
+**Prefix:** iter11-4467
+
+### Orientation
+
+Iters 1-10 completed all 7 task items. All checks pass (35 CPU, 16 GPU-skip), ruff clean,
+basedpyright clean. Deep review of all source files, tests, JSON data, and report.
+
+### Top 3 Concerns
+
+1. **Fact: Report logit-normal RMSE is 0.478, JSON says 0.477** —
+   `eval_200samples.json` has logit-normal AddCL RMSE = 0.47749350646343675.
+   Rounding to 3dp: 0.477 (digit after 7 is 4 < 5 → round down).
+   But REPORT.md line 22 says 0.478. Factual inaccuracy in user-facing table.
+   Propagated from scratchpad iter4 which first rounded incorrectly.
+
+2. **Quality: No explicit documentation of experiments/ convention** —
+   Task (2) says "document this" about experiments/ being frozen after use.
+   REPORT.md has one-line "Frozen experiment code (4 directories, 6 branches)"
+   but no explanation of the freeze convention, what each dir contains, or how
+   experiments/ relates to src/. Low priority since CLAUDE.md already describes
+   the directory structure.
+
+3. **Quality: eval_results.json is redundant** — Contains only baselines, same
+   numbers as in eval_200samples.json. Two files with overlapping data. Harmless
+   but mildly confusing. Not worth removing (could break future references).
+
+### Plan for this iteration
+
+Fix concern 1: correct RMSE rounding in REPORT.md (0.478 → 0.477).

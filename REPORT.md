@@ -19,7 +19,7 @@ Best model achieves **CRPS = 0.168** (10K test) — a 45% improvement over the G
 | Bicubic | AddCL | 0.379 | 0.379 | 0.750 | ≈0 | 0.000 |
 | **Wide96 UNet** | **None** | **0.180** | **0.263** | **0.471** | 0.005 | 0.281 |
 | **Wide96 UNet** | **AddCL** | **0.180** | **0.262** | **0.471** | **≈0** | 0.281 |
-| Logit-normal UNet | AddCL | 0.181 | 0.265 | 0.478 | ≈0 | 0.287 |
+| Logit-normal UNet | AddCL | 0.181 | 0.265 | 0.477 | ≈0 | 0.287 |
 | Base64 z-score | AddCL | 0.184 | 0.268 | 0.482 | ≈0 | 0.288 |
 | Base64 uniform | AddCL | 0.184 | 0.268 | 0.482 | ≈0 | 0.288 |
 | CFG UNet | AddCL | 0.184 | 0.269 | 0.483 | ≈0 | 0.286 |
