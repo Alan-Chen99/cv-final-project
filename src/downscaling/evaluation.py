@@ -235,7 +235,7 @@ def load_flow_checkpoint(
     from downscaling.models.unet import AttentionUNet
 
     ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
-    args = ckpt["args"]
+    args = ckpt.get("args", {})
 
     channel_mults = args.get("channel_mults_tuple", (1, 2, 4))
     if isinstance(channel_mults, str):

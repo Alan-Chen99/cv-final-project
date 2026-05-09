@@ -155,7 +155,7 @@ src/downscaling/
     ├── dit.py         # DiT (Vision Transformer variant)
     └── ddpm.py        # DDPMSchedule, ddim_sample
 
-tests/                 # 50 integration tests (34 CPU, 16 GPU-only)
+tests/                 # 51 integration tests (35 CPU, 16 GPU-only)
 scripts/
 ├── evaluate_all.py    # Run evaluations on all methods
 └── visualize.py       # Generate all figures

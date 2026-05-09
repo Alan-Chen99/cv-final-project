@@ -380,4 +380,45 @@ Iters 1-6 completed all 7 task items. Reviewing for accuracy and correctness.
   - 58%: training (GPU-only tests)
   - 15-24%: models, sampling, evaluation (GPU-only tests)
 
-**End:** 2026-05-08 21:05 EDT | commit: (pending)
+**End:** 2026-05-08 21:05 EDT | commit: 795f715
+
+## Iteration 8
+**Start:** 2026-05-08 21:09 EDT | commit: 795f715
+**Prefix:** iter8-ckpt
+
+### Orientation
+
+Iters 1-7 completed all 7 task items. All tests pass (34 CPU, 16 GPU-skip), linters clean.
+Report numbers verified against JSON files — consistent.
+
+### Top 3 Concerns
+
+1. **Quality: train_flow_matching() saves checkpoints without model args, but
+   load_flow_checkpoint() requires ckpt["args"]** — `train_flow_matching()` saves only
+   `model`, `optimizer`, `epoch`, `val_loss`. But `load_flow_checkpoint()` does
+   `args = ckpt["args"]` and uses it to reconstruct AttentionUNet. The existing pool
+   checkpoints work because they were saved by experiment code that included args.
+   If someone trains with the canonical pipeline and then evaluates, it crashes with
+   `KeyError: 'args'`. The train→eval path is broken.
+
+2. **Quality: Duplicate dev dependency specs in pyproject.toml** — Both
+   `[project.optional-dependencies].dev` and `[dependency-groups].dev` exist with
+   different version pins. `uv` uses `[dependency-groups]`, so the optional-deps
+   section is dead code. Minor but confusing.
+
+3. **Quality: Report's 10K flow model numbers are from experiment code, not canonical pipeline** —
+   The "Full Test Set (10K)" table says "From research3 branch report". These numbers
+   were produced by experiment-specific code, not by `scripts/evaluate_all.py`. While
+   they're likely correct (same formulas), they weren't independently verified through
+   the canonical pipeline. Acceptable because running 10K takes ~50min per model, but
+   should be documented as caveat.
+
+### Plan for this iteration
+
+**Focus: Fix the train→eval checkpoint incompatibility (concern 1)**
+
+1. Update `train_flow_matching()` to save model architecture args in checkpoint
+2. Update `train_step()` docs to note the saved checkpoint format
+3. Add test verifying the roundtrip (train checkpoint → load → eval)
+4. Remove duplicate dependency specs (concern 2)
+5. Verify all checks pass

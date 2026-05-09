@@ -309,15 +309,6 @@ data = [
     { name = "xarray" },
     { name = "zarr" },
 ]
-dev = [
-    { name = "basedpyright" },
-    { name = "black" },
-    { name = "coverage" },
-    { name = "isort" },
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-]
 train = [
     { name = "wandb" },
 ]
@@ -335,20 +326,13 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "basedpyright", marker = "extra == 'dev'", specifier = ">=1.29.0" },
-    { name = "black", marker = "extra == 'dev'", specifier = ">=25.1.0" },
-    { name = "coverage", extras = ["toml"], marker = "extra == 'dev'", specifier = ">=7.8.0" },
     { name = "einops", specifier = ">=0.8.2" },
     { name = "gcsfs", marker = "extra == 'data'", specifier = ">=2026.3.0" },
     { name = "gdown", marker = "extra == 'data'", specifier = ">=6.0.0" },
     { name = "huggingface-hub", marker = "extra == 'data'", specifier = ">=1.12.2" },
-    { name = "isort", marker = "extra == 'dev'", specifier = ">=6.0.0" },
     { name = "matplotlib", specifier = ">=3.10.9" },
     { name = "netcdf4", marker = "extra == 'data'", specifier = ">=1.7.4" },
     { name = "numpy", specifier = ">=2.4.4" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=7.0.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.11.0" },
     { name = "scipy", specifier = ">=1.17.1" },
     { name = "spandrel", specifier = ">=0.4.2" },
     { name = "torch", specifier = ">=2.11.0" },
@@ -358,7 +342,7 @@ requires-dist = [
     { name = "xarray", marker = "extra == 'data'", specifier = ">=2026.4.0" },
     { name = "zarr", marker = "extra == 'data'", specifier = ">=3.1.6" },
 ]
-provides-extras = ["dev", "data", "train"]
+provides-extras = ["data", "train"]
 
 [package.metadata.requires-dev]
 dev = [

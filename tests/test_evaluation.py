@@ -77,6 +77,30 @@ class TestLoadFlowCheckpoint:
             )
 
 
+    def test_load_without_args_uses_defaults(self, tmp_path):
+        """Checkpoints without 'args' key should load with default architecture."""
+        model = AttentionUNet(in_channels=2, out_channels=1, base_channels=64, channel_mults=(1, 2, 4))
+        stats = NormStats(res_mean=0.0, res_std=1.0, lr_mean=10.0, lr_std=5.0)
+
+        ckpt_path = str(tmp_path / "best_flow.pt")
+        stats_path = str(tmp_path / "norm_stats.pt")
+
+        # Save without args (legacy format)
+        torch.save(
+            {"model": model.state_dict(), "optimizer": {}, "epoch": 5, "val_loss": 0.3},
+            ckpt_path,
+        )
+        stats.save(stats_path)
+
+        loaded_model, _ = load_flow_checkpoint(ckpt_path, stats_path, device="cpu")
+        # Default base_channels=64, channel_mults=(1,2,4) should match
+        for key in model.state_dict():
+            torch.testing.assert_close(
+                model.state_dict()[key],
+                loaded_model.state_dict()[key],
+            )
+
+
 class TestEvaluateFlowModel:
     def test_flow_eval_runs(self, device):
         """Smoke test: flow evaluation produces finite metrics."""

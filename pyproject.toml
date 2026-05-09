@@ -16,15 +16,6 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = [
-    "basedpyright>=1.29.0",
-    "black>=25.1.0",
-    "coverage[toml]>=7.8.0",
-    "isort>=6.0.0",
-    "pytest>=8.3.0",
-    "pytest-cov>=7.0.0",
-    "ruff>=0.11.0",
-]
 data = [
     "gcsfs>=2026.3.0",
     "gdown>=6.0.0",

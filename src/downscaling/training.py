@@ -65,6 +65,7 @@ def train_flow_matching(  # pragma: no cover
     val_loader: DataLoader,
     config: TrainConfig,
     device: str | torch.device = "cuda",
+    model_args: dict | None = None,
 ) -> TrainResult:
     """Train a flow matching model using OT-CFM.
 
@@ -75,7 +76,8 @@ def train_flow_matching(  # pragma: no cover
     DataLoaders should yield (lr_condition, residual_target) pairs,
     both z-score normalized. Use data.make_dataloaders() to create them.
 
-    Saves best checkpoint to config.save_dir/best_flow.pt.
+    Saves best checkpoint to config.save_dir/best_flow.pt with keys:
+      model, optimizer, epoch, val_loss, args (architecture params for reload).
 
     Args:
         model: Velocity field network (e.g. AttentionUNet)
@@ -83,6 +85,8 @@ def train_flow_matching(  # pragma: no cover
         val_loader: Normalized (lr_cond, residual) pairs
         config: Training hyperparameters
         device: Torch device
+        model_args: Architecture args dict saved in checkpoint for reload via
+            load_flow_checkpoint(). Should include base_channels, channel_mults_tuple, etc.
 
     Returns:
         TrainResult with per-epoch losses and timing.
@@ -161,15 +165,15 @@ def train_flow_matching(  # pragma: no cover
         if val_loss < result.best_val_loss:
             result.best_val_loss = val_loss
             result.best_epoch = epoch
-            torch.save(
-                {
-                    "model": model.state_dict(),
-                    "optimizer": optimizer.state_dict(),
-                    "epoch": epoch,
-                    "val_loss": val_loss,
-                },
-                save_dir / "best_flow.pt",
-            )
+            ckpt = {
+                "model": model.state_dict(),
+                "optimizer": optimizer.state_dict(),
+                "epoch": epoch,
+                "val_loss": val_loss,
+            }
+            if model_args is not None:
+                ckpt["args"] = model_args
+            torch.save(ckpt, save_dir / "best_flow.pt")
 
     result.total_time_min = (time.time() - start_time) / 60.0
     return result
