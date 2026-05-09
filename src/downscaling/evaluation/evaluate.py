@@ -75,6 +75,7 @@ def evaluate_flow_model(
     sampler: str = "midpoint",
     batch_size: int = 32,
     max_samples: int | None = None,
+    upsampling_factor: int = 4,
 ) -> EvalMetrics:
     """Evaluate a flow matching model on a dataset split.
 
@@ -91,6 +92,7 @@ def evaluate_flow_model(
         sampler: 'euler' or 'midpoint'.
         batch_size: Evaluation batch size.
         max_samples: Limit number of samples evaluated.
+        upsampling_factor: SR factor for mass violation computation.
 
     Returns:
         EvalMetrics averaged over all samples.
@@ -103,7 +105,7 @@ def evaluate_flow_model(
     all_mae: list[float] = []
     all_rmse_sq: list[float] = []
     all_mass_viol: list[float] = []
-    pool = nn.AvgPool2d(kernel_size=4)
+    pool = nn.AvgPool2d(kernel_size=upsampling_factor)
 
     for start_idx in range(0, n_samples, batch_size):
         end_idx = min(start_idx + batch_size, n_samples)

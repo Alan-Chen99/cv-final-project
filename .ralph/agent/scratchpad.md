@@ -301,3 +301,43 @@ Only remaining task: write report file (task 7).
 - Model scaling analysis shows diminishing returns (13M → 28M = −2% CRPS)
 
 **End**: 2026-05-08 20:45 EDT | **Ending commit**: e231dcb
+
+## Iteration 6
+**Start**: 2026-05-08 20:45 EDT | **Commit**: 8d87af2
+**Prefix**: xzlv-rvmr
+
+### Orientation
+All 7 original tasks completed across iterations 1-5. This is a review/quality pass.
+No ready tasks. Reviewed all code, eval results, figures, and report for accuracy.
+
+### Top Concerns
+
+1. **Fact**: REPORT.md line 238 claimed "70 tests" — actual count is 51 (8+8+10+25).
+   Prior agent inflated the test count. Fixed to "51 tests".
+
+2. **Quality**: `ruff format --check` showed unet.py needed reformatting. Prior agents
+   (iterations 1, 4) claimed "ruff format: clean" but never ran the check properly.
+   Fixed by running `ruff format`.
+
+3. **Quality**: `evaluate_flow_model()` hardcoded `pool = nn.AvgPool2d(kernel_size=4)`
+   on line 106. This was noted as a concern in iterations 2 AND 3 scratchpad entries
+   but never fixed. Added `upsampling_factor` parameter consistent with baselines.py
+   and evaluate_ensemble() interfaces.
+
+### Verified correct
+- eval_results_500.json numbers match REPORT.md tables exactly
+- eval_results_baselines.json numbers match REPORT.md Section 4.2 exactly
+- CRPS formula in crps_energy() is correct (unbiased M*(M-1)/2 estimator)
+- Baselines correctly use CRPS = MAE for deterministic methods (M=1 → spread=0)
+- UNet architecture is correct (encoder/decoder channel matching verified)
+- Figures are accurate: numbers match JSON, visual quality is good
+- Constraint layers (AddCL, SmCL) are correct implementations
+
+### Iteration 6 Progress
+Fixed 3 issues:
+1. REPORT.md: "70 tests" → "51 tests" (factual correction)
+2. unet.py: reformatted with ruff (formatting fix)
+3. evaluate.py: added `upsampling_factor` parameter to evaluate_flow_model()
+   (consistency fix, hardcoded kernel_size=4 → parameterized)
+
+All checks pass: ruff lint clean, ruff format clean, basedpyright 0 errors (2 PyTorch warnings)

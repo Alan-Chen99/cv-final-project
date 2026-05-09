@@ -236,7 +236,7 @@ src/downscaling/
 └── plotting/               # Metrics and sample visualization
 ```
 
-**Integration tests:** 70 tests in `tests/`, 94% coverage. Tests require GPU.
+**Integration tests:** 51 tests in `tests/`, 94% coverage. Tests require GPU.
 
 **Experiments:** Frozen snapshots in `experiments/` from 6 research branches.
 Each was active during a research iteration and is read-only after merge.

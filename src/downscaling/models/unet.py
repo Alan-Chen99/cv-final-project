@@ -130,10 +130,12 @@ class AttentionUNet(nn.Module):
         for mult in channel_mults:
             out_ch = base_channels * mult
             self.down_blocks.append(
-                nn.ModuleList([
-                    ResBlock(ch, out_ch, time_emb_dim, dropout),
-                    ResBlock(out_ch, out_ch, time_emb_dim, dropout),
-                ])
+                nn.ModuleList(
+                    [
+                        ResBlock(ch, out_ch, time_emb_dim, dropout),
+                        ResBlock(out_ch, out_ch, time_emb_dim, dropout),
+                    ]
+                )
             )
             self.down_samples.append(Downsample(out_ch))
             ch = out_ch
@@ -149,10 +151,12 @@ class AttentionUNet(nn.Module):
         for mult in reversed(channel_mults):
             out_ch = base_channels * mult
             self.up_blocks.append(
-                nn.ModuleList([
-                    ResBlock(ch + out_ch, out_ch, time_emb_dim, dropout),
-                    ResBlock(out_ch, out_ch, time_emb_dim, dropout),
-                ])
+                nn.ModuleList(
+                    [
+                        ResBlock(ch + out_ch, out_ch, time_emb_dim, dropout),
+                        ResBlock(out_ch, out_ch, time_emb_dim, dropout),
+                    ]
+                )
             )
             self.up_samples.append(Upsample(ch))
             ch = out_ch
@@ -160,9 +164,7 @@ class AttentionUNet(nn.Module):
         self.final_norm = nn.GroupNorm(_num_groups(ch), ch)
         self.final_conv = nn.Conv2d(ch, out_channels, 1)
 
-    def forward(
-        self, x: torch.Tensor, t: torch.Tensor, condition: torch.Tensor
-    ) -> torch.Tensor:
+    def forward(self, x: torch.Tensor, t: torch.Tensor, condition: torch.Tensor) -> torch.Tensor:
         x = torch.cat([x, condition], dim=1)
         t_emb = self.time_mlp(t * 1000.0)
         h = self.init_conv(x)
