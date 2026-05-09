@@ -119,3 +119,62 @@ existing figures, so train with same architecture (base_channels=96).
 
 ### Ending commit: dea7b3b
 ### Ending time: 2026-05-09T22:20:00Z
+
+---
+
+## Iteration 3
+### Run prefix: yfll-mvph
+### Starting commit: 982cbf1
+### Starting time: 2026-05-09T22:21:34Z
+
+### Top 3 concerns (iteration 3)
+
+#### 1. Workflow: flow-wide96-amp checkpoint never evaluated
+Iteration 2 reported val loss 0.1299 but never ran evaluation metrics (CRPS, MAE, RMSE).
+The checkpoint exists (454MB) but we have no evidence it produces correct predictions.
+This is deferred risk — evaluation comes in iteration 5 per the plan.
+
+#### 2. Quality: Harder training code in external/ is messy and tightly coupled
+The external/constrained-downscaling/ code uses:
+- Global mutable state (max_val, min_val in utils.py)
+- Deprecated `torchgeometry` import
+- Relative paths (`./models/`, `./data/`)
+- No arg for data directory
+Must write a clean standalone training script instead of calling external code directly.
+
+#### 3. Quality: Discriminator architecture has 6 stride-2 convs designed for 128x128
+For NorESM 64x64 HR output, the discriminator still works (adaptive final pooling)
+but has fewer meaningful feature map resolutions. This may affect GAN quality.
+Verified: 64→32→16→8→4→2→conv1(padding=1)→4→avgpool→1. Acceptable.
+
+### Plan for this iteration
+- Write scripts/train_harder.py — clean reusable CLI for Harder CNN/GAN training
+- Allocate GPU
+- Train all 3 Harder models on NorESM: harder-cnn, harder-cnn+smcl, harder-gan+smcl
+- Save checkpoints to pool/datasets/noresm-dataset/models/harder/
+
+### Iteration 3 results
+- Wrote scripts/train_harder.py — clean CLI for Harder CNN/GAN training on any dataset
+- Allocated GPU (L40S on node3005, job 13655663)
+- Verified ResNet architecture works with upsampling_factor=2: CNN=96,705 params, GAN=199,394 params
+- Trained 3 models on NorESM (200 epochs each, ~13 min each):
+
+| Model | Constraints | Best Val | Time |
+|-------|-------------|----------|------|
+| harder-cnn | none | 0.000345 | 12.5 min |
+| harder-cnn+smcl | softmax | 0.000649 | 13.0 min |
+| harder-gan+smcl | softmax | 0.000680 | 13.0 min |
+
+- Note: constrained models have worse val loss — confirms NorESM constraint violation
+- GAN discriminator collapsed (d_loss→0 by epoch ~50) but generator still learned
+- All checkpoints verified: load + forward pass produces (B, 1, 1, 64, 64)
+- Checkpoints at pool/datasets/noresm-dataset/models/harder/twc_{cnn_none,cnn_softmax,gan_softmax}.pth
+- GPU released
+- Lint/format pass
+
+### Next iteration
+- Train SwinIR on NorESM (zero-shot + finetuned) — or skip if SwinIR doesn't support 2x
+- Then evaluate all models and produce eval_results JSON
+
+### Ending commit: (pending)
+### Ending time: (pending)
