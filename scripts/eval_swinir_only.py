@@ -2,8 +2,10 @@
 
 Usage:
     srun --jobid=<JOB_ID> python scripts/eval_swinir_only.py
+    srun --jobid=<JOB_ID> python scripts/eval_swinir_only.py --max-samples 500
 """
 
+import argparse
 import json
 import time
 from pathlib import Path
@@ -20,11 +22,32 @@ RESULTS_FILE = Path("eval_results_500.json")
 
 
 def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument(
+        "--max-samples",
+        type=int,
+        default=None,
+        help="Limit test samples (match existing eval file)",
+    )
+    args = parser.parse_args()
+
     device = "cuda" if torch.cuda.is_available() else "cpu"
     print(f"Device: {device}")
 
+    # Auto-detect sample count from existing results file
+    max_samples = args.max_samples
+    if max_samples is None and RESULTS_FILE.exists():
+        with open(RESULTS_FILE) as f:
+            existing = json.load(f)
+        max_samples = existing.get("n_samples")
+        if max_samples:
+            print(f"  Auto-detected n_samples={max_samples} from {RESULTS_FILE}")
+
     print("Loading test data...")
     _, _, hr, lr_orig = load_era5_tcw(POOL, "test")
+    if max_samples and max_samples < hr.shape[0]:
+        hr = hr[:max_samples]
+        lr_orig = lr_orig[:max_samples]
     print(f"  hr={hr.shape}, lr_orig={lr_orig.shape}")
 
     configs = {
@@ -41,18 +64,27 @@ def main() -> None:
         t0 = time.time()
         if cfg["mode"] == "zeroshot":
             results[name] = eval_swinir_zeroshot(
-                hr=hr, lr_orig=lr_orig, weights_path=PRETRAINED,
-                device=device, with_addcl=cfg["with_addcl"],
+                hr=hr,
+                lr_orig=lr_orig,
+                weights_path=PRETRAINED,
+                device=device,
+                with_addcl=cfg["with_addcl"],
             )
         else:
             results[name] = eval_swinir_finetuned(
-                hr=hr, lr_orig=lr_orig, pretrained_weights_path=PRETRAINED,
-                checkpoint_path=CHECKPOINT, device=device, with_addcl=cfg["with_addcl"],
+                hr=hr,
+                lr_orig=lr_orig,
+                pretrained_weights_path=PRETRAINED,
+                checkpoint_path=CHECKPOINT,
+                device=device,
+                with_addcl=cfg["with_addcl"],
             )
         r = results[name]
         elapsed = time.time() - t0
-        print(f"  CRPS={r['crps']:.6f}  MAE={r['mae']:.6f}  "
-              f"RMSE={r['rmse']:.6f}  MassViol={r['mass_violation']:.6f}  ({elapsed:.1f}s)")
+        print(
+            f"  CRPS={r['crps']:.6f}  MAE={r['mae']:.6f}  "
+            f"RMSE={r['rmse']:.6f}  MassViol={r['mass_violation']:.6f}  ({elapsed:.1f}s)"
+        )
 
     # Merge into existing results
     if RESULTS_FILE.exists():
@@ -71,8 +103,10 @@ def main() -> None:
     print(f"\n{'Method':<30} {'CRPS':>10} {'MAE':>10} {'RMSE':>10} {'MassViol':>10}")
     print("=" * 80)
     for name, r in sorted(results.items(), key=lambda x: x[1]["crps"]):
-        print(f"{name:<30} {r['crps']:>10.6f} {r['mae']:>10.6f} "
-              f"{r['rmse']:>10.6f} {r['mass_violation']:>10.6f}")
+        print(
+            f"{name:<30} {r['crps']:>10.6f} {r['mae']:>10.6f} "
+            f"{r['rmse']:>10.6f} {r['mass_violation']:>10.6f}"
+        )
 
 
 if __name__ == "__main__":

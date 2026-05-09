@@ -67,9 +67,7 @@ def load_swinir_1ch(weights_path: str | Path, device: str = "cpu") -> nn.Module:
     old_conv_first: nn.Conv2d = model.conv_first
     kh_in, kw_in = old_conv_first.kernel_size
     pad_in: tuple[int, int] = (int(old_conv_first.padding[0]), int(old_conv_first.padding[1]))
-    new_conv_first = nn.Conv2d(
-        1, old_conv_first.out_channels, (kh_in, kw_in), padding=pad_in
-    )
+    new_conv_first = nn.Conv2d(1, old_conv_first.out_channels, (kh_in, kw_in), padding=pad_in)
     with torch.no_grad():
         new_conv_first.weight.copy_(old_conv_first.weight.mean(dim=1, keepdim=True))
         assert new_conv_first.bias is not None

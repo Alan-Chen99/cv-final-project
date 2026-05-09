@@ -204,5 +204,44 @@ Key findings:
 
 ## Ending state
 - **Time**: 2026-05-09 04:27 EDT
-- **Commit**: (pending commit)
+- **Commit**: 0f37d45
 - **GPU**: Released (scancel 13623239)
+
+---
+
+# Iteration 4: Review & Fix Code Quality Issues
+
+## Start
+- **Time**: 2026-05-09 04:29 EDT
+- **Commit**: 0f37d45 (add SwinIR FT+AddCL to sample comparison and error map figures)
+- **Prefix**: rqgu-urre
+
+## Concerns
+
+### 1. Workflow: SwinIR eval used 10K samples, other models used 500
+- eval_swinir_only.py loads all 10K test samples (no --max-samples flag)
+- eval_results_500.json header says n_samples=500 (from prior run_eval.py with --max-samples 500)
+- SwinIR results were merged into 500-sample file but evaluated on 10K samples
+- Comparison is directionally correct but methodologically inconsistent
+- **Fix**: Added --max-samples to eval_swinir_only.py with auto-detection from existing results file. SwinIR results should be re-evaluated with 500 samples on next GPU allocation.
+
+### 2. Workflow: Code not formatted before committing
+- ruff format --check found swinir.py needs reformatting
+- Prior agent didn't run ruff format before commits
+- **Fix**: Applied ruff format to swinir.py and eval_swinir_only.py
+
+### 3. Quality: No integration tests for new SwinIR evaluation/training code
+- CLAUDE.md requires "100% coverage on core logic"
+- SwinIR code has core logic (channel adaptation, normalization, evaluation)
+- Tests require GPU (can't run here)
+- **Status**: Noted for future iteration
+
+## Changes
+1. Fixed formatting: src/downscaling/evaluation/swinir.py
+2. Fixed eval_swinir_only.py: added --max-samples with auto-detection from existing results file
+3. Formatted eval_swinir_only.py
+
+## Ending state
+- **Time**: 2026-05-09 04:35 EDT
+- **Commit**: (pending commit)
+- **GPU**: None allocated
