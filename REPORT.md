@@ -275,11 +275,11 @@ All checkpoints stored on pool disk (`/home/chenxy/orcd/pool/datasets/`).
 | Model | Path | Params | CRPS (10K) |
 |-------|------|--------|------------|
 | UNet wide96 (best) | `research3/models/unet_wide96_amp/best_flow.pt` | 28.4M | 0.1676 |
-| UNet base64 (midpoint) | `research3/models/unet_base64_midpoint/best_flow.pt` | 13.1M | 0.1709 |
+| UNet base64 (uniform, midpoint eval) | `research3/models/unet_uniform_amp/best_flow.pt` | 13.1M | 0.1709 |
 | Flow v2 z-score | `research6/models/flow_v2_zscore/best_flow.pt` | 13.0M | 0.1728 |
-| OT-CFM + Logit-Normal | `research4/models/logit_normal_flow/best_flow.pt` | 13.0M | 0.1840 |
-| DDPM VP-SDE | `research4/models/ddpm/best_diffusion.pt` | 13.0M | 0.1907 |
-| Attention UNet (LR-anchor) | `research/models/flow_attn/flow_best.pth` | 5.2M | 0.199 |
+| OT-CFM + Logit-Normal | `research4/models/unet_logit_normal_best.pt` | 13.0M | 0.1840 |
+| DDPM VP-SDE | `research4/models/ddpm_best.pt` | 13.0M | 0.1907 |
+| Attention UNet (LR-anchor) | predictions only: `research/predictions/prediction/` | 5.2M | 0.199 |
 
 ## 10. Limitations
 

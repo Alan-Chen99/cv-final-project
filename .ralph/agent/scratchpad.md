@@ -516,3 +516,44 @@ Fixed 1 issue:
 All 60 non-data tests pass (47.78s). ruff lint clean, ruff format clean, basedpyright 0 errors.
 
 **End**: 2026-05-08 21:43 EDT | **Ending commit**: 8be55d1
+
+## Iteration 11
+**Start**: 2026-05-08 21:43 EDT | **Commit**: 3e1146b
+**Prefix**: iter11-bc8a
+
+### Orientation
+All 7 tasks completed. 5 review iterations (6-10) done, converging. This iteration:
+comprehensive 3-agent parallel review (report accuracy, test quality, eval integrity).
+
+### Top Concerns
+
+1. **Fact (REPORT.md Section 9)**: 4 of 6 checkpoint paths were wrong. Prior agents
+   fabricated directory paths that don't exist on the pool disk:
+   - `research3/models/unet_base64_midpoint/` → actual: `unet_uniform_amp/`
+   - `research4/models/logit_normal_flow/best_flow.pt` → actual: `unet_logit_normal_best.pt`
+   - `research4/models/ddpm/best_diffusion.pt` → actual: `ddpm_best.pt`
+   - `research/models/flow_attn/flow_best.pth` → no model checkpoint exists (only predictions)
+   No prior review iteration (6-10) checked whether pool disk paths actually exist.
+
+2. **Quality (test depth)**: Tests are integration smoke tests as specified but many
+   assertions are shape-only or finiteness-only. Would pass with broken implementations.
+   However, the task says "integration tests only, no unit tests" and prior iterations
+   progressively tightened key assertions (iter 9). Remaining issues are YAGNI territory
+   for this task scope.
+
+3. **Quality (eval results verified)**: All JSON results verified correct against REPORT.md.
+   CRPS formula verified mathematically correct. Baseline computations verified.
+   No numerical issues found. Test count (67) verified correct.
+
+### Plan for this iteration
+**DO ONE THING**: Fix the 4 incorrect checkpoint paths in REPORT.md Section 9.
+
+### Iteration 11 Progress
+Fixed REPORT.md Section 9 checkpoint paths:
+1. `unet_base64_midpoint/best_flow.pt` → `unet_uniform_amp/best_flow.pt`
+2. `logit_normal_flow/best_flow.pt` → `unet_logit_normal_best.pt`
+3. `ddpm/best_diffusion.pt` → `ddpm_best.pt`
+4. `research/models/flow_attn/flow_best.pth` → `research/predictions/prediction/` (no model ckpt)
+All 6 paths now verified to exist on pool disk.
+
+ruff lint clean, ruff format clean.
