@@ -161,6 +161,7 @@ IMPORTANT: prior agent notes MUST be taken as CONTEXT ONLY. Verify all claims be
 | 2026-05-06 | research3 Branch Report: Architecture & Training Optimization | [experiments/spatial-4x-flow-matching/2026-05-06-research3-report.md](experiments/spatial-4x-flow-matching/2026-05-06-research3-report.md) |
 | 2026-05-06 | Research6: Flow Matching for TCW 4x Downscaling (final report) | [experiments/flow-matching-zscore-normalization/2026-05-06-research6-report.md](experiments/flow-matching-zscore-normalization/2026-05-06-research6-report.md) |
 | 2026-05-07 | Research5: Pretrained Image SR for Climate Downscaling (research5 branch report) | [experiments/pretrained-sr-downscaling/2026-05-07-research5-pretrained-sr-report.md](experiments/pretrained-sr-downscaling/2026-05-07-research5-pretrained-sr-report.md) |
+| 2026-05-08 | Organize2: Project Structure & Evaluation Report | [notes/2026-05-08-organize2-report.md](notes/2026-05-08-organize2-report.md) |
 
 # Papers
 
