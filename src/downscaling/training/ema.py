@@ -22,7 +22,7 @@ class EMA:
 
     @torch.no_grad()
     def update(self, model: nn.Module) -> None:
-        for s_param, m_param in zip(self.shadow.parameters(), model.parameters(), strict=False):
+        for s_param, m_param in zip(self.shadow.parameters(), model.parameters(), strict=True):
             s_param.data.mul_(self.decay).add_(m_param.data, alpha=1 - self.decay)
 
     def state_dict(self) -> dict:

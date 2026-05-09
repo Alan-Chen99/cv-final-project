@@ -175,7 +175,7 @@ class FlowMatchingTrainer:
                 lr_batch = lr_batch.to(self.device)
                 res_batch = res_batch.to(self.device)
                 bs = lr_batch.shape[0]
-                t = torch.rand(bs, device=self.device)
+                t = self._sample_t(bs)
                 x_0 = torch.randn_like(res_batch)
                 t_expand = t[:, None, None, None]
                 x_t = (1 - t_expand) * x_0 + t_expand * res_batch

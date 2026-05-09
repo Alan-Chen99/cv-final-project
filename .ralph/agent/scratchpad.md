@@ -396,3 +396,39 @@ coverage to exclude plotting (boilerplate), and update REPORT.md with accurate n
 - 31%: data/era5.py (needs pool data; has dedicated tests in test_data.py)
 
 **End**: 2026-05-08 21:01 EDT | **Ending commit**: fce7a36
+
+## Iteration 8
+**Start**: 2026-05-08 21:09 EDT | **Commit**: 2e3f1f2
+**Prefix**: iter8-1fd4
+
+### Orientation
+All 7 original tasks completed. Iterations 6-7 were review passes. This iteration:
+thorough code review by 3 parallel sub-agents (report accuracy, code quality, test quality).
+
+### Top Concerns
+
+1. **Bug (code)**: `flow_matching.py:178` — validation epoch used `torch.rand(bs)` for
+   timestep sampling instead of `self._sample_t(bs)`. Training respects `config.t_sampling`
+   (uniform or logit_normal) but validation always used uniform. This means validation loss
+   is computed on a different timestep distribution than training, making the val loss metric
+   misleading when using logit_normal sampling. Fixed.
+
+2. **Bug (code)**: `ema.py:25` — `zip(..., strict=False)` when iterating shadow and model
+   parameters. The shadow is a `deepcopy(model)`, so parameter counts always match. Using
+   `strict=False` silently ignores parameter count mismatches that should never happen.
+   Changed to `strict=True`.
+
+3. **Fact**: REPORT.md claims "60 tests" but actual count from `grep -c "def test_"` is
+   68 (17+8+8+10+25). Prior agent (iter 7) wrote test_baselines.py and claimed 9 tests,
+   but the file actually has 17 test functions. Fixed to "68 tests".
+
+### Plan for this iteration
+**DO ONE THING**: Fix the 3 issues found in review (2 code bugs + 1 report fact).
+
+### Iteration 8 Progress
+Fixed 3 issues:
+1. `flow_matching.py:178`: `torch.rand(bs)` → `self._sample_t(bs)` (validation timestep bug)
+2. `ema.py:25`: `strict=False` → `strict=True` (robustness fix)
+3. REPORT.md: "60 tests" → "68 tests" (factual correction)
+
+All checks pass: ruff lint clean, ruff format clean, basedpyright 0 errors (2 PyTorch warnings)

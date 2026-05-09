@@ -236,7 +236,7 @@ src/downscaling/
 └── plotting/               # Metrics and sample visualization
 ```
 
-**Integration tests:** 60 tests in `tests/`, 93% coverage (excluding plotting boilerplate).
+**Integration tests:** 68 tests in `tests/`, 93% coverage (excluding plotting boilerplate).
 Tests run on CPU; GPU accelerates but is not required. Data tests need pool disk.
 
 **Experiments:** Frozen snapshots in `experiments/` from 6 research branches.
