@@ -26,6 +26,12 @@ from downscaling.data.era5 import load_era5_tcw
 from downscaling.evaluation.baselines import eval_bicubic, eval_bilinear
 from downscaling.evaluation.checkpoints import load_checkpoint, load_norm_stats
 from downscaling.evaluation.evaluate import evaluate_flow_model
+from downscaling.evaluation.harder import (
+    _compute_minmax_stats,
+    evaluate_harder_cnn,
+    evaluate_harder_gan,
+    load_harder_model,
+)
 from downscaling.models.unet import AttentionUNet
 
 POOL = Path("/home/chenxy/orcd/pool/datasets")
@@ -122,6 +128,26 @@ MODEL_REGISTRY: dict[str, dict[str, object]] = {
     },
 }
 
+# Harder et al. (2208.05424) baselines
+# Checkpoints stored in pool under organize2/models/harder/ after training
+HARDER_REGISTRY: dict[str, dict[str, object]] = {
+    "harder-cnn": {
+        "checkpoint": "organize2/models/harder/twc_cnn_none.pth",
+        "model_type": "cnn",
+        "constraints": "none",
+    },
+    "harder-cnn+smcl": {
+        "checkpoint": "organize2/models/harder/twc_cnn_softmax.pth",
+        "model_type": "cnn",
+        "constraints": "softmax",
+    },
+    "harder-gan+smcl": {
+        "checkpoint": "organize2/models/harder/twc_gan_softmax.pth",
+        "model_type": "gan",
+        "constraints": "softmax",
+    },
+}
+
 
 def main():
     parser = argparse.ArgumentParser(description="Evaluate all methods on ERA5 TCW 4x SR")
@@ -179,6 +205,60 @@ def main():
         f"  CRPS={results['bicubic+addcl']['crps']:.6f}  MAE={results['bicubic+addcl']['mae']:.6f}  "
         f"RMSE={results['bicubic+addcl']['rmse']:.6f}  MassViol={results['bicubic+addcl']['mass_violation']:.6f}"
     )
+
+    # Harder et al. trained models
+    if not args.baselines_only:
+        print("\n=== Harder et al. Baselines ===")
+        min_val, max_val = _compute_minmax_stats(args.pool_dir)
+        print(f"  Min-max normalization: min={min_val:.4f}, max={max_val:.4f}")
+
+        for name, config in HARDER_REGISTRY.items():
+            ckpt_path = args.pool_dir / str(config["checkpoint"])
+            if not ckpt_path.exists():
+                print(f"  SKIP {name}: {ckpt_path} not found")
+                continue
+
+            print(f"\nEvaluating {name}...")
+            t_start = time.time()
+            try:
+                model = load_harder_model(
+                    checkpoint_path=ckpt_path,
+                    model_type=str(config["model_type"]),
+                    constraints=str(config["constraints"]),
+                    device=args.device,
+                )
+                if config["model_type"] == "gan":
+                    results[name] = evaluate_harder_gan(
+                        model=model,
+                        lr_orig=lr_orig,
+                        hr=hr,
+                        min_val=min_val,
+                        max_val=max_val,
+                        device=args.device,
+                        n_ensemble=args.n_ensemble,
+                        max_samples=args.max_samples,
+                    )
+                else:
+                    results[name] = evaluate_harder_cnn(
+                        model=model,
+                        lr_orig=lr_orig,
+                        hr=hr,
+                        min_val=min_val,
+                        max_val=max_val,
+                        device=args.device,
+                        max_samples=args.max_samples,
+                    )
+                elapsed = time.time() - t_start
+                r = results[name]
+                print(
+                    f"  CRPS={r['crps']:.6f}  MAE={r['mae']:.6f}  "
+                    f"RMSE={r['rmse']:.6f}  MassViol={r['mass_violation']:.6f}  "
+                    f"({elapsed:.1f}s)"
+                )
+                del model
+                torch.cuda.empty_cache()
+            except Exception as e:
+                print(f"  ERROR {name}: {e}")
 
     if not args.baselines_only:
         print(f"\n=== Flow Matching Models (device={args.device}) ===")

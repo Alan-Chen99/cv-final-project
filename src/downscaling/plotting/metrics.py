@@ -38,6 +38,9 @@ def _method_display_names(names: list[str]) -> list[str]:
         "bilinear+addcl": "Bilinear\n+AddCL",
         "bicubic": "Bicubic",
         "bilinear": "Bilinear",
+        "harder-cnn": "Harder\nCNN",
+        "harder-cnn+smcl": "Harder\nCNN+SmCL",
+        "harder-gan+smcl": "Harder\nGAN+SmCL",
     }
     return [replacements.get(n, n) for n in names]
 
@@ -53,6 +56,9 @@ def _method_colors(names: list[str]) -> list[str]:
         "bilinear+addcl": "#ffbb78",
         "bicubic": "#aec7e8",
         "bilinear": "#c7c7c7",
+        "harder-cnn": "#d62728",
+        "harder-cnn+smcl": "#e377c2",
+        "harder-gan+smcl": "#9467bd",
     }
     return [color_map.get(n, "#888888") for n in names]
 
@@ -156,6 +162,13 @@ def plot_flow_vs_baseline(
     """Grouped bar chart: flow models vs best baseline on CRPS/MAE/RMSE."""
     flow_methods = [m for m in results if m.startswith("flow-")]
     baseline_methods = [m for m in results if not m.startswith("flow-")]
+
+    if not flow_methods or not baseline_methods:
+        fig, ax = plt.subplots()
+        ax.text(0.5, 0.5, "Need both flow and baseline methods", ha="center", va="center")
+        if output_path:
+            fig.savefig(output_path, dpi=150, bbox_inches="tight")
+        return fig
 
     best_flow = min(flow_methods, key=lambda m: results[m]["crps"])
     best_baseline = min(baseline_methods, key=lambda m: results[m]["crps"])

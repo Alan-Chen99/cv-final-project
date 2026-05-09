@@ -29,6 +29,12 @@ import matplotlib.pyplot as plt
 from downscaling.constraints.layers import apply_addcl
 from downscaling.data.era5 import load_era5_tcw
 from downscaling.evaluation.checkpoints import load_checkpoint, load_norm_stats
+from downscaling.evaluation.harder import (
+    _compute_minmax_stats,
+    generate_harder_cnn_predictions,
+    generate_harder_gan_predictions,
+    load_harder_model,
+)
 from downscaling.models.unet import AttentionUNet
 from downscaling.plotting.metrics import (
     load_results,
@@ -136,6 +142,62 @@ def make_sample_figures(
     # Baseline predictions
     print("Generating baseline predictions...")
     baselines = generate_baseline_predictions(lr_orig, n_samples=n_vis_samples)
+
+    # Harder et al. model predictions
+    harder_configs = {
+        "Harder CNN": {
+            "checkpoint": "organize2/models/harder/twc_cnn_none.pth",
+            "model_type": "cnn",
+            "constraints": "none",
+        },
+        "Harder CNN+SmCL": {
+            "checkpoint": "organize2/models/harder/twc_cnn_softmax.pth",
+            "model_type": "cnn",
+            "constraints": "softmax",
+        },
+        "Harder GAN+SmCL": {
+            "checkpoint": "organize2/models/harder/twc_gan_softmax.pth",
+            "model_type": "gan",
+            "constraints": "softmax",
+        },
+    }
+    harder_min_val, harder_max_val = None, None
+    for hname, hcfg in harder_configs.items():
+        ckpt_path = pool_dir / hcfg["checkpoint"]
+        if not ckpt_path.exists():
+            print(f"  Skipping {hname}: {ckpt_path} not found")
+            continue
+        if harder_min_val is None:
+            harder_min_val, harder_max_val = _compute_minmax_stats(pool_dir)
+        print(f"Generating {hname} predictions...")
+        hmodel = load_harder_model(
+            checkpoint_path=ckpt_path,
+            model_type=hcfg["model_type"],
+            constraints=hcfg["constraints"],
+            device=device,
+        )
+        if hcfg["model_type"] == "gan":
+            gan_mean, gan_all = generate_harder_gan_predictions(
+                model=hmodel,
+                lr_orig=lr_orig,
+                min_val=harder_min_val,
+                max_val=harder_max_val,
+                device=device,
+                n_samples=n_vis_samples,
+                n_ensemble=n_ensemble,
+            )
+            baselines[hname] = gan_mean
+        else:
+            baselines[hname] = generate_harder_cnn_predictions(
+                model=hmodel,
+                lr_orig=lr_orig,
+                min_val=harder_min_val,
+                max_val=harder_max_val,
+                device=device,
+                n_samples=n_vis_samples,
+            )
+        del hmodel
+        torch.cuda.empty_cache()
 
     # Flow model predictions (best model: wide96)
     flow_preds = None

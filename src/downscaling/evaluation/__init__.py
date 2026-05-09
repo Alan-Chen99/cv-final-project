@@ -7,6 +7,13 @@ from downscaling.evaluation.baselines import (
 )
 from downscaling.evaluation.checkpoints import load_checkpoint, load_norm_stats
 from downscaling.evaluation.evaluate import evaluate_ensemble, evaluate_flow_model
+from downscaling.evaluation.harder import (
+    evaluate_harder_cnn,
+    evaluate_harder_gan,
+    generate_harder_cnn_predictions,
+    generate_harder_gan_predictions,
+    load_harder_model,
+)
 
 __all__ = [
     "eval_bicubic",
@@ -14,7 +21,12 @@ __all__ = [
     "evaluate_deterministic",
     "evaluate_ensemble",
     "evaluate_flow_model",
+    "evaluate_harder_cnn",
+    "evaluate_harder_gan",
+    "generate_harder_cnn_predictions",
+    "generate_harder_gan_predictions",
     "load_checkpoint",
+    "load_harder_model",
     "load_norm_stats",
     "upsample_bicubic",
     "upsample_bilinear",
