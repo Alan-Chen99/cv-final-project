@@ -5,6 +5,7 @@
 
 cli:
   backend: "claude"
+  args: ["--setting-sources", "user,project,local"]
 
 adapters:
   claude:
