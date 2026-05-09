@@ -201,7 +201,9 @@ def make_sample_figures(
         torch.cuda.empty_cache()
 
     # SwinIR finetuned + AddCL predictions
-    swinir_pretrained = pool_dir / "research5/pretrained_weights/001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth"
+    swinir_pretrained = (
+        pool_dir / "research5/pretrained_weights/001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth"
+    )
     swinir_ckpt = pool_dir / "spatial-4x-add-v2/models/swinir_ft/best_swinir.pt"
     if swinir_pretrained.exists() and swinir_ckpt.exists() and device != "cpu":
         print("Generating SwinIR finetuned+AddCL predictions...")
