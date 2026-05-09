@@ -168,7 +168,7 @@ class AttentionUNet(nn.Module):
         h = self.init_conv(x)
 
         skips = []
-        for blocks, downsample in zip(self.down_blocks, self.down_samples):
+        for blocks, downsample in zip(self.down_blocks, self.down_samples, strict=True):
             for block in blocks:
                 h = block(h, t_emb)
             skips.append(h)
@@ -178,7 +178,7 @@ class AttentionUNet(nn.Module):
         h = self.mid_attn(h)
         h = self.mid_block2(h, t_emb)
 
-        for blocks, upsample in zip(self.up_blocks, self.up_samples):
+        for blocks, upsample in zip(self.up_blocks, self.up_samples, strict=True):
             h = upsample(h)
             h = torch.cat([h, skips.pop()], dim=1)
             for block in blocks:

@@ -116,3 +116,76 @@ Iteration 1 completed project structure (tasks 1-3). All source code reviewed. N
 - Task 7: Report file
 
 **End**: 2026-05-08 19:45 EDT | **Ending commit**: 516aa0b
+
+## Iteration 3
+**Start**: 2026-05-08 19:46 EDT | **Commit**: 76ebc28
+**Prefix**: fjrz-kbfy
+
+### Orientation
+Iterations 1-2 built project structure and tests. src/downscaling has models, metrics,
+constraints, sampling, training, evaluation, plotting subpackages. 94% test coverage.
+Pool has trained models from research3-6. SLURM: 3 preemptable running (not ours), 0 normal.
+
+### Top Concerns
+
+1. **Workflow (highest priority)**: No evaluation has been run from the organized src/ code.
+   `evaluate_flow_model()` and `evaluate_ensemble()` exist but have never been tested against
+   real trained weights. Tests only used synthetic data. The CRPS numbers from cross-comparison
+   notes (0.171, 0.199, etc.) come from experiment code, not src/.
+
+2. **Quality**: src/evaluation only supports flow matching models. Missing critical evaluation
+   methods that don't require training:
+   - Bicubic/bilinear interpolation baselines
+   - Model checkpoint loading (two patterns: full checkpoint vs state_dict)
+   - Deterministic model evaluation
+   - No way to compare methods fairly from one script
+
+3. **Quality**: `evaluate_flow_model()` hardcodes `pool = nn.AvgPool2d(kernel_size=4)` ignoring
+   the `upsampling_factor` concept used elsewhere. Also couples flow-specific sampling with
+   general evaluation logic.
+
+### Plan for this iteration
+**DO ONE THING**: Add evaluation methods (task 5) — baselines + checkpoint loading + eval script.
+Then allocate GPU and run eval to produce actual numbers.
+
+### Iteration 3 Progress
+**Completed task 5 (evaluation methods + running eval)**:
+- Added `src/downscaling/evaluation/baselines.py`: bicubic/bilinear baselines, deterministic
+  evaluation, eval_bicubic/eval_bilinear with optional AddCL constraint
+- Added `src/downscaling/evaluation/checkpoints.py`: model checkpoint loading (handles both
+  Pattern A full-checkpoint and Pattern B state_dict-only formats), norm_stats loading
+- Updated `evaluation/__init__.py` with all new exports
+- Created `scripts/run_eval.py`: comprehensive evaluation runner with model registry
+- Created `scripts/sbatch_eval.sh`: SLURM batch submission script
+- Fixed ruff B905 lint in unet.py (zip strict=True)
+
+**Evaluation results (500 test samples, 10 ensemble members, midpoint sampler, AddCL):**
+
+| Method | CRPS | MAE | RMSE | MassViol |
+|--------|------|-----|------|----------|
+| flow-wide96-amp (28M) | **0.1719** | 0.2511 | 0.4563 | 0.000001 |
+| flow-v2-zscore (13M) | 0.1754 | 0.2560 | 0.4668 | 0.000001 |
+| flow-uniform-amp (13M) | 0.1756 | 0.2564 | 0.4670 | 0.000001 |
+| flow-logitnorm-ema (13M) | 0.1814 | 0.2656 | 0.4987 | 0.000001 |
+| bicubic+addcl | 0.3626 | 0.3626 | 0.7408 | 0.000001 |
+| bicubic | 0.3939 | 0.3939 | 0.7849 | 0.1492 |
+| bilinear+addcl | 0.3991 | 0.3991 | 0.8040 | 0.000001 |
+| bilinear | 0.5191 | 0.5191 | 0.9639 | 0.3203 |
+
+**Key findings verified:**
+- wide96 (28M) is indeed best at CRPS 0.172 — consistent with prior claims
+- All flow models achieve near-zero mass violation with AddCL
+- Flow models are 2x better than best baseline (bicubic+AddCL) on CRPS
+- AddCL reduces bicubic mass violation from 0.149 to ~0.000001
+
+**Full 10K baselines also computed** (eval_results_baselines.json):
+- bicubic+addcl: CRPS 0.3533
+- bicubic: CRPS 0.3838
+- bilinear+addcl: CRPS 0.3888
+- bilinear: CRPS 0.5065
+
+### Still needed (future iterations)
+- Task 6: Visualization code for key results
+- Task 7: Report file
+
+**End**: 2026-05-08 20:22 EDT | **Ending commit**: TBD
