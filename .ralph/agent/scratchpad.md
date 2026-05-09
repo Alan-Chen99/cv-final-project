@@ -69,5 +69,5 @@ From eval_results_500.json, the models plotted in figures:
 
 Skip: flow-uniform-amp, flow-logitnorm-ema, flow-v2-zscore (ablation variants, not main results)
 
-## Ending commit: (to be set after commit)
-## Ending time: (to be set)
+## Ending commit: 90eeb59
+## Ending time: 2026-05-09T21:40:00Z
