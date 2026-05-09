@@ -30,17 +30,21 @@ def load_results(path: str | Path) -> dict[str, dict[str, float]]:
 def _method_display_names(names: list[str]) -> list[str]:
     """Shorten method names for plot labels."""
     replacements = {
-        "flow-wide96-amp (28M)": "Wide96\n(28M)",
-        "flow-uniform-amp (13M)": "Uniform\n(13M)",
-        "flow-logitnorm-ema (13M)": "LogitNorm\n(13M)",
-        "flow-v2-zscore (13M)": "ZScore\n(13M)",
-        "bicubic+addcl": "Bicubic\n+AddCL",
-        "bilinear+addcl": "Bilinear\n+AddCL",
+        "flow-wide96-amp (28M)": "Wide96 (28M)",
+        "flow-uniform-amp (13M)": "Uniform (13M)",
+        "flow-logitnorm-ema (13M)": "LogitNorm (13M)",
+        "flow-v2-zscore (13M)": "ZScore (13M)",
+        "bicubic+addcl": "Bicubic+AddCL",
+        "bilinear+addcl": "Bilinear+AddCL",
         "bicubic": "Bicubic",
         "bilinear": "Bilinear",
-        "harder-cnn": "Harder\nCNN",
-        "harder-cnn+smcl": "Harder\nCNN+SmCL",
-        "harder-gan+smcl": "Harder\nGAN+SmCL",
+        "harder-cnn": "Harder CNN",
+        "harder-cnn+smcl": "Harder CNN+SmCL",
+        "harder-gan+smcl": "Harder GAN+SmCL",
+        "swinir-zeroshot": "SwinIR Zero-Shot",
+        "swinir-zeroshot+addcl": "SwinIR ZS+AddCL",
+        "swinir-finetuned": "SwinIR Finetuned",
+        "swinir-finetuned+addcl": "SwinIR FT+AddCL",
     }
     return [replacements.get(n, n) for n in names]
 
@@ -59,6 +63,10 @@ def _method_colors(names: list[str]) -> list[str]:
         "harder-cnn": "#d62728",
         "harder-cnn+smcl": "#e377c2",
         "harder-gan+smcl": "#9467bd",
+        "swinir-zeroshot": "#8c564b",
+        "swinir-zeroshot+addcl": "#bcbd22",
+        "swinir-finetuned": "#17becf",
+        "swinir-finetuned+addcl": "#2ca02c",
     }
     return [color_map.get(n, "#888888") for n in names]
 
@@ -90,7 +98,7 @@ def plot_crps_comparison(
         )
 
     ax.set_xticks(x)
-    ax.set_xticklabels(labels, fontsize=9)
+    ax.set_xticklabels(labels, fontsize=9, rotation=40, ha="right")
     ax.set_ylabel("CRPS (lower is better)", fontsize=11)
     ax.set_title(title, fontsize=13)
     ax.set_ylim(0, max(crps_vals) * 1.15)
@@ -138,7 +146,7 @@ def plot_metrics_panel(
             )
 
         ax.set_xticks(x)
-        ax.set_xticklabels(labels, fontsize=8)
+        ax.set_xticklabels(labels, fontsize=8, rotation=40, ha="right")
         ax.set_ylabel(ylabel, fontsize=10)
         if use_log:
             ax.set_yscale("log")
