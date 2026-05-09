@@ -482,3 +482,37 @@ Fixed 7 issues:
 All 67 tests pass (60 non-data + 7 data). ruff lint clean, ruff format clean, basedpyright 0 errors.
 
 **End**: 2026-05-08 21:37 EDT | **Ending commit**: 04d0892
+
+## Iteration 10
+**Start**: 2026-05-08 21:37 EDT | **Commit**: e488be3
+**Prefix**: iter10
+
+### Orientation
+All 7 tasks completed. Iterations 6-9 were review passes. This iteration: comprehensive
+review with 3 parallel sub-agents (report accuracy, code quality, test quality).
+
+### Top Concerns
+
+1. **Bug (code)**: `evaluate.py:127,129` — `upsampling_factor` not forwarded to
+   `apply_addcl()`/`apply_smcl()` calls. The function accepts `upsampling_factor` (added
+   in iter 6) and uses it for AvgPool2d on line 108, but constraint calls on lines 127/129
+   used the default value of 4. If `upsampling_factor != 4`, constraints would compute
+   incorrectly. Fixed by passing `upsampling_factor` explicitly.
+
+2. **Quality (diminishing returns)**: Report verified fully accurate — all numerical claims,
+   test counts, coverage %, file paths cross-checked against source. No errors found.
+   Test quality has some remaining nits (shape-only smoke tests, minor inconsistencies)
+   but these are integration smoke tests as specified by the task. 4 review passes have
+   caught the real bugs; remaining findings are YAGNI territory.
+
+3. **Workflow (approaching fixed-point)**: 5 consecutive review iterations (6-10). Each
+   finds fewer issues. Iter 6: 3 issues. Iter 7: coverage gap. Iter 8: 3 issues.
+   Iter 9: 7 issues. Iter 10: 1 real bug. The project is converging.
+
+### Iteration 10 Progress
+Fixed 1 issue:
+1. `evaluate.py:127,129`: added `upsampling_factor` arg to `apply_addcl()`/`apply_smcl()` calls
+
+All 60 non-data tests pass (47.78s). ruff lint clean, ruff format clean, basedpyright 0 errors.
+
+**End**: 2026-05-08 21:43 EDT | **Ending commit**: 8be55d1
