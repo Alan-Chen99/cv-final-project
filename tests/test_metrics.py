@@ -55,13 +55,14 @@ class TestCRPSEnergy:
         crps = crps_energy(obs, forecasts)
         assert crps >= -1e-10  # allow small numerical noise
 
-    def test_multichannel_shape(self, rng):
-        """CRPS handles (M, C, H, W) shape."""
+    def test_multichannel_correct(self, rng):
+        """CRPS on (M, C, H, W) agrees with per-channel mean."""
         obs = rng.standard_normal((3, 32, 32))
         forecasts = rng.standard_normal((8, 3, 32, 32))
-        crps = crps_energy(obs, forecasts)
-        assert isinstance(crps, float)
-        assert np.isfinite(crps)
+        crps_joint = crps_energy(obs, forecasts)
+        # Per-channel CRPS should average to the joint result
+        per_channel = [crps_energy(obs[c], forecasts[:, c]) for c in range(3)]
+        assert crps_joint == pytest.approx(np.mean(per_channel), rel=1e-10)
 
     def test_two_member_analytical(self):
         """Two-member ensemble: spread = mean |x1 - x2|."""
@@ -117,6 +118,5 @@ class TestCRPSConsistency:
         forecasts = rng.standard_normal((20, 32, 32))
         crps_e = crps_energy(obs, forecasts)
         crps_p = crps_paper(obs, forecasts)
-        # They use different formulations, so allow some numerical difference
-        # but they should be in the same ballpark
-        assert crps_e == pytest.approx(crps_p, rel=0.15)
+        # Both formulations should agree closely for M=20
+        assert crps_e == pytest.approx(crps_p, rel=0.05)

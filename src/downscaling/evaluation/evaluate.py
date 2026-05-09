@@ -99,7 +99,7 @@ def evaluate_flow_model(
     """
     device = next(model.parameters()).device
     sample_fn = midpoint_sample if sampler == "midpoint" else euler_sample
-    n_samples = min(lr_up.shape[0], max_samples) if max_samples else lr_up.shape[0]
+    n_samples = min(lr_up.shape[0], max_samples) if max_samples is not None else lr_up.shape[0]
 
     all_crps: list[float] = []
     all_mae: list[float] = []
@@ -118,7 +118,8 @@ def evaluate_flow_model(
         ensemble_preds = []
         for _ in range(n_ensemble):
             with torch.no_grad():
-                sampled = sample_fn(model, batch_lr, shape=(bs, 1, 128, 128), steps=ode_steps)
+                hr_h, hr_w = batch_hr.shape[2], batch_hr.shape[3]
+                sampled = sample_fn(model, batch_lr, shape=(bs, 1, hr_h, hr_w), steps=ode_steps)
                 sampled_res = sampled.cpu() * norm_stats["res_std"] + norm_stats["res_mean"]
                 pred_hr = batch_lr_up + sampled_res
 

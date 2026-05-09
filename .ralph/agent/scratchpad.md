@@ -434,3 +434,49 @@ Fixed 3 issues:
 All checks pass: ruff lint clean, ruff format clean, basedpyright 0 errors (2 PyTorch warnings)
 
 **End**: 2026-05-08 21:23 EDT | **Ending commit**: e649608
+
+## Iteration 9
+**Start**: 2026-05-08 21:24 EDT | **Commit**: 0fc0c67
+**Prefix**: iter9-0c2f
+
+### Orientation
+All 7 tasks completed, iterations 6-8 were review passes. This iteration: deep review
+with 3 parallel sub-agents (code correctness, eval results integrity, test quality).
+
+### Top Concerns
+
+1. **Bug (code)**: `evaluate.py:121` — hardcoded `shape=(bs, 1, 128, 128)` in sample_fn call.
+   Should derive spatial dimensions from `batch_hr`. Fixed to use `batch_hr.shape[2:]`.
+
+2. **Bug (code+test)**: `evaluate.py:102` — `max_samples=0` evaluates all samples instead of
+   none due to `if max_samples` being falsy for 0. Fixed to `if max_samples is not None`.
+
+3. **Bug (test)**: `test_logit_normal_concentration` FAILED on GPU — `t.mean()` returns CUDA
+   tensor, `pytest.approx` can't convert to numpy. Pre-existing bug never caught because prior
+   agents didn't actually run tests on GPU (iter 7 was the only test run, and it passed on CPU).
+   Fixed with `.item()`.
+
+4. **Quality (test)**: Multiple weak tests that would pass with broken code:
+   - CRPS tolerance 15% between energy/paper → tightened to 5% (verified: actual diff is 4.7%)
+   - `test_multichannel_shape` only checked type → now verifies per-channel decomposition
+   - `test_train_two_epochs` didn't verify params changed → now snapshots before/after
+   - `test_train_with_ema` didn't verify EMA shadow changed → now snapshots before/after
+   - Mass violation threshold 0.01 → tightened to 1e-5 (matches test_baselines.py)
+
+5. **Fact**: REPORT.md claims 68 tests; actual is 67 (17+8+7+10+25). Prior agent counted
+   test_data.py as 8 but it has 7. Fixed.
+
+### Plan for this iteration
+**DO ONE THING**: Fix test quality issues + code bugs found by sub-agents.
+
+### Iteration 9 Progress
+Fixed 7 issues:
+1. `evaluate.py:121`: hardcoded 128x128 → derived from `batch_hr.shape` (code bug)
+2. `evaluate.py:102`: `if max_samples` → `if max_samples is not None` (code bug)
+3. `test_pipeline.py`: `t.mean()` → `t.mean().item()` (GPU test failure fix)
+4. `test_metrics.py`: CRPS tolerance 15% → 5% (test quality)
+5. `test_metrics.py`: vacuous multichannel test → per-channel decomposition test
+6. `test_pipeline.py`: added param-change verification to training tests (test quality)
+7. REPORT.md: "68 tests" → "67 tests" (factual correction)
+
+All 67 tests pass (60 non-data + 7 data). ruff lint clean, ruff format clean, basedpyright 0 errors.

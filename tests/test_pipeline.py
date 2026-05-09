@@ -93,7 +93,7 @@ class TestTimestepSampling:
         """Logit-normal should concentrate around 0.5 with mean=0."""
         t = sample_timesteps_logit_normal(10000, device, mean=0.0, std=0.5)
         # With mean=0 and small std, values cluster near 0.5
-        assert t.mean() == pytest.approx(0.5, abs=0.05)
+        assert t.mean().item() == pytest.approx(0.5, abs=0.05)
 
 
 class TestODESamplers:
@@ -230,12 +230,21 @@ class TestTrainingPipeline:
                 shuffle=True,
             )
 
+            # Snapshot model params before training
+            params_before = {n: p.clone() for n, p in model.named_parameters()}
+
             # Train 2 epochs, collect losses
             losses = []
             for _epoch in range(2):
                 loss = trainer._train_epoch(train_loader)
                 losses.append(loss)
                 assert np.isfinite(loss), f"Training loss is not finite: {loss}"
+
+            # Verify training actually changed model parameters
+            changed = any(
+                not torch.allclose(params_before[n], p) for n, p in model.named_parameters()
+            )
+            assert changed, "Training did not change any model parameters"
 
             # Verify checkpoint saves
             trainer._save_checkpoint(1, losses[-1])
@@ -413,12 +422,23 @@ class TestTrainingPipelineExtended:
             )
             trainer = FlowMatchingTrainer(model, config)
             assert trainer.ema is not None
+
+            # Snapshot EMA shadow params before training
+            shadow_before = {n: p.clone() for n, p in trainer.ema.shadow.named_parameters()}
+
             train_loader = DataLoader(
                 TensorDataset(torch.randn(16, 1, 128, 128), torch.randn(16, 1, 128, 128)),
                 batch_size=8,
             )
             loss = trainer._train_epoch(train_loader)
             assert np.isfinite(loss)
+
+            # EMA shadow should have been updated
+            changed = any(
+                not torch.allclose(shadow_before[n], p)
+                for n, p in trainer.ema.shadow.named_parameters()
+            )
+            assert changed, "EMA shadow params were not updated during training"
 
 
 class TestEvaluationPipeline:
@@ -504,7 +524,7 @@ class TestEvaluationPipeline:
         assert np.isfinite(metrics.rmse)
         assert np.isfinite(metrics.mass_violation)
         # With AddCL constraint, mass violation should be near zero
-        assert metrics.mass_violation < 0.01
+        assert metrics.mass_violation < 1e-5
 
     def test_evaluate_flow_model_no_constraint(self, device):
         """evaluate_flow_model works with constraint='none'."""
