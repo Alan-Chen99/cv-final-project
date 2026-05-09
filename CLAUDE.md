@@ -69,6 +69,12 @@ pytest tests/ -v             # integration tests (GPU)
 pytest --cov=downscaling     # coverage
 ```
 
+### Testing policy
+
+- Integration tests only — no unit tests. Tests assume GPU availability.
+- 100% coverage on core logic; only boilerplate (CLI entry points, trivial wiring) may be uncovered.
+- Training tests run only a few iterations to verify correctness, not convergence.
+
 # Project
 
 ## Goal
