@@ -35,16 +35,23 @@ def _get_harder_models_module() -> object:
 
 def _compute_minmax_stats(
     pool_dir: Path,
+    dataset: str = "era5",
 ) -> tuple[float, float]:
     """Compute min-max stats from training targets (matches Harder's normalization).
+
+    Args:
+        pool_dir: Pool datasets directory.
+        dataset: 'era5' or 'noresm'.
 
     Returns:
         (min_val, max_val) from training target data.
     """
-    train_tgt = torch.load(
-        pool_dir / "era5_sr_data" / "train" / "target_train.pt",
-        weights_only=False,
-    )
+    if dataset == "noresm":
+        tgt_path = pool_dir / "noresm-dataset" / "noresm" / "target_train.pt"
+    else:
+        tgt_path = pool_dir / "era5_sr_data" / "train" / "target_train.pt"
+
+    train_tgt = torch.load(tgt_path, weights_only=False)
     # Harder code: max_val[i] = target_train[:,0,i,...].max() for channel i=0
     max_val = float(train_tgt[:, 0, 0, ...].max())
     min_val = float(train_tgt[:, 0, 0, ...].min())

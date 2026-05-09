@@ -7,6 +7,7 @@ on residuals for proper noise-to-signal ratio matching.
 
 import os
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 
 import torch
@@ -15,14 +16,24 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
 from downscaling.data.era5 import load_era5_tcw
+from downscaling.data.noresm import load_noresm_tas
 from downscaling.sampling.timesteps import sample_timesteps_logit_normal, sample_timesteps_uniform
 from downscaling.training.ema import EMA
+
+# (data_dir, split) -> (lr_up, residual, hr, lr_orig)
+DataLoadFn = Callable[[str, str], tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]]
+
+DATASET_LOADERS: dict[str, DataLoadFn] = {
+    "era5": load_era5_tcw,
+    "noresm": load_noresm_tas,
+}
 
 
 @dataclass
 class TrainConfig:
     data_dir: str = ""
     save_dir: str = "models/flow"
+    dataset: str = "era5"
     batch_size: int = 64
     epochs: int = 40
     lr: float = 1e-4
@@ -84,8 +95,9 @@ class FlowMatchingTrainer:
         """Run full training loop. Returns best validation loss."""
         cfg = self.config
 
-        lr_up_train, res_train, _, _ = load_era5_tcw(cfg.data_dir, "train")
-        lr_up_val, res_val, _, _ = load_era5_tcw(cfg.data_dir, "val")
+        load_fn = DATASET_LOADERS[cfg.dataset]
+        lr_up_train, res_train, _, _ = load_fn(cfg.data_dir, "train")
+        lr_up_val, res_val, _, _ = load_fn(cfg.data_dir, "val")
 
         stats = self._compute_normalization(lr_up_train, res_train)
 
