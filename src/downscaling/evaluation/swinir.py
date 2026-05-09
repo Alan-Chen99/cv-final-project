@@ -120,19 +120,17 @@ def predict_swinir_zeroshot(
     model: nn.Module,
     lr_orig: torch.Tensor,
     device: str = "cpu",
-    batch_size: int = 32,
 ) -> torch.Tensor:
     """Run zero-shot SwinIR (3ch pretrained) on 1ch climate data.
 
     Uses per-sample normalization to [0,1], replicates to 3 channels,
     runs inference, averages output channels, and denormalizes.
+    Processes one sample at a time due to per-sample normalization.
 
     Args:
         model: Pretrained 3ch SwinIR model.
         lr_orig: LR input, shape (N, 1, 32, 32).
         device: Inference device.
-        batch_size: Batch size (processes one sample at a time internally
-                    due to per-sample normalization).
 
     Returns:
         HR predictions, shape (N, 1, 128, 128).

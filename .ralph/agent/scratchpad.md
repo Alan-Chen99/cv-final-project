@@ -302,5 +302,61 @@ Slightly higher CRPS with 500 samples vs 10K — expected variance effect.
 
 ## Ending state
 - **Time**: 2026-05-09 04:44 EDT
-- **Commit**: (pending commit)
+- **Commit**: ace332d
 - **GPU**: Released (scancel 13623783)
+
+---
+
+# Iteration 6: Write Integration Tests for SwinIR Code
+
+## Start
+- **Time**: 2026-05-09 04:44 EDT
+- **Commit**: ace332d (fix SwinIR eval: re-evaluate with 500 samples)
+- **Prefix**: wqko-xlio
+
+## GPU Status
+- 1 normal job running (cliff-palm, node3402) - limit 2, 1 normal slot available
+- 2 preemptable jobs running + 1 cpu-preemptable - limit 4
+- Will use normal slot for test execution
+
+## Concerns
+
+### 1. Quality: No integration tests for SwinIR code
+- CLAUDE.md: "100% coverage on core logic; only boilerplate (CLI entry points, trivial wiring) may be uncovered"
+- SwinIR evaluation has core logic: channel adaptation (3ch→1ch), per-sample normalization, global normalization, metric computation, AddCL integration
+- No tests written across iterations 1-5
+- **Fix**: Write tests/test_swinir.py covering all core logic
+
+### 2. Quality: Unused batch_size parameter in predict_swinir_zeroshot
+- Function signature accepts batch_size but processes samples one-at-a-time in loop
+- Misleading parameter — callers might expect batched inference
+- Only called from eval_swinir_zeroshot which doesn't pass batch_size
+- **Fix**: Remove unused parameter
+
+### 3. Workflow: Tests not verified before claiming task complete
+- Prior iterations marked eval/figures/formatting as done but never wrote or ran tests
+- CLAUDE.md requires tests for core logic, so task is incomplete without them
+- **Fix**: Write tests, allocate GPU, verify they pass
+
+## Plan
+1. Write tests/test_swinir.py ✓
+2. Fix unused batch_size param ✓
+3. Run ruff check/format ✓
+4. Allocate GPU (preemptable 13624808, node3004), run tests ✓
+5. Commit ✓
+6. Release GPU ✓ (scancel 13624808)
+
+## Test Results
+- 29 new tests in tests/test_swinir.py: ALL PASS
+- Full suite (96 tests): ALL PASS (12.66s)
+- Tests cover: channel adaptation, zero-shot prediction, finetuned prediction,
+  checkpoint loading, metric computation, AddCL integration, end-to-end eval
+
+## Changes
+1. tests/test_swinir.py — 29 integration tests for SwinIR evaluation code
+2. src/downscaling/evaluation/swinir.py — removed unused batch_size param from predict_swinir_zeroshot
+
+## Ending state
+- **Time**: 2026-05-09 04:53 EDT
+- **Commit**: (pending)
+- **GPU**: Released (scancel 13624808)
