@@ -422,3 +422,18 @@ Report numbers verified against JSON files — consistent.
 3. Add test verifying the roundtrip (train checkpoint → load → eval)
 4. Remove duplicate dependency specs (concern 2)
 5. Verify all checks pass
+
+### Work Done
+
+- **Fixed train_flow_matching()**: Added `model_args` parameter, saves `args` in checkpoint
+  when provided. This matches what `load_flow_checkpoint()` expects.
+- **Fixed load_flow_checkpoint()**: Changed `ckpt["args"]` → `ckpt.get("args", {})` so
+  legacy checkpoints without args use default architecture (base64, (1,2,4), 4 heads).
+- **Added test_load_without_args_uses_defaults**: Verifies CPU-side roundtrip of
+  checkpoints without args key — loads with defaults and weights match.
+- **Removed duplicate [project.optional-dependencies].dev** from pyproject.toml.
+  `uv` uses `[dependency-groups].dev`; the optional-deps section was dead code.
+- **Updated REPORT.md**: test count 50 → 51 (35 CPU, 16 GPU-only)
+- All checks pass: 35 CPU tests, ruff clean, basedpyright clean
+
+**End:** 2026-05-08 21:14 EDT | commit: 0398bfb
