@@ -477,4 +477,37 @@ Iters 1-8 completed all 7 task items. Reviewing verification completeness.
 - **Added scripts/ to basedpyright include** in pyproject.toml
 - **Verified**: ruff clean, basedpyright clean, 35 CPU tests pass
 
-**End:** 2026-05-08 21:20 EDT | commit: (pending)
+**End:** 2026-05-08 21:20 EDT | commit: ed3924f
+
+## Iteration 10
+**Start:** 2026-05-08 21:23 EDT | commit: ed3924f
+**Prefix:** jzyg-pkzi
+
+### Orientation
+
+Iters 1-9 completed all 7 task items. All checks pass (35 CPU tests, ruff clean,
+basedpyright clean including scripts/). Figures verified visually — all match JSON data.
+Report numbers cross-checked against results/*.json — consistent.
+
+### Top 3 Concerns
+
+1. **Quality: REPORT.md reproducibility section doesn't include scripts/ in lint commands** —
+   Lines 186-187 say `ruff check src/ tests/` and `basedpyright src/ tests/`, but iter9
+   added scripts/ to the basedpyright include and fixed ruff errors there. Anyone following
+   the repro instructions would miss scripts/ lint coverage. Stale from iter9 not updating
+   the report.
+
+2. **Quality: REPORT.md reproducibility test count stale** — Line 179 says "(34 pass on CPU,
+   16 require GPU)" but actual is 35 passed + 16 skipped = 51 total. Line 158 correctly says
+   "51 (35 CPU, 16 GPU-only)" but line 179 is still at the iter7 count of 34.
+
+3. **Quality: eval_results.json is redundant** — It's identical to the baselines-only portion
+   of eval_200samples.json (same numbers, same timestamps differ by 20 min). Two files with
+   overlapping data is confusing. However, removing it could break scripts or future references,
+   so the safer fix is just documenting its provenance — not worth a code change.
+
+### Plan for this iteration
+
+**Focus: Fix REPORT.md stale reproducibility section (concerns 1 & 2)**
+
+Both are in the same section and constitute a single documentation accuracy fix.

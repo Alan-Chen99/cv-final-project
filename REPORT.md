@@ -176,15 +176,15 @@ python scripts/evaluate_all.py --samples 200 --ensemble 10
 # Generate figures (requires GPU for sample plots)
 python scripts/visualize.py --samples 8
 
-# Run tests (34 pass on CPU, 16 require GPU)
+# Run tests (35 pass on CPU, 16 require GPU)
 pytest tests/ -v
 
 # Coverage (full coverage requires GPU for model/sampling tests)
 pytest tests/ --cov=downscaling --cov-report=term-missing
 
 # Lint/typecheck
-ruff check src/ tests/
-basedpyright src/ tests/
+ruff check src/ tests/ scripts/
+basedpyright src/ tests/ scripts/
 ```
 
 Pre-trained weights in pool:
