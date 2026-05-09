@@ -341,3 +341,43 @@ Use verified numbers from results/*.json and research3 branch report.
 - Report clearly distinguishes 200-sample vs 10K evaluation counts
 
 **End:** 2026-05-08 20:56 EDT | commit: 65e86ac
+
+## Iteration 7
+**Start:** 2026-05-08 20:57 EDT | commit: 4df1166
+**Prefix:** wvae-igmw
+
+### Orientation
+
+Iters 1-6 completed all 7 task items. Reviewing for accuracy and correctness.
+
+### Top 3 Concerns
+
+1. **Fact: REPORT.md claims "38 integration tests, all passing"** — Actually 50 tests
+   (34 pass on CPU, 16 skip GPU-only). The count was stale from iter3 (before visualization
+   tests were added in iter5). Report line 158 is wrong.
+
+2. **Workflow: Coverage never actually verified** — `pytest-cov` was not installed despite
+   `coverage[toml]` being in pyproject.toml. The iter1 claim "Coverage: 100% on core logic"
+   was never measurable. Actual coverage: core modules (metrics, constraints, data) ARE 100%,
+   but total is 50% because models/sampling/training need GPU. The `fail_under = 90` config
+   would always fail on CPU.
+
+3. **Quality: coverage config misleading** — `omit = ["*/training/*"]` pattern matches a
+   `training/` directory, not `training.py`. The `fail_under = 90` was unreachable on CPU.
+
+### Work Done
+
+- **Fixed REPORT.md**: test count "38 → 50 (34 CPU, 16 GPU-only)", added coverage command
+- **Fixed pyproject.toml**:
+  - Added `pytest-cov` to project.optional-dependencies.dev
+  - Removed misleading `*/training/*` omit pattern
+  - Removed `fail_under = 90` (unreachable on CPU; GPU-only modules need GPU)
+  - Added comment documenting GPU requirement for full coverage
+- **Verified**: all 34 CPU tests pass, ruff + basedpyright clean, coverage runs cleanly
+- **Actual coverage breakdown**:
+  - 100%: metrics, constraints, data, __init__, models/__init__
+  - 98%: visualization (4 NaN-guard lines)
+  - 58%: training (GPU-only tests)
+  - 15-24%: models, sampling, evaluation (GPU-only tests)
+
+**End:** 2026-05-08 21:05 EDT | commit: (pending)

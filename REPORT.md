@@ -155,7 +155,7 @@ src/downscaling/
     ├── dit.py         # DiT (Vision Transformer variant)
     └── ddpm.py        # DDPMSchedule, ddim_sample
 
-tests/                 # 38 integration tests, all passing
+tests/                 # 50 integration tests (34 CPU, 16 GPU-only)
 scripts/
 ├── evaluate_all.py    # Run evaluations on all methods
 └── visualize.py       # Generate all figures
@@ -176,8 +176,11 @@ python scripts/evaluate_all.py --samples 200 --ensemble 10
 # Generate figures (requires GPU for sample plots)
 python scripts/visualize.py --samples 8
 
-# Run tests
+# Run tests (34 pass on CPU, 16 require GPU)
 pytest tests/ -v
+
+# Coverage (full coverage requires GPU for model/sampling tests)
+pytest tests/ --cov=downscaling --cov-report=term-missing
 
 # Lint/typecheck
 ruff check src/ tests/
