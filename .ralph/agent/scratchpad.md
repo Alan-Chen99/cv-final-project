@@ -71,3 +71,51 @@ Skip: flow-uniform-amp, flow-logitnorm-ema, flow-v2-zscore (ablation variants, n
 
 ## Ending commit: 90eeb59
 ## Ending time: 2026-05-09T21:40:00Z
+
+---
+
+## Iteration 2
+### Run prefix: coral-maze
+### Starting commit: 6dbf7c7
+### Starting time: 2026-05-09T21:36:34Z
+
+### Top 3 concerns (iteration 2)
+
+#### 1. Workflow: No CLI entry point for training
+FlowMatchingTrainer exists as a library class but there's no script to invoke it.
+Need to write a reusable training CLI script that works with SLURM.
+
+#### 2. Quality: upsampling_factor=4 hardcoded as defaults across evaluation code
+evaluate_flow_model(), evaluate_ensemble(), evaluate_deterministic(), eval_bicubic(),
+eval_bilinear(), evaluate_harder_cnn(), evaluate_harder_gan() all default to
+upsampling_factor=4. NorESM needs 2. All callsites must explicitly pass the correct
+factor. This is a correctness risk for future iterations.
+
+#### 3. Quality: Model capacity for 2x SR
+NorESM is 2x SR (64x64 output) vs ERA5 4x (128x128 output). The 28M flow-wide96-amp
+model may be overparameterized for the simpler 2x task. But the goal is to match the
+existing figures, so train with same architecture (base_channels=96).
+
+### Plan for this iteration
+- Write training CLI script (scripts/train_flow.py)
+- Allocate GPU node
+- Train flow-wide96-amp on NorESM (base_channels=96, amp=True, uniform timesteps, 40 epochs)
+- Save checkpoint to pool/datasets/noresm-dataset/models/flow-wide96-amp/
+
+### Iteration 2 results
+- Wrote scripts/train_flow.py — reusable CLI for flow matching training on any dataset
+- Allocated GPU (L40S on node3008, job 13654342)
+- Trained flow-wide96-amp (28.4M params) on NorESM for 40 epochs in 35.9 min
+- Best val loss: 0.129882 at epoch 38
+- Checkpoint: pool/datasets/noresm-dataset/models/flow-wide96-amp/best_flow.pt (454MB)
+- Norm stats: res_mean=-0.495, res_std=2.830, lr_mean=279.87, lr_std=21.65
+- Has EMA weights: yes
+- Lint/format/typecheck: all pass
+- GPU allocation released
+
+### Next iteration
+- Train Harder CNN/GAN on NorESM (requires upsampling_factor=2)
+- Need to check if Harder training code exists or if we need to write it
+
+### Ending commit: dea7b3b
+### Ending time: 2026-05-09T22:20:00Z
