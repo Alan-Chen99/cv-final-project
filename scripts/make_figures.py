@@ -35,6 +35,7 @@ from downscaling.evaluation.harder import (
     generate_harder_gan_predictions,
     load_harder_model,
 )
+from downscaling.evaluation.swinir import load_swinir_finetuned, predict_swinir_finetuned
 from downscaling.models.unet import AttentionUNet
 from downscaling.plotting.metrics import (
     load_results,
@@ -198,6 +199,30 @@ def make_sample_figures(
             )
         del hmodel
         torch.cuda.empty_cache()
+
+    # SwinIR finetuned + AddCL predictions
+    swinir_pretrained = pool_dir / "research5/pretrained_weights/001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth"
+    swinir_ckpt = pool_dir / "spatial-4x-add-v2/models/swinir_ft/best_swinir.pt"
+    if swinir_pretrained.exists() and swinir_ckpt.exists() and device != "cpu":
+        print("Generating SwinIR finetuned+AddCL predictions...")
+        swinir_model, vmin, vmax = load_swinir_finetuned(swinir_pretrained, swinir_ckpt, device)
+        swinir_preds = predict_swinir_finetuned(
+            swinir_model, lr_orig, vmin, vmax, device, batch_size=64
+        )
+        swinir_preds = apply_addcl(swinir_preds[:n_vis_samples], lr_orig[:n_vis_samples])
+        baselines["SwinIR FT+AddCL"] = swinir_preds
+        del swinir_model
+        torch.cuda.empty_cache()
+        print(f"  Generated {n_vis_samples} SwinIR predictions")
+    else:
+        missing = []
+        if not swinir_pretrained.exists():
+            missing.append(f"pretrained: {swinir_pretrained}")
+        if not swinir_ckpt.exists():
+            missing.append(f"checkpoint: {swinir_ckpt}")
+        if device == "cpu":
+            missing.append("GPU")
+        print(f"  Skipping SwinIR: missing {', '.join(missing)}")
 
     # Flow model predictions (best model: wide96)
     flow_preds = None

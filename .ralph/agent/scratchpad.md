@@ -158,5 +158,51 @@ Key findings:
 
 ## Ending state
 - **Time**: 2026-05-09 ~04:20 EDT
-- **Commit**: (pending commit)
+- **Commit**: e94e687 (add SwinIR eval results and regenerate metric figures)
 - **GPU**: Released (scancel 13622667)
+
+---
+
+# Iteration 3: Add SwinIR to Sample Visualizations
+
+## Start
+- **Time**: 2026-05-09 04:22 EDT
+- **Commit**: e94e687 (add SwinIR eval results and regenerate metric figures)
+- **Prefix**: dusk-melon
+
+## GPU Status
+- 0 normal jobs running (limit 2) → 2 normal slots available
+- 4 preemptable jobs running (limit 4) → 0 preemptable available
+- Will use normal slot for sample figure regeneration
+
+## Concerns
+
+### 1. Workflow: Sample visualizations don't include SwinIR
+- Metric figures updated (iter2) but sample_comparison/error_maps still only show baselines + Harder + flow
+- make_figures.py has no SwinIR prediction code in make_sample_figures()
+- **Fix**: Add SwinIR finetuned+addcl prediction generation to make_sample_figures()
+
+### 2. Quality: Too many panels in sample comparison
+- Currently 9 panels (LR, HR, Bilinear, Bicubic, Bicubic+AddCL, Harder CNN, Harder CNN+SmCL, Harder GAN+SmCL, Wide96 Flow)
+- Adding all 4 SwinIR variants = 13 panels → too cluttered
+- **Fix**: Add only "SwinIR FT+AddCL" (best SwinIR), keeping to 10 panels
+
+### 3. Workflow: Need GPU to regenerate sample figures
+- Flow model predictions require GPU (ODE sampling)
+- SwinIR finetuned inference also needs GPU (fast: ~1s for 5 samples)
+- **Fix**: Allocate normal GPU slot, run make_figures.py (not --metrics-only)
+
+## Plan
+1. Modify make_figures.py to add SwinIR finetuned+addcl predictions ✓
+2. Allocate GPU and regenerate all sample figures ✓ (job 13623239, node3002)
+3. Commit ✓
+
+## Results
+- SwinIR FT+AddCL now appears in all sample_comparison and error_maps figures
+- Quality hierarchy confirmed visually: Bilinear > Bicubic > Bicubic+AddCL > Harder CNN > Harder CNN+SmCL > Harder GAN+SmCL > SwinIR FT+AddCL > Wide96 Flow
+- Sample 0 MAEs: SwinIR FT+AddCL=0.6014, Harder GAN+SmCL=0.6465, Flow=0.5327
+
+## Ending state
+- **Time**: 2026-05-09 04:27 EDT
+- **Commit**: (pending commit)
+- **GPU**: Released (scancel 13623239)
