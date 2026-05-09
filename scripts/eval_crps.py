@@ -8,9 +8,9 @@ fc.shape[-1]**2 (=128²) instead of fc.shape[0]**2 (=M²).
 This script provides a correct implementation.
 """
 import argparse
+
 import numpy as np
 import torch
-from pathlib import Path
 
 
 def crps_ensemble(obs: np.ndarray, forecasts: np.ndarray) -> float:
@@ -60,7 +60,7 @@ def crps_ensemble_fast(obs: np.ndarray, forecasts: np.ndarray) -> float:
     return float(np.mean(crps))
 
 
-def evaluate_crps(pred_path: str, target_path: str, input_path: str = None) -> dict:
+def evaluate_crps(pred_path: str, target_path: str, input_path: str | None = None) -> dict:
     """Evaluate ensemble predictions.
 
     Args:
@@ -78,11 +78,12 @@ def evaluate_crps(pred_path: str, target_path: str, input_path: str = None) -> d
 
     if is_ensemble:
         N, M = pred.shape[0], pred.shape[1]
-        ensemble_np = pred[:, :, 0, 0, :, :].numpy()  # (N, M, H, W)
+        ensemble_np: np.ndarray = pred[:, :, 0, 0, :, :].numpy()  # (N, M, H, W)
         mean_pred = pred.mean(dim=1)  # (N, 1, 1, H, W)
     else:
         N = pred.shape[0]
         M = 1
+        ensemble_np = np.empty(0)
         mean_pred = pred
 
     target_np = target[:, 0, 0, :, :].numpy()  # (N, H, W)
@@ -106,10 +107,7 @@ def evaluate_crps(pred_path: str, target_path: str, input_path: str = None) -> d
     crps = float(np.mean(crps_values))
 
     # Ensemble spread (std of ensemble members)
-    if is_ensemble:
-        spread = float(np.mean(np.std(ensemble_np, axis=1)))
-    else:
-        spread = 0.0
+    spread = float(np.mean(np.std(ensemble_np, axis=1))) if is_ensemble else 0.0
 
     # Mass violation
     mass_viol = 0.0

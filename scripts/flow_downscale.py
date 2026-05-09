@@ -13,14 +13,14 @@ Inference: Euler ODE from t=0 to t=1 with N steps.
 import argparse
 import math
 import time
+from pathlib import Path
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset
-from pathlib import Path
 from scipy.optimize import linear_sum_assignment
-
+from torch.utils.data import DataLoader, TensorDataset
 
 # ── OT coupling ──────────────────────────────────────────────────────────────
 
@@ -48,7 +48,7 @@ def ot_coupling(x0, x1):
     cost = x0_sq + x1_sq.T - 2 * x0_flat @ x1_flat.T  # (B, B) on GPU
     # Only transfer small BxB matrix to CPU for Hungarian
     cost_np = cost.cpu().numpy()
-    row_ind, col_ind = linear_sum_assignment(cost_np)
+    _row_ind, col_ind = linear_sum_assignment(cost_np)
     # Reorder x0 so x0[i] is matched to x1[i]
     inv_perm = np.argsort(col_ind)
     return x0[inv_perm]
@@ -340,10 +340,10 @@ def apply_constraint(hr, lr_32, constraint_type='none', eps=1e-6):
     else:
         raise ValueError(f"Unknown constraint: {constraint_type}")
 
-    # Downsample to 32×32 via block average
+    # Downsample to 32x32 via block average
     sum_y = F.avg_pool2d(y, kernel_size=4)  # (B, 1, 32, 32)
 
-    # Ratio: lr / sum_y, then broadcast back to 128×128
+    # Ratio: lr / sum_y, then broadcast back to 128x128
     ratio = lr_32 / (sum_y + eps)
     ratio_up = ratio.repeat_interleave(4, dim=2).repeat_interleave(4, dim=3)
 
@@ -394,7 +394,7 @@ def train(args):
     # Data
     train_loader, min_val, max_val = load_data(args.data_dir, args.batch_size, 'train')
     val_loader, _, _ = load_data(args.data_dir, args.batch_size, 'val')
-    print(f"Train: {len(train_loader.dataset)} samples, Val: {len(val_loader.dataset)} samples")
+    print(f"Train: {len(train_loader.dataset)} samples, Val: {len(val_loader.dataset)} samples")  # type: ignore[arg-type]
     print(f"Normalization: min={min_val:.4f}, max={max_val:.4f}")
 
     # Model
@@ -670,7 +670,7 @@ def generate_ensemble(model, lr_input, n_members, n_steps, device,
     dt = 1.0 / n_steps
 
     all_members = []
-    for m in range(n_members):
+    for _m in range(n_members):
         if lr_anchor:
             x = cond + noise_std * torch.randn(B, 1, 128, 128, device=device)
         else:
@@ -740,7 +740,7 @@ def evaluate(args):
 
     # Load test data (normalized)
     test_loader, _, _ = load_data(args.data_dir, args.eval_batch_size, 'test')
-    print(f"Test samples: {len(test_loader.dataset)}")
+    print(f"Test samples: {len(test_loader.dataset)}")  # type: ignore[arg-type]
 
     # Generate ensemble predictions
     all_preds = []

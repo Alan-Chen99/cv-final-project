@@ -77,7 +77,7 @@ typeCheckingMode = "standard"
 reportMissingImports = true
 reportMissingTypeStubs = false
 reportPrivateImportUsage = false
-include = ["src", "tests"]
+include = ["src", "tests", "scripts"]
 
 # --- pytest ---
 [tool.pytest.ini_options]

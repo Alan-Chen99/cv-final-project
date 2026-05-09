@@ -437,3 +437,44 @@ Report numbers verified against JSON files — consistent.
 - All checks pass: 35 CPU tests, ruff clean, basedpyright clean
 
 **End:** 2026-05-08 21:14 EDT | commit: 0398bfb
+
+## Iteration 9
+**Start:** 2026-05-08 21:16 EDT | commit: 5337928
+**Prefix:** jfuo-qssy
+
+### Orientation
+
+Iters 1-8 completed all 7 task items. Reviewing verification completeness.
+
+### Top 3 Concerns
+
+1. **Fact: Prior iterations claimed "ruff clean" but scripts/ has 9 lint errors** —
+   `uv run ruff check src/ tests/ scripts/` finds 9 errors in scripts/eval_crps.py (4)
+   and scripts/flow_downscale.py (5). Issues: unsorted imports, unused `Path` import,
+   implicit `Optional`, `SIM108` ternary, ambiguous `×` chars, unused loop vars.
+   Prior iterations likely only ran `ruff check src/ tests/` without including `scripts/`.
+
+2. **Quality: scripts/ excluded from basedpyright** — pyproject.toml has
+   `include = ["src", "tests"]`, so scripts/ is never type-checked. These are canonical
+   scripts (flow_downscale.py is the original training/eval script, eval_crps.py is the
+   CRPS evaluator, evaluate_all.py and visualize.py are the new pipeline scripts).
+
+3. **Quality: Two of the scripts (eval_crps.py, flow_downscale.py) are standalone experiment
+   scripts from before src/ was organized** — They duplicate logic now in src/downscaling/.
+   However, they should still lint clean since they're tracked in git.
+
+### Plan for this iteration
+
+**Focus: Fix ruff errors in scripts/ and add scripts/ to lint/typecheck scope**
+
+### Work Done
+
+- **Fixed 9 ruff errors in scripts/**:
+  - `eval_crps.py`: sorted imports, removed unused `Path` import, `str = None` → `str | None = None`,
+    `if/else` → ternary (SIM108), initialized `ensemble_np` for basedpyright
+  - `flow_downscale.py`: sorted imports, `row_ind` → `_row_ind`, `m` → `_m`,
+    `×` → `x` in comments, type: ignore for torch Dataset len()
+- **Added scripts/ to basedpyright include** in pyproject.toml
+- **Verified**: ruff clean, basedpyright clean, 35 CPU tests pass
+
+**End:** 2026-05-08 21:20 EDT | commit: (pending)
