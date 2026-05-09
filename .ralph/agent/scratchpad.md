@@ -91,3 +91,72 @@ Key findings:
 3. Optionally: continue training for more epochs if MAE worse than research5
 4. Update figures with scripts/make_figures.py
 5. Commit updated eval results + figures
+
+---
+
+# Iteration 2: Run SwinIR Evaluation
+
+## Start
+- **Time**: 2026-05-09 03:56 EDT
+- **Commit**: 38b05ca (update scratchpad)
+- **Prefix**: ivtl-jbcd
+
+## GPU Status
+- 1 normal job running (limit 2) → 1 normal slot available
+- 4 preemptable jobs running (limit 4) → 0 preemptable available
+- Will use normal slot
+
+## Concerns
+
+### 1. Workflow: run_eval.py cannot run SwinIR only
+- run_eval.py runs ALL models (baselines + SwinIR + Harder + flow)
+- Flow model eval is extremely slow (500 ODE steps × 10 ensemble × 10K samples)
+- No `--swinir-only` or `--skip-flow` flag exists
+- **Fix**: Run SwinIR eval inline and merge results into eval_results_500.json
+
+### 2. Workflow: make_figures.py doesn't include SwinIR in sample visualizations
+- Metric plots auto-pick up from JSON (will work after eval)
+- But sample_comparison/error_maps do NOT include SwinIR predictions
+- **Fix**: Add SwinIR prediction generation to make_figures.py (next iteration)
+
+### 3. Fact: Scratchpad says "epoch 22" but checkpoint has epoch 21
+- Checkpoint 'epoch' key = 21 (0-indexed), scratchpad says 22 (1-indexed?)
+- Minor discrepancy, not functional issue. Checkpoint is valid.
+
+## Plan for this iteration
+1. Allocate GPU (normal slot) ✓ (job 13622667, node1634)
+2. Run SwinIR eval (4 configs) on test set ✓
+3. Merge results into eval_results_500.json ✓
+4. Regenerate metric figures (--metrics-only, no GPU needed) ✓
+5. Commit updated results + figures ✓
+6. Release GPU ✓
+
+## SwinIR Evaluation Results (10K test samples, GPU)
+
+| Method | CRPS | MAE | RMSE | MassViol | Time |
+|--------|------|-----|------|----------|------|
+| swinir-finetuned+addcl | **0.2563** | **0.2563** | **0.5016** | 0.0000 | 33s |
+| swinir-finetuned | 0.2579 | 0.2579 | 0.5029 | 0.0240 | 40s |
+| swinir-zeroshot+addcl | 0.3024 | 0.3024 | 0.6771 | 0.0000 | 291s |
+| swinir-zeroshot | 0.3173 | 0.3173 | 0.6947 | 0.0818 | 303s |
+
+Key findings:
+- Finetuning helps enormously: CRPS 0.317 → 0.258 (19% improvement)
+- AddCL eliminates mass violation with slight CRPS improvement
+- SwinIR finetuned+addcl (CRPS=0.256) beats all Harder baselines:
+  - Harder GAN+SmCL: 0.2835
+  - Harder CNN+SmCL: 0.2951
+  - Harder CNN: 0.3129
+- But flow models are still significantly better (0.172-0.182)
+- Zero-shot is slow (291-303s) due to per-sample normalization
+- Finetuned is fast (33-40s) with global normalization
+- MAE=0.2579 comparable to research5's MAE=0.2504 (slightly worse, fewer epochs)
+
+## Remaining work
+- Add SwinIR to make_figures.py sample visualizations (next iteration)
+- Consider continuing training for more epochs
+
+## Ending state
+- **Time**: 2026-05-09 ~04:20 EDT
+- **Commit**: (pending commit)
+- **GPU**: Released (scancel 13622667)
