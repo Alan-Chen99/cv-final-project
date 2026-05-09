@@ -230,9 +230,66 @@ No evaluations have actually been run through the canonical pipeline. No visuali
 
 Wide96 is best. AddCL is free (no CRPS cost, eliminates mass violation).
 
-**End:** 2026-05-08 20:40 EDT | commit: (pending)
+**End:** 2026-05-08 20:40 EDT | commit: 363db50
 
 ### Next iterations should focus on
 - Task (6): Visualization code (sample grids, ensemble diversity, metrics bar charts)
 - Task (7): Write report file
 - Run full 10K eval for flow models (takes ~50 min per model, needs dedicated GPU time)
+
+## Iteration 5
+**Start:** 2026-05-08 20:42 EDT | commit: 363db50
+**Prefix:** edbw-iajz
+
+### Orientation
+
+Iters 1-4 built the shared library + evaluation pipeline. Results JSON files exist with
+verified numbers. No visualization code in src/, no report file.
+
+### Top 3 Concerns
+
+1. **Workflow: No visualization code** — Task (6) explicitly asks for visualization code
+   using pre-trained weights. Two experiment scripts have plotting logic
+   (visualize_samples.py, visualize_results.py) but nothing extracted to src/.
+   This is the primary remaining gap before the report.
+
+2. **Quality: eval_results.json contains NaN entries** — First eval run included SmCL
+   which produces NaN. eval_200samples.json removed them but eval_results.json still
+   has NaN rows. Minor data hygiene issue.
+
+3. **Workflow: No report file** — Task (7) asks for a report. Leave for next iteration
+   once visualization artifacts exist.
+
+### Plan for this iteration
+
+**Focus: Task (6) — Create visualization module + generate plots**
+
+1. Create `src/downscaling/visualization.py` — reusable plotting functions:
+   - `plot_sample_grid()`: LR, HR, ensemble mean, |error|, spread (output artifact)
+   - `plot_ensemble_members()`: individual ensemble members (output artifact)
+   - `plot_metrics_comparison()`: bar charts comparing methods (data plotting)
+2. Create `scripts/visualize.py` — runner that loads best model, generates predictions, plots
+3. Allocate GPU, run visualization script, verify output
+
+### Completed
+
+- **Created `src/downscaling/visualization.py`** — 5 plotting functions:
+  - `plot_sample_grid()`: 5-column grid (LR, HR, mean, |error|, spread)
+  - `plot_ensemble_members()`: individual members with per-member MAE
+  - `plot_metrics_comparison()`: horizontal bar chart by metric
+  - `plot_constraint_effect()`: grouped bar (with/without AddCL)
+  - `plot_mass_violation()`: mass conservation bar chart
+- **Created `scripts/visualize.py`** — runner script with --samples flag for GPU plots
+- **Created `tests/test_visualization.py`** — 7 tests (synthetic data, no GPU needed)
+- **Generated 6 figures** in `figures/`:
+  - Data plots: metrics_crps.png, metrics_mae.png, constraint_effect.png, mass_violation.png
+  - Output artifacts: sample_grid.png (8 samples), ensemble_members_best.png
+- **Visually verified**: model predictions add HR detail vs LR bilinear, ensemble
+  members show meaningful diversity (MAE 0.666-0.743), constraint effect clearly visible
+- All checks pass: 31 non-GPU tests, 0 ruff errors, 0 basedpyright errors
+
+**End:** 2026-05-08 20:55 EDT | commit: (pending)
+
+### Next iterations should focus on
+- Task (7): Write report file
+- Clean up eval_results.json (remove NaN SmCL entries)
