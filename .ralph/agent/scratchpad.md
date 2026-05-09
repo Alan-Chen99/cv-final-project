@@ -188,4 +188,4 @@ Then allocate GPU and run eval to produce actual numbers.
 - Task 6: Visualization code for key results
 - Task 7: Report file
 
-**End**: 2026-05-08 20:22 EDT | **Ending commit**: TBD
+**End**: 2026-05-08 20:22 EDT | **Ending commit**: 56f4ef6
