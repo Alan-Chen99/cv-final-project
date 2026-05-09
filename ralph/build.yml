@@ -64,6 +64,8 @@ hats:
            - If prior agent did not run tests, it is NOT sufficient to just run tests. You do NOT have enough context to interpret what a "test pass" mean, and what a "test fail" mean.
            - If prior agent did not document how a result is dervied -- result is invalid, all conclusions based on result also invalid. NEVER assume where results come from. Steps not written -> discard data completely.
            - Possible fix: review changes carefully, or revert to the point before things went wrong.
+        - Literature: (when exploring directions or starting new experiments only) existing catalog and prior approaches may not cover the best direction
+           - Possible fix: web search for recent papers, then spawn a subagent to run /arxiv-to-md for 2-3 worth reading
 
       Then: Continue to work on the task from the prompt; commit changes with one or more commits.
       This means:
@@ -106,6 +108,7 @@ hats:
       2. Review for rule violations (CLAUDE.md, rules/)
       3. Review whether output got sufficient testing (NOT "it works becuase tests passed"). Identify failure classes that will be systematically not-caught
       4. Verify whether claims added in `decisions.md, scratchpad.md, memories.md` underwent independent verification
+      5. Verify whether any iteration searched for new literature beyond the CLAUDE.md paper catalog (when the task involved direction-setting or experiment selection). Check for actual /arxiv-to-md or web search invocations, not just agent claims of having searched.
 
       Include:
 

@@ -53,6 +53,13 @@ Since that work, diffusion models have become the state of the art for both imag
 - **GenDiff** (2404.17752): Generative diffusion-based downscaling across climate variables. Ensemble generation for uncertainty quantification.
 - **WassDiff** (2410.00381): Score-based diffusion with Wasserstein distance regularization. Better extreme value capture than standard score matching.
 
+## Research exploration
+
+When proposing or evaluating research directions (not when implementing an already-decided approach):
+- Search beyond this file: use web search to find recent work, then spawn a subagent to run `/arxiv-to-md` for papers worth reading in detail
+- Do not limit directions to prior branches or the existing paper catalog — these reflect what has been explored, not what should be explored
+- Label each proposed direction: "from catalog" vs "from new search" so gaps are visible
+
 # Pool data (not in git)
 
 Located on `/home/chenxy/orcd/pool/datasets/` (pool disk). Data MUST go here, never in `/workspace` or worktrees. Symlink into worktrees as needed.
@@ -107,6 +114,8 @@ IMPORTANT: prior agent notes MUST be taken as CONTEXT ONLY. Verify all claims be
 | 2026-05-07 | Research5: Pretrained Image SR for Climate Downscaling (research5 branch report) | [experiments/pretrained-sr-downscaling/2026-05-07-research5-pretrained-sr-report.md](experiments/pretrained-sr-downscaling/2026-05-07-research5-pretrained-sr-report.md) |
 
 # Papers
+
+This is a starting catalog, not a boundary. When exploring research directions, search for recent papers NOT listed here — use web search to find candidates, then spawn a subagent to run `/arxiv-to-md` for 2-3 worth reading in detail. Do not limit approaches to what is already cataloged or tried in prior branches.
 
 ## Diffusion & Flow Foundations
 
