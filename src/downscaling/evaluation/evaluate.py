@@ -124,9 +124,9 @@ def evaluate_flow_model(
                 pred_hr = batch_lr_up + sampled_res
 
                 if constraint == "addcl":
-                    pred_hr = apply_addcl(pred_hr, batch_lr_orig)
+                    pred_hr = apply_addcl(pred_hr, batch_lr_orig, upsampling_factor)
                 elif constraint == "smcl":
-                    pred_hr = apply_smcl(pred_hr, batch_lr_orig)
+                    pred_hr = apply_smcl(pred_hr, batch_lr_orig, upsampling_factor)
 
                 ensemble_preds.append(pred_hr.numpy())
 
