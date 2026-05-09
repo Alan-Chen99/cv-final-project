@@ -249,3 +249,55 @@ and trained flow models. Eval results in JSON files. Plotting module is empty.
 - Task 7: Report file
 
 **End**: 2026-05-08 20:40 EDT | **Ending commit**: 67755e3
+
+## Iteration 5
+**Start**: 2026-05-08 20:37 EDT | **Commit**: bdf81bf
+**Prefix**: rpt-5ceb
+
+### Orientation
+Iterations 1-4 completed: project structure, tests, evaluation with GPU results, visualization.
+Only remaining task: write report file (task 7).
+
+### Top Concerns
+
+1. **Quality**: eval_results_500.json uses 500 test samples while baselines JSON uses 10K.
+   The report must clearly distinguish these and use the 500-sample results for the main
+   comparison table (all methods at same N). Cross-branch 10K results from individual
+   experiment evaluations can be presented separately.
+
+2. **Quality**: CRPS formula differences across branches. research2 headline (0.171) was
+   on 2K test with M*(M-1) unbiased estimator. research3 (0.1676) was on 10K. research6
+   (0.1728) was on 10K. src/ uses M*(M-1) unbiased estimator consistently. These are all
+   using the corrected formula but on different sample sizes — report must note eval set
+   sizes alongside each number.
+
+3. **Workflow**: The report must not just recite numbers — it must synthesize findings
+   across 6 research branches into actionable conclusions. The cross-comparison note
+   from May 5 is the closest existing synthesis but predates research3-6 results.
+
+### Plan for this iteration
+**DO ONE THING**: Write the report file (task 7).
+- Comprehensive REPORT.md covering problem, methods, results, findings, reproduction
+- Use 500-sample results for main table (fair comparison)
+- Include cross-branch comparison with clearly labeled eval set sizes
+- Reference generated figures
+- Document limitations honestly
+
+### Iteration 5 Progress
+**Completed task 7 (report file)**:
+- Wrote comprehensive REPORT.md (10 sections):
+  1. Problem statement and task definition
+  2. CRPS correction (buggy baseline formula documented)
+  3. Methods (baselines, flow matching, other explored methods)
+  4. Results (500-sample fair comparison + 10K baselines + cross-branch best)
+  5. Key findings (7 things that work, 6 things that fail)
+  6. Figures reference table
+  7. Code organization
+  8. Reproduction commands
+  9. Trained model checkpoints with pool paths
+  10. Limitations (6 honest caveats)
+- All claims backed by specific numbers with eval set sizes noted
+- Cross-branch comparison table includes all 6 research branches
+- Model scaling analysis shows diminishing returns (13M → 28M = −2% CRPS)
+
+**End**: 2026-05-08 20:50 EDT | **Ending commit**: (pending)
