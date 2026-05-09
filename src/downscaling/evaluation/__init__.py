@@ -14,10 +14,16 @@ from downscaling.evaluation.harder import (
     generate_harder_gan_predictions,
     load_harder_model,
 )
+from downscaling.evaluation.swinir import (
+    eval_swinir_finetuned,
+    eval_swinir_zeroshot,
+)
 
 __all__ = [
     "eval_bicubic",
     "eval_bilinear",
+    "eval_swinir_finetuned",
+    "eval_swinir_zeroshot",
     "evaluate_deterministic",
     "evaluate_ensemble",
     "evaluate_flow_model",

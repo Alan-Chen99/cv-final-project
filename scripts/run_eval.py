@@ -32,9 +32,34 @@ from downscaling.evaluation.harder import (
     evaluate_harder_gan,
     load_harder_model,
 )
+from downscaling.evaluation.swinir import eval_swinir_finetuned, eval_swinir_zeroshot
 from downscaling.models.unet import AttentionUNet
 
 POOL = Path("/home/chenxy/orcd/pool/datasets")
+
+SWINIR_PRETRAINED_WEIGHTS = (
+    POOL / "research5" / "pretrained_weights" / "001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth"
+)
+
+# SwinIR models: name -> config
+SWINIR_REGISTRY: dict[str, dict[str, object]] = {
+    "swinir-zeroshot": {
+        "mode": "zeroshot",
+    },
+    "swinir-zeroshot+addcl": {
+        "mode": "zeroshot",
+        "with_addcl": True,
+    },
+    "swinir-finetuned": {
+        "mode": "finetuned",
+        "checkpoint": "spatial-4x-add-v2/models/swinir_ft/best_swinir.pt",
+    },
+    "swinir-finetuned+addcl": {
+        "mode": "finetuned",
+        "checkpoint": "spatial-4x-add-v2/models/swinir_ft/best_swinir.pt",
+        "with_addcl": True,
+    },
+}
 
 
 def eval_flow_matching_model(
@@ -205,6 +230,60 @@ def main():
         f"  CRPS={results['bicubic+addcl']['crps']:.6f}  MAE={results['bicubic+addcl']['mae']:.6f}  "
         f"RMSE={results['bicubic+addcl']['rmse']:.6f}  MassViol={results['bicubic+addcl']['mass_violation']:.6f}"
     )
+
+    # SwinIR models
+    if not args.baselines_only:
+        print("\n=== SwinIR Models ===")
+        for name, config in SWINIR_REGISTRY.items():
+            with_addcl = bool(config.get("with_addcl", False))
+            if config["mode"] == "zeroshot":
+                if not SWINIR_PRETRAINED_WEIGHTS.exists():
+                    print(f"  SKIP {name}: pretrained weights not found")
+                    continue
+                print(f"Evaluating {name}...")
+                t_start = time.time()
+                try:
+                    results[name] = eval_swinir_zeroshot(
+                        hr=hr,
+                        lr_orig=lr_orig,
+                        weights_path=SWINIR_PRETRAINED_WEIGHTS,
+                        device=args.device,
+                        with_addcl=with_addcl,
+                    )
+                    elapsed = time.time() - t_start
+                    r = results[name]
+                    print(
+                        f"  CRPS={r['crps']:.6f}  MAE={r['mae']:.6f}  "
+                        f"RMSE={r['rmse']:.6f}  MassViol={r['mass_violation']:.6f}  "
+                        f"({elapsed:.1f}s)"
+                    )
+                except Exception as e:
+                    print(f"  ERROR {name}: {e}")
+            else:
+                ckpt_path = args.pool_dir / str(config["checkpoint"])
+                if not ckpt_path.exists():
+                    print(f"  SKIP {name}: {ckpt_path} not found")
+                    continue
+                print(f"Evaluating {name}...")
+                t_start = time.time()
+                try:
+                    results[name] = eval_swinir_finetuned(
+                        hr=hr,
+                        lr_orig=lr_orig,
+                        pretrained_weights_path=SWINIR_PRETRAINED_WEIGHTS,
+                        checkpoint_path=ckpt_path,
+                        device=args.device,
+                        with_addcl=with_addcl,
+                    )
+                    elapsed = time.time() - t_start
+                    r = results[name]
+                    print(
+                        f"  CRPS={r['crps']:.6f}  MAE={r['mae']:.6f}  "
+                        f"RMSE={r['rmse']:.6f}  MassViol={r['mass_violation']:.6f}  "
+                        f"({elapsed:.1f}s)"
+                    )
+                except Exception as e:
+                    print(f"  ERROR {name}: {e}")
 
     # Harder et al. trained models
     if not args.baselines_only:
