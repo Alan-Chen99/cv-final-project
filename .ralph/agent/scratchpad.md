@@ -554,3 +554,17 @@ basedpyright clean. Deep review of all source files, tests, JSON data, and repor
 ### Plan for this iteration
 
 Fix concern 1: correct RMSE rounding in REPORT.md (0.478 → 0.477).
+
+### Work Done
+
+- **Fixed REPORT.md**: logit-normal RMSE 0.478 → 0.477 (JSON: 0.47749 → rounds to 0.477)
+- **Full review of all source files, tests, JSON, and report** — no other factual errors found
+- All checks pass: 35 CPU tests, ruff clean, basedpyright clean
+- Cross-checked all report numbers against JSON data — consistent (this was the only error)
+
+**End:** 2026-05-08 21:35 EDT | commit: 7a5beb7
+
+### Assessment
+
+All 7 task items complete. All metrics verified. Only remaining concerns (2, 3) are
+documentation/hygiene issues with no user impact. Approaching fixed point.
