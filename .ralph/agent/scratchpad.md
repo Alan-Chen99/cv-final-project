@@ -511,3 +511,14 @@ Report numbers cross-checked against results/*.json — consistent.
 **Focus: Fix REPORT.md stale reproducibility section (concerns 1 & 2)**
 
 Both are in the same section and constitute a single documentation accuracy fix.
+
+### Work Done
+
+- **Fixed REPORT.md reproducibility section**:
+  - `ruff check src/ tests/` → `ruff check src/ tests/ scripts/`
+  - `basedpyright src/ tests/` → `basedpyright src/ tests/ scripts/`
+  - Test count: "(34 pass on CPU, 16 require GPU)" → "(35 pass on CPU, 16 require GPU)"
+- **Verified**: all checks pass (35 CPU tests, ruff clean, basedpyright clean)
+- Visually inspected all 6 figures — all match JSON data, no anomalies
+
+**End:** 2026-05-08 21:26 EDT | commit: ac97a80
