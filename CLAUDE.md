@@ -75,26 +75,16 @@ pytest --cov=downscaling     # coverage
 - 100% coverage on core logic; only boilerplate (CLI entry points, trivial wiring) may be uncovered.
 - Training tests run only a few iterations to verify correctness, not convergence.
 
-# Project
+# Project: Climate downscaling
 
 ## Goal
 
-Improve on Harder et al. (2208.05424) — hard-constrained deep learning for climate downscaling — using modern CV methods, particularly diffusion models. The baseline work enforces physical conservation laws (mass, energy) via constraint layers (AddCL, MultCL, SmCL) appended to CNN/GAN/RNN architectures. We want to bring these guarantees into stronger generative frameworks.
-
-## Background
-
-Harder et al. showed that hard constraints (architectural enforcement of conservation between LR and HR) outperform soft constraints (loss penalties) across architectures and datasets. Their constraint layers are architecture-agnostic — they renormalize the final output so the mean of each HR super-pixel exactly equals the corresponding LR pixel. SmCL (softmax-based) is the best default: handles any input range, enforces non-negativity, and performs competitively. Key limitation: constraints hurt when LR-HR divergence is large (NorESM case, constraint RMSE 2.48).
-
-Since that work, diffusion models have become the state of the art for both image SR and climate downscaling:
-
-- **CorrDiff** (2309.15214): Two-step approach — UNet predicts deterministic mean, diffusion corrects residuals. 25km to 2km over Taiwan. 22x faster than numerical models on single GPU.
-- **STVD** (2312.06071): Spatiotemporal video diffusion for precipitation. Deterministic downscaler + conditional diffusion for stochastic residuals. Factorized attention for spatial and temporal dims. NeurIPS 2024.
-- **GenDiff** (2404.17752): Generative diffusion-based downscaling across climate variables. Ensemble generation for uncertainty quantification.
-- **WassDiff** (2410.00381): Score-based diffusion with Wasserstein distance regularization. Better extreme value capture than standard score matching.
+Using modern CV methods, see if improvements can be made compared to papers that are older.
 
 ## Research exploration
 
 When proposing or evaluating research directions (not when implementing an already-decided approach):
+
 - Search beyond this file: use web search to find recent work, then spawn a subagent to run `/arxiv-to-md` for papers worth reading in detail
 - Do not limit directions to prior branches or the existing paper catalog — these reflect what has been explored, not what should be explored
 - Label each proposed direction: "from catalog" vs "from new search" so gaps are visible
