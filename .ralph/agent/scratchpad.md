@@ -189,3 +189,63 @@ Then allocate GPU and run eval to produce actual numbers.
 - Task 7: Report file
 
 **End**: 2026-05-08 20:22 EDT | **Ending commit**: 56f4ef6
+
+## Iteration 4
+**Start**: 2026-05-08 20:27 EDT | **Commit**: 66cb8b3
+**Prefix**: viz-b68c
+
+### Orientation
+Iterations 1-3 built project structure, tests (94% coverage), evaluation with baselines
+and trained flow models. Eval results in JSON files. Plotting module is empty.
+
+### Top Concerns
+
+1. **Quality**: Plotting module (`src/downscaling/plotting/`) is completely empty — only has
+   an empty `__init__.py`. Task 6 requires both "data plotting" (metrics comparison) and
+   "output artifact plotting" (sample predictions). This is the primary gap.
+
+2. **Workflow**: The 500-sample results for flow models vs 10K-sample results for baselines
+   creates an unfair comparison surface. The eval_results_500.json has all 8 methods on 500
+   samples, eval_results_baselines.json has 4 baselines on 10K. For visualization, must use
+   the 500-sample results consistently (all methods at same N) for fair comparison.
+
+3. **Quality**: No sample predictions are saved to disk. The eval script only computes
+   aggregate metrics, never saves per-sample predictions. Sample visualization requires either
+   regenerating predictions (needs GPU) or working with just LR/HR/baselines (no GPU needed
+   for baseline visualizations).
+
+### Plan for this iteration
+**DO ONE THING**: Write visualization code (task 6)
+- `src/downscaling/plotting/metrics.py`: metric comparison bar charts from JSON
+- `src/downscaling/plotting/samples.py`: sample field visualization (LR, HR, predictions)
+- `scripts/make_figures.py`: figure generation script
+- Generate metrics figures from existing JSON (no GPU needed)
+- Generate sample visualizations (baselines: no GPU; flow models: need GPU)
+
+### Iteration 4 Progress
+**Completed task 6 (visualization code)**:
+- Created `src/downscaling/plotting/metrics.py`: 3 plot functions
+  - `plot_crps_comparison()`: sorted bar chart of CRPS across all methods
+  - `plot_metrics_panel()`: 2x2 panel (CRPS, MAE, RMSE, Mass Violation with log scale)
+  - `plot_flow_vs_baseline()`: grouped bar comparing best flow vs best baseline
+- Created `src/downscaling/plotting/samples.py`: 4 functions
+  - `plot_sample_comparison()`: side-by-side LR/HR/predictions with per-sample MAE
+  - `plot_error_maps()`: absolute error heatmaps with shared colorscale
+  - `plot_ensemble_spread()`: mean/std/error panels for ensemble analysis
+  - `generate_baseline_predictions()`: CPU-only baseline generation
+- Created `scripts/make_figures.py`: end-to-end figure generation
+  - Supports `--metrics-only` (CPU) and full mode (GPU for flow model samples)
+  - Handles PYTHONPATH/srun issues for SLURM compute nodes
+- Generated 18 figures in `figures/`:
+  - 3 metrics plots (crps_comparison, metrics_panel, flow_vs_baseline)
+  - 5 sample comparisons (LR, HR, Bilinear, Bicubic, Bicubic+AddCL, Wide96 Flow)
+  - 5 error maps (abs error heatmaps for each method)
+  - 5 ensemble spread plots (mean, std, abs error for Wide96)
+- All figures visually verified: flow model clearly recovers more fine detail
+  than baselines, ensemble std correlates with regions of high detail
+- ruff: clean, basedpyright: 0 errors (2 pre-existing PyTorch warnings)
+
+### Still needed (future iterations)
+- Task 7: Report file
+
+**End**: 2026-05-08 20:40 EDT | **Ending commit**: (pending)
