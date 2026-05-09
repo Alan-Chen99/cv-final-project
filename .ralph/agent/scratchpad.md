@@ -568,3 +568,35 @@ Fix concern 1: correct RMSE rounding in REPORT.md (0.478 → 0.477).
 
 All 7 task items complete. All metrics verified. Only remaining concerns (2, 3) are
 documentation/hygiene issues with no user impact. Approaching fixed point.
+
+## Iteration 12
+**Start:** 2026-05-08 21:34 EDT | commit: 5c6cead
+
+### Orientation
+
+Iter 11 concluded all 7 task items complete and approaching fixed point. Final verification pass.
+
+### Verification
+
+- ruff: clean
+- basedpyright: 0 errors, 0 warnings
+- tests: 35 passed, 16 skipped (GPU), 1 warning (CUDA driver)
+- git: clean working tree
+- All deliverables present: src/, tests/, scripts/, figures/ (6), results/ (4 JSON), REPORT.md
+
+### Assessment
+
+**Fixed point reached.** No meaningful changes remain. All 7 task items verified complete:
+1. ✅ Python project structure (pyproject.toml, basedpyright, ruff configured)
+2. ✅ src/ created, experiments/ frozen (4 dirs)
+3. ✅ Code organized: constraints, data, evaluation, metrics, models, sampling, training, visualization
+4. ✅ Tests: 35 CPU + 16 GPU-skip, 100% coverage on core logic
+5. ✅ Non-training evaluation methods (bicubic, bilinear, nearest, AddCL variants)
+6. ✅ Visualization: 6 figures (sample grid, ensemble, metrics bars, constraint effect, mass violation)
+7. ✅ REPORT.md: comprehensive, all numbers cross-verified against JSON
+
+Remaining low-priority concerns (not worth a code change):
+- experiments/ freeze convention not explicitly documented (CLAUDE.md covers structure)
+- eval_results.json redundant with eval_200samples.json (harmless)
+
+**End:** 2026-05-08 21:35 EDT | commit: 5c6cead (no changes)
