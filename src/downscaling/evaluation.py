@@ -205,6 +205,52 @@ def evaluate_deterministic(
     )
 
 
+def bilinear_predict(lr_up: torch.Tensor, lr_orig: torch.Tensor) -> torch.Tensor:
+    """Bilinear interpolation baseline — just returns the bilinear upsampled LR."""
+    return lr_up
+
+
 def bicubic_predict(lr_up: torch.Tensor, lr_orig: torch.Tensor) -> torch.Tensor:
-    """Bicubic interpolation baseline (already upsampled via bilinear in data loading)."""
+    """Bicubic interpolation baseline."""
     return F.interpolate(lr_orig, size=(128, 128), mode="bicubic", align_corners=False)
+
+
+def load_flow_checkpoint(
+    checkpoint_path: str,
+    norm_stats_path: str,
+    device: str | torch.device = "cuda",
+) -> tuple[torch.nn.Module, NormStats]:
+    """Load a flow matching model from checkpoint + norm stats.
+
+    Reconstructs AttentionUNet from saved args and loads weights.
+
+    Args:
+        checkpoint_path: Path to best_flow.pt checkpoint
+        norm_stats_path: Path to norm_stats.pt
+        device: Target device
+
+    Returns:
+        (model, stats) tuple, model in eval mode on device.
+    """
+    from downscaling.models.unet import AttentionUNet
+
+    ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    args = ckpt["args"]
+
+    channel_mults = args.get("channel_mults_tuple", (1, 2, 4))
+    if isinstance(channel_mults, str):
+        channel_mults = tuple(int(x) for x in channel_mults.split(","))
+
+    model = AttentionUNet(
+        in_channels=2,
+        out_channels=1,
+        base_channels=args.get("base_channels", 64),
+        channel_mults=channel_mults,
+        attn_heads=args.get("attn_heads", 4),
+    )
+    model.load_state_dict(ckpt["model"])
+    model.to(device)
+    model.eval()
+
+    stats = NormStats.load(norm_stats_path, device="cpu")
+    return model, stats

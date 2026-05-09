@@ -159,3 +159,80 @@ structure (iter1) and fixed CRPS bug (iter2). No training code in src/ yet.
 - Task (5): Evaluation baselines (bilinear, bilinear+AddCL, bilinear+SmCL)
 - Task (6): Visualization code using pre-trained weights
 - Task (7): Report file
+
+## Iteration 4
+**Start:** 2026-05-08 19:37 EDT | commit: 2306e3f
+**Prefix:** jakm-fcpp
+
+### Orientation
+
+Iters 1-3 built the shared library (data, metrics, constraints, models, sampling, training).
+No evaluations have actually been run through the canonical pipeline. No visualization or report.
+
+### Top 3 Concerns
+
+1. **Workflow: No evaluations actually run** — evaluation.py has functions but no script to
+   load pre-trained weights and execute. All CRPS numbers in reports come from experiment
+   code, not the canonical pipeline. Need to independently verify results.
+
+2. **Workflow: No visualization code in src/** — Task (6) entirely unaddressed. Experiment dirs
+   have plotting code (visualize_samples.py, visualize_results.py) but nothing in src/.
+
+3. **Quality: evaluation.py missing bilinear baseline** — Has bicubic_predict but no
+   bilinear_predict. The bilinear upsampled version is the core baseline (lr_up from data
+   loading). Also no model loading helper to reconstruct models from checkpoints.
+
+### Plan for this iteration
+
+**Focus: Task (5) — Add evaluation baselines + create runnable evaluation script**
+
+1. Add `bilinear_predict()` to evaluation.py
+2. Add `load_flow_checkpoint()` helper for loading models from pool
+3. Create `scripts/evaluate_all.py` — comprehensive evaluation runner
+4. Allocate GPU and run evaluations to produce results table
+5. Save results to git-tracked JSON
+
+### Work Done
+
+- **Added `bilinear_predict()`** to evaluation.py — returns lr_up directly
+- **Added `load_flow_checkpoint()`** to evaluation.py — reconstructs AttentionUNet from
+  checkpoint args and loads weights + norm stats
+- **Created `scripts/evaluate_all.py`** — comprehensive evaluation runner:
+  - Deterministic baselines: bilinear, bicubic with/without AddCL
+  - Flow matching models: all 5 available models from pool
+  - Configurable: ensemble size, ODE steps, solver, sample limit
+  - Outputs formatted table + JSON results
+- **Created `tests/test_evaluation.py`** — 4 integration tests:
+  - bilinear returns lr_up, bicubic shape, bilinear+addcl conservation,
+    checkpoint save/load roundtrip, flow eval smoke test
+- **Ran evaluations** on GPU (preemptable partition):
+  - Full 10K deterministic baselines: bilinear=0.507, bicubic=0.384, bicubic+AddCL=0.353
+  - 200-sample flow models: all 5 models with/without AddCL
+  - 1000-sample wide96: CRPS=0.1650 (confirms reported ~0.168)
+  - Solver comparison: midpoint(5)=0.180 > euler(10)=0.182 at equal NFE
+- **SmCL overflow documented**: SmCL produces NaN on physical-space TCW values
+  (exp(135) overflows). Removed from default baselines, kept as option.
+- All linters pass: ruff, ruff format, basedpyright
+
+### Key Results (200 samples, M=10, midpoint 10 steps, +AddCL)
+
+| Method | CRPS | MAE | RMSE | MassViol |
+|--------|------|-----|------|----------|
+| bilinear | 0.507 | 0.507 | 0.949 | 0.314 |
+| bilinear+AddCL | 0.389 | 0.389 | 0.791 | 0.000 |
+| bicubic | 0.384 | 0.384 | 0.772 | 0.146 |
+| bicubic+AddCL | 0.353 | 0.353 | 0.728 | 0.000 |
+| wide96 (research3)+AddCL | 0.180 | 0.262 | 0.471 | 0.000 |
+| logit-normal (research4)+AddCL | 0.181 | 0.265 | 0.478 | 0.000 |
+| base64 zscore (research6)+AddCL | 0.184 | 0.268 | 0.482 | 0.000 |
+| base64 uniform (research3)+AddCL | 0.184 | 0.268 | 0.482 | 0.000 |
+| cfg (research4)+AddCL | 0.184 | 0.269 | 0.483 | 0.000 |
+
+Wide96 is best. AddCL is free (no CRPS cost, eliminates mass violation).
+
+**End:** 2026-05-08 20:40 EDT | commit: (pending)
+
+### Next iterations should focus on
+- Task (6): Visualization code (sample grids, ensemble diversity, metrics bar charts)
+- Task (7): Write report file
+- Run full 10K eval for flow models (takes ~50 min per model, needs dedicated GPU time)

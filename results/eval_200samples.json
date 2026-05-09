@@ -1,0 +1,179 @@
+{
+  "timestamp": "2026-05-08 20:01:06",
+  "config": {
+    "max_samples": 200,
+    "n_ensemble": 10,
+    "ode_steps": 10,
+    "sampler": "midpoint"
+  },
+  "results": [
+    {
+      "method": "bilinear",
+      "constraint": "none",
+      "crps": 0.5380866704136134,
+      "crps_paper": 0.5380866704136134,
+      "mae": 0.5380866704136134,
+      "rmse": 0.9719720325695058,
+      "mass_violation": 0.3287199038639665,
+      "spread": 0.0,
+      "n_samples": 200,
+      "n_ensemble": 1
+    },
+    {
+      "method": "bilinear",
+      "constraint": "addcl",
+      "crps": 0.4159033003635704,
+      "crps_paper": 0.4159033003635704,
+      "mae": 0.4159033003635704,
+      "rmse": 0.8133889217309115,
+      "mass_violation": 1.4286039004218765e-06,
+      "spread": 0.0,
+      "n_samples": 200,
+      "n_ensemble": 1
+    },
+    {
+      "method": "bicubic",
+      "constraint": "none",
+      "crps": 0.410631464952603,
+      "crps_paper": 0.410631464952603,
+      "mae": 0.410631464952603,
+      "rmse": 0.7938198819104739,
+      "mass_violation": 0.15376422498375178,
+      "spread": 0.0,
+      "n_samples": 200,
+      "n_ensemble": 1
+    },
+    {
+      "method": "bicubic",
+      "constraint": "addcl",
+      "crps": 0.37857615591026844,
+      "crps_paper": 0.37857615591026844,
+      "mae": 0.37857615591026844,
+      "rmse": 0.7500194012906606,
+      "mass_violation": 1.4108299001236445e-06,
+      "spread": 0.0,
+      "n_samples": 200,
+      "n_ensemble": 1
+    },
+    {
+      "method": "wide96 (research3)",
+      "constraint": "none",
+      "crps": 0.17996936773881317,
+      "crps_paper": 0.09934003286296501,
+      "mae": 0.26275611265562476,
+      "rmse": 0.47099522624889,
+      "mass_violation": 0.005123724537552335,
+      "spread": 0.28137160108424725,
+      "n_samples": 200,
+      "n_ensemble": 10
+    },
+    {
+      "method": "wide96 (research3)",
+      "constraint": "addcl",
+      "crps": 0.17978060099761933,
+      "crps_paper": 0.09890253982739523,
+      "mae": 0.26231731481850146,
+      "rmse": 0.47136614425044715,
+      "mass_violation": 1.0297189146513119e-06,
+      "spread": 0.2805970943765715,
+      "n_samples": 200,
+      "n_ensemble": 10
+    },
+    {
+      "method": "base64 zscore (research6)",
+      "constraint": "none",
+      "crps": 0.18364213416352868,
+      "crps_paper": 0.1011631913203746,
+      "mae": 0.2679906017286703,
+      "rmse": 0.4820273813725388,
+      "mass_violation": 0.003278783530695364,
+      "spread": 0.28812271676957607,
+      "n_samples": 200,
+      "n_ensemble": 10
+    },
+    {
+      "method": "base64 zscore (research6)",
+      "constraint": "addcl",
+      "crps": 0.1837883741222322,
+      "crps_paper": 0.10113382598618045,
+      "mae": 0.2681908981734887,
+      "rmse": 0.48190766722579587,
+      "mass_violation": 1.0303147792001256e-06,
+      "spread": 0.28814111805520953,
+      "n_samples": 200,
+      "n_ensemble": 10
+    },
+    {
+      "method": "base64 uniform (research3)",
+      "constraint": "none",
+      "crps": 0.18381794389802963,
+      "crps_paper": 0.10108992733992636,
+      "mae": 0.2683998245606199,
+      "rmse": 0.4811253124122101,
+      "mass_violation": 0.0031223169673467053,
+      "spread": 0.28929436560720206,
+      "n_samples": 200,
+      "n_ensemble": 10
+    },
+    {
+      "method": "base64 uniform (research3)",
+      "constraint": "addcl",
+      "crps": 0.1838689626334235,
+      "crps_paper": 0.10117458934197203,
+      "mae": 0.26825597578659655,
+      "rmse": 0.4818938002573259,
+      "mass_violation": 1.0275830209138803e-06,
+      "spread": 0.28819148262031374,
+      "n_samples": 200,
+      "n_ensemble": 10
+    },
+    {
+      "method": "logit-normal (research4)",
+      "constraint": "none",
+      "crps": 0.18107559070456772,
+      "crps_paper": 0.09933783964486792,
+      "mae": 0.2648450612695888,
+      "rmse": 0.47508681161825994,
+      "mass_violation": 0.003300673987250775,
+      "spread": 0.28831676963716746,
+      "n_samples": 200,
+      "n_ensemble": 10
+    },
+    {
+      "method": "logit-normal (research4)",
+      "constraint": "addcl",
+      "crps": 0.1813898938987404,
+      "crps_paper": 0.09988972081802786,
+      "mae": 0.26523774398025124,
+      "rmse": 0.47749350646343675,
+      "mass_violation": 1.0320213914383203e-06,
+      "spread": 0.28725961957126855,
+      "n_samples": 200,
+      "n_ensemble": 10
+    },
+    {
+      "method": "cfg (research4)",
+      "constraint": "none",
+      "crps": 0.18395958163309842,
+      "crps_paper": 0.10083739534253254,
+      "mae": 0.2682822273205966,
+      "rmse": 0.4816017948309473,
+      "mass_violation": 0.0030180748336715623,
+      "spread": 0.2859693580400199,
+      "n_samples": 200,
+      "n_ensemble": 10
+    },
+    {
+      "method": "cfg (research4)",
+      "constraint": "addcl",
+      "crps": 0.18422021484468132,
+      "crps_paper": 0.10130685047013685,
+      "mae": 0.2685750191658735,
+      "rmse": 0.4829770821745766,
+      "mass_violation": 1.0273101725033484e-06,
+      "spread": 0.28598434274084866,
+      "n_samples": 200,
+      "n_ensemble": 10
+    }
+  ]
+}

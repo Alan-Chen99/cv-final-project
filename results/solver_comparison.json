@@ -1,0 +1,12 @@
+{
+  "model": "wide96 (research3) + AddCL",
+  "n_samples": 200,
+  "n_ensemble": 10,
+  "results": {
+    "euler_5": {"crps": 0.1874, "mae": 0.2554, "nfe": 5, "time_s": 34.8},
+    "euler_10": {"crps": 0.1824, "mae": 0.2579, "nfe": 10, "time_s": 67.6},
+    "midpoint_5": {"crps": 0.1800, "mae": 0.2619, "nfe": 10, "time_s": 67.7},
+    "midpoint_10": {"crps": 0.1799, "mae": 0.2626, "nfe": 20, "time_s": 133.7}
+  },
+  "notes": "At equal NFE=10: midpoint(5)=0.1800 vs euler(10)=0.1824 -> midpoint 1.3% better. Diminishing returns beyond midpoint-5."
+}
