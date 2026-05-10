@@ -380,3 +380,35 @@ No bug.
 
 ### Ending commit: 04e8172
 ### Ending time: 2026-05-10T01:20:00Z
+
+---
+
+## Iteration 7
+### Run prefix: reef-glow
+### Starting commit: 70d646e
+### Starting time: 2026-05-10T01:16:59Z
+
+### Top 3 concerns (iteration 7)
+
+#### 1. Workflow: Sample prediction figures never generated
+Iterations 1-6 only produced metric bar charts (--metrics-only). Sample comparison
+figures, error maps, and ensemble spread plots require GPU and were deferred.
+These are essential for visual review — metrics alone cannot verify prediction quality.
+
+#### 2. Quality: NorESM sample code duplicates _load_harder_predictions inline
+make_noresm_sample_figures duplicates the Harder model loading loop from
+_load_harder_predictions instead of reusing the helper. Both paths work, but
+the NorESM version uses absolute paths while ERA5 uses relative paths under pool_dir.
+Refactoring to use the shared helper with relative paths would reduce duplication.
+
+#### 3. Quality: No visual verification of any generated figures
+All 9 existing figures were generated but never visually reviewed. Could have
+rendering issues (wrong colormaps, clipped values, overlapping labels).
+Must view all generated figures after regeneration.
+
+### Plan for this iteration
+1. Refactor NorESM harder loading to use _load_harder_predictions
+2. Allocate GPU
+3. Run make_figures.py (full, not --metrics-only) for both datasets
+4. View generated figures, fix issues
+5. Commit

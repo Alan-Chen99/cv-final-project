@@ -211,7 +211,7 @@ def generate_baseline_predictions(
         lr, scale_factor=upsampling_factor, mode="bilinear", align_corners=False
     )
     bicubic = F.interpolate(lr, scale_factor=upsampling_factor, mode="bicubic", align_corners=False)
-    bicubic_addcl = apply_addcl(bicubic, lr)
+    bicubic_addcl = apply_addcl(bicubic, lr, upsampling_factor=upsampling_factor)
 
     return {
         "Bilinear": bilinear,

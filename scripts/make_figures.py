@@ -344,74 +344,41 @@ def make_noresm_sample_figures(
 
     baselines = generate_baseline_predictions(lr_orig, n_samples=n_vis_samples, upsampling_factor=2)
 
-    noresm_models = pool_dir / "noresm-dataset" / "models"
+    noresm_models = "noresm-dataset/models"
     harder_configs = {
         "Harder CNN": {
-            "checkpoint": str(noresm_models / "harder" / "twc_cnn_none.pth"),
+            "checkpoint": f"{noresm_models}/harder/twc_cnn_none.pth",
             "model_type": "cnn",
             "constraints": "none",
         },
         "Harder CNN+SmCL": {
-            "checkpoint": str(noresm_models / "harder" / "twc_cnn_softmax.pth"),
+            "checkpoint": f"{noresm_models}/harder/twc_cnn_softmax.pth",
             "model_type": "cnn",
             "constraints": "softmax",
         },
         "Harder GAN+SmCL": {
-            "checkpoint": str(noresm_models / "harder" / "twc_gan_softmax.pth"),
+            "checkpoint": f"{noresm_models}/harder/twc_gan_softmax.pth",
             "model_type": "gan",
             "constraints": "softmax",
         },
     }
-    # For NorESM, checkpoint paths are absolute — pass pool_dir but override
-    harder_preds: dict[str, torch.Tensor | np.ndarray] = {}
-    harder_min_val, harder_max_val = None, None
-    for hname, hcfg in harder_configs.items():
-        ckpt_path = Path(hcfg["checkpoint"])
-        if not ckpt_path.exists():
-            print(f"  Skipping {hname}: {ckpt_path} not found")
-            continue
-        if harder_min_val is None:
-            harder_min_val, harder_max_val = _compute_minmax_stats(pool_dir, dataset="noresm")
-        print(f"Generating {hname} predictions...")
-        hmodel = load_harder_model(
-            checkpoint_path=ckpt_path,
-            model_type=hcfg["model_type"],
-            constraints=hcfg["constraints"],
-            device=device,
-            upsampling_factor=2,
-        )
-        if hcfg["model_type"] == "gan":
-            gan_mean, _ = generate_harder_gan_predictions(
-                model=hmodel,
-                lr_orig=lr_orig,
-                min_val=harder_min_val,
-                max_val=harder_max_val,
-                device=device,
-                n_samples=n_vis_samples,
-                n_ensemble=n_ensemble,
-            )
-            harder_preds[hname] = gan_mean
-        else:
-            harder_preds[hname] = generate_harder_cnn_predictions(
-                model=hmodel,
-                lr_orig=lr_orig,
-                min_val=harder_min_val,
-                max_val=harder_max_val,
-                device=device,
-                n_samples=n_vis_samples,
-            )
-        del hmodel
-        torch.cuda.empty_cache()
+    harder_preds = _load_harder_predictions(
+        pool_dir,
+        lr_orig,
+        device,
+        n_vis_samples,
+        n_ensemble,
+        harder_configs,
+        upsampling_factor=2,
+        dataset="noresm",
+    )
     baselines.update(harder_preds)
 
     # SwinIR finetuned
     swinir_x2_weights = (
-        pool_dir
-        / "noresm-dataset"
-        / "pretrained_weights"
-        / "001_classicalSR_DF2K_s64w8_SwinIR-M_x2.pth"
+        pool_dir / "noresm-dataset/pretrained_weights/001_classicalSR_DF2K_s64w8_SwinIR-M_x2.pth"
     )
-    swinir_ckpt = noresm_models / "swinir_ft" / "best_swinir.pt"
+    swinir_ckpt = pool_dir / noresm_models / "swinir_ft" / "best_swinir.pt"
     if swinir_x2_weights.exists() and swinir_ckpt.exists() and device != "cpu":
         print("Generating SwinIR finetuned predictions...")
         swinir_model, vmin, vmax = load_swinir_finetuned(swinir_x2_weights, swinir_ckpt, device)
@@ -427,7 +394,7 @@ def make_noresm_sample_figures(
     # Flow model
     flow_preds = None
     flow_ensemble = None
-    flow_model_dir = noresm_models / "flow-wide96-amp"
+    flow_model_dir = pool_dir / noresm_models / "flow-wide96-amp"
     stats_path = flow_model_dir / "norm_stats.pt"
 
     if flow_model_dir.exists() and device != "cpu":
