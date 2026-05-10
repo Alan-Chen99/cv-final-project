@@ -32,16 +32,18 @@ def plot_sample_comparison(
     """Plot LR, HR, and multiple predictions side-by-side for one sample.
 
     Args:
-        lr: Low-resolution input, shape (N, 1, 32, 32) or (32, 32).
-        hr: High-resolution ground truth, shape (N, 1, 128, 128) or (128, 128).
+        lr: Low-resolution input, shape (N, 1, H_lr, W_lr) or (H_lr, W_lr).
+        hr: High-resolution ground truth, shape (N, 1, H_hr, W_hr) or (H_hr, W_hr).
         predictions: Dict mapping method name to prediction tensor.
-            Each should be shape (N, 1, 128, 128) or (128, 128).
+            Each should be shape (N, 1, H_hr, W_hr) or (H_hr, W_hr).
         sample_idx: Which sample to visualize.
         output_path: Optional path to save figure.
         figsize_per_panel: Size of each subplot panel.
     """
     lr_np = _to_numpy(lr[sample_idx] if lr.ndim > 2 else lr)
     hr_np = _to_numpy(hr[sample_idx] if hr.ndim > 2 else hr)
+    hr_h, hr_w = hr_np.shape[-2], hr_np.shape[-1]
+    lr_h, lr_w = lr_np.shape[-2], lr_np.shape[-1]
 
     n_panels = 2 + len(predictions)  # LR, HR, + each prediction
     fig, axes = plt.subplots(
@@ -53,19 +55,19 @@ def plot_sample_comparison(
     vmin = hr_np.min()
     vmax = hr_np.max()
 
-    # LR (upsampled for visual comparison)
+    # LR (upsampled to HR size for visual comparison)
     lr_up = F.interpolate(
         torch.from_numpy(lr_np).float().unsqueeze(0).unsqueeze(0),
-        size=(128, 128),
+        size=(hr_h, hr_w),
         mode="nearest",
     )
     axes[0].imshow(lr_up.squeeze().numpy(), cmap="viridis", vmin=vmin, vmax=vmax)
-    axes[0].set_title("LR (32x32\nnearest-up)", fontsize=10)
+    axes[0].set_title(f"LR ({lr_h}x{lr_w}\nnearest-up)", fontsize=10)
     axes[0].axis("off")
 
     # HR ground truth
     axes[1].imshow(hr_np, cmap="viridis", vmin=vmin, vmax=vmax)
-    axes[1].set_title("HR Ground Truth\n(128x128)", fontsize=10)
+    axes[1].set_title(f"HR Ground Truth\n({hr_h}x{hr_w})", fontsize=10)
     axes[1].axis("off")
 
     # Predictions
@@ -191,20 +193,24 @@ def plot_ensemble_spread(
 def generate_baseline_predictions(
     lr_orig: torch.Tensor,
     n_samples: int = 5,
+    upsampling_factor: int = 4,
 ) -> dict[str, torch.Tensor]:
     """Generate baseline predictions (no GPU needed).
 
     Args:
-        lr_orig: Original LR, shape (N, 1, 32, 32).
+        lr_orig: Original LR, shape (N, 1, H, W).
         n_samples: Number of samples to generate for.
+        upsampling_factor: SR scale factor (4 for ERA5, 2 for NorESM).
 
     Returns:
-        Dict mapping method name to predictions (N, 1, 128, 128).
+        Dict mapping method name to predictions (N, 1, H*factor, W*factor).
     """
     lr = lr_orig[:n_samples]
 
-    bilinear = F.interpolate(lr, scale_factor=4, mode="bilinear", align_corners=False)
-    bicubic = F.interpolate(lr, scale_factor=4, mode="bicubic", align_corners=False)
+    bilinear = F.interpolate(
+        lr, scale_factor=upsampling_factor, mode="bilinear", align_corners=False
+    )
+    bicubic = F.interpolate(lr, scale_factor=upsampling_factor, mode="bicubic", align_corners=False)
     bicubic_addcl = apply_addcl(bicubic, lr)
 
     return {

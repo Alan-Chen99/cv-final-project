@@ -310,3 +310,70 @@ wrapper which resolves the real NFS path and runs inside the Apptainer container
 
 ### Ending commit: 7d4fae9
 ### Ending time: 2026-05-10T01:08:00Z
+
+---
+
+## Iteration 6
+### Run prefix: 6439-5659
+### Starting commit: fa63326
+### Starting time: 2026-05-10T01:07:14Z
+
+### Top 3 concerns (iteration 6)
+
+#### 1. Quality: metrics.py is single-dataset only
+plot_crps_comparison, plot_metrics_panel, plot_flow_vs_baseline all take one results
+dict and produce ERA5-titled charts. Cannot show ERA5 vs NorESM comparison without
+new plotting functions. Titles are hardcoded to "ERA5 TCW 4x Downscaling".
+
+#### 2. Quality: sample visualization hardcodes ERA5 shapes
+generate_baseline_predictions uses scale_factor=4, plot_sample_comparison hardcodes
+(128, 128) for LR upsampling. NorESM needs scale_factor=2 and 64x64 output.
+→ Defer to next iteration (needs GPU).
+
+#### 3. Quality: NorESM eval has constraint=none but JSON metadata says constraint=addcl
+The run_eval_noresm.py defaults to --constraint addcl but iteration 5 ran with --constraint none.
+Check: noresm_eval_results_500.json says "constraint": "none" — correct, the override was applied.
+No bug.
+
+### Plan for this iteration
+- Extend metrics.py: add dual-dataset comparison functions
+- Generalize sample visualization for variable scale factors (no GPU, code only)
+- Update make_figures.py to support both datasets
+- Generate metrics-only figures on CPU
+- Commit
+
+### Iteration 6 results
+- Extended metrics.py with 3 new dual-dataset functions:
+  - plot_dual_crps: side-by-side CRPS bar charts (shared methods only)
+  - plot_dual_metrics_panel: 4x2 grid (CRPS/MAE/RMSE/MassViol × ERA5/NorESM)
+  - plot_constraint_impact: grouped delta-CRPS showing constraint effects per dataset
+- Generalized existing code:
+  - plot_crps_comparison and plot_metrics_panel now accept title parameter
+  - generate_baseline_predictions now accepts upsampling_factor parameter
+  - plot_sample_comparison derives HR size from data (not hardcoded 128x128)
+- Reorganized figure output: figures/era5/, figures/noresm/, figures/ (cross-dataset)
+- Updated make_figures.py:
+  - Accepts --era5-results and --noresm-results
+  - Generates per-dataset + dual-dataset comparison figures
+  - make_noresm_sample_figures for NorESM-specific predictions (GPU, deferred)
+  - generate_flow_predictions accepts hr_size and apply_constraint parameters
+- Generated all 9 metrics-only figures (no GPU)
+- Removed old top-level ERA5-only figures (replaced by era5/ subdirectory)
+- Lint, format, typecheck: all pass
+
+### Figure inventory
+| Path | Description |
+|------|-------------|
+| figures/era5/crps_comparison.png | ERA5 CRPS bar chart (15 methods) |
+| figures/era5/metrics_panel.png | ERA5 2x2 metrics panel |
+| figures/era5/flow_vs_baseline.png | ERA5 flow vs best baseline |
+| figures/noresm/crps_comparison.png | NorESM CRPS bar chart (12 methods) |
+| figures/noresm/metrics_panel.png | NorESM 2x2 metrics panel |
+| figures/noresm/flow_vs_baseline.png | NorESM flow vs best baseline |
+| figures/dual_crps.png | Side-by-side ERA5 vs NorESM CRPS |
+| figures/dual_metrics_panel.png | 4x2 all-metrics comparison |
+| figures/constraint_impact.png | Delta CRPS from constraints |
+
+### Next iteration
+- GPU: generate sample prediction figures for both datasets
+- Visual review of all sample figures
