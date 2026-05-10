@@ -560,3 +560,39 @@ Only remaining work is polish (this iteration).
 
 ### Ending commit: 78d4473
 ### Ending time: 2026-05-10T01:45:11Z
+
+---
+
+## Iteration 11
+### Run prefix: (code-quality)
+### Starting commit: 404b4a8
+### Starting time: 2026-05-10T01:46:03Z
+
+### Top 3 concerns (iteration 11)
+
+#### 1. Quality: Latent bug — apply_addcl uses hardcoded upsampling_factor=4 in generate_flow_predictions
+`make_figures.py:111` calls `apply_addcl(pred_hr, lr_orig_sub)` without passing
+`upsampling_factor`. The function has an `upsampling_factor` param via `hr_size` but
+never threads it to `apply_addcl`. Currently masked: NorESM calls use
+`apply_constraint=False`. If constraints are ever enabled for NorESM (2x SR), the
+wrong factor (4) would silently corrupt all constrained predictions.
+→ Fixed: added `upsampling_factor` parameter to `generate_flow_predictions`, threaded
+  to `apply_addcl` call.
+
+#### 2. Quality: Private API _compute_minmax_stats imported by 3 external scripts
+`_compute_minmax_stats` (underscore prefix = internal) is imported by
+run_eval.py, run_eval_noresm.py, and make_figures.py. Any refactor of harder.py
+that renames this breaks 3 scripts silently at runtime.
+→ Fixed: renamed to `compute_minmax_stats` (public API) in harder.py + all 4 callers.
+
+#### 3. Quality: Division by zero if training residuals have zero std
+`flow_matching.py:89` computes `res_train.std().item()` with no guard. If zero,
+division on line 109 produces NaN silently. Training loop completes with no checkpoint
+saved (NaN loss never satisfies `val_loss < best_val_loss`). No error raised.
+→ Fixed: added explicit zero-std guard with ValueError before normalization.
+
+### Iteration 11 results
+- Fixed latent apply_addcl upsampling_factor bug (SHOULD → threaded through)
+- Renamed _compute_minmax_stats → compute_minmax_stats (4 files updated)
+- Added zero-std guard in flow_matching.py normalization
+- All lint/typecheck pass (ruff check, basedpyright: 0 errors)

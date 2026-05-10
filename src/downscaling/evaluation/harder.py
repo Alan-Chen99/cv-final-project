@@ -33,7 +33,7 @@ def _get_harder_models_module() -> object:
     return importlib.import_module("models")
 
 
-def _compute_minmax_stats(
+def compute_minmax_stats(
     pool_dir: Path,
     dataset: str = "era5",
 ) -> tuple[float, float]:

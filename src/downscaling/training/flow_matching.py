@@ -84,11 +84,17 @@ class FlowMatchingTrainer:
         lr_up_train: torch.Tensor,
         res_train: torch.Tensor,
     ) -> dict[str, float]:
+        res_std = res_train.std().item()
+        lr_std = lr_up_train.std().item()
+        if res_std == 0:
+            raise ValueError("Training residuals have zero std — check dataset")
+        if lr_std == 0:
+            raise ValueError("Training LR fields have zero std — check dataset")
         stats = {
             "res_mean": res_train.mean().item(),
-            "res_std": res_train.std().item(),
+            "res_std": res_std,
             "lr_mean": lr_up_train.mean().item(),
-            "lr_std": lr_up_train.std().item(),
+            "lr_std": lr_std,
         }
         os.makedirs(self.config.save_dir, exist_ok=True)
         torch.save(stats, os.path.join(self.config.save_dir, "norm_stats.pt"))

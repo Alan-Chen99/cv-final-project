@@ -32,7 +32,7 @@ from downscaling.data.era5 import load_era5_tcw
 from downscaling.data.noresm import load_noresm_tas
 from downscaling.evaluation.checkpoints import load_checkpoint, load_norm_stats
 from downscaling.evaluation.harder import (
-    _compute_minmax_stats,
+    compute_minmax_stats,
     generate_harder_cnn_predictions,
     generate_harder_gan_predictions,
     load_harder_model,
@@ -72,6 +72,7 @@ def generate_flow_predictions(
     base_channels: int = 96,
     channel_mults: tuple[int, ...] = (1, 2, 4),
     apply_constraint: bool = True,
+    upsampling_factor: int = 4,
 ) -> tuple[np.ndarray, np.ndarray]:
     """Generate flow model predictions for visualization.
 
@@ -108,7 +109,7 @@ def generate_flow_predictions(
             res = sampled.cpu() * norm_stats["res_std"] + norm_stats["res_mean"]
             pred_hr = lr_sub + res
             if apply_constraint:
-                pred_hr = apply_addcl(pred_hr, lr_orig_sub)
+                pred_hr = apply_addcl(pred_hr, lr_orig_sub, upsampling_factor=upsampling_factor)
             all_preds.append(pred_hr[:, 0].numpy())
 
     ensemble_all = np.stack(all_preds, axis=1)
@@ -200,7 +201,7 @@ def _load_harder_predictions(
             print(f"  Skipping {hname}: {ckpt_path} not found")
             continue
         if harder_min_val is None:
-            harder_min_val, harder_max_val = _compute_minmax_stats(pool_dir, dataset=dataset)
+            harder_min_val, harder_max_val = compute_minmax_stats(pool_dir, dataset=dataset)
         print(f"Generating {hname} predictions...")
         hmodel = load_harder_model(
             checkpoint_path=ckpt_path,
