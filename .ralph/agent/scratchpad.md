@@ -178,3 +178,66 @@ Verified: 64→32→16→8→4→2→conv1(padding=1)→4→avgpool→1. Accepta
 
 ### Ending commit: 152957a
 ### Ending time: 2026-05-09T23:09:47Z
+
+---
+
+## Iteration 4
+### Run prefix: jade-flux
+### Starting commit: a798861
+### Starting time: 2026-05-09T23:10:56Z
+
+### Top 3 concerns (iteration 4)
+
+#### 1. Architecture: SwinIR pretrained weights are x4 only — cannot do NorESM 2x SR
+The existing pretrained weights are `001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth`.
+SwinIR embeds the upsampling factor in PixelShuffle layers — a x4 model cannot produce
+x2 outputs. Need to download x2 pretrained weights from SwinIR GitHub releases.
+Spandrel auto-detects architecture from weights, so loading code should work unchanged.
+
+#### 2. Quality: SwinIR training code is hardcoded for ERA5
+`_load_splits()` in `src/downscaling/training/swinir.py` hardcodes ERA5 data paths.
+Need to write a new `scripts/train_swinir.py` CLI (like train_flow.py and train_harder.py)
+that takes --dataset parameter and loads the correct data.
+
+#### 3. Quality: No verification of NorESM data loader for SwinIR shapes
+SwinIR expects input shape (N, 1, 32, 32) and produces (N, 1, 64, 64) for x2.
+Need to verify that the NorESM data loader produces tensors compatible with SwinIR's
+expected format (not the (N, 1, 1, H, W) 5D format used elsewhere).
+
+### Plan for this iteration
+1. Download SwinIR x2 pretrained weights
+2. Write scripts/train_swinir.py — generalized SwinIR training CLI
+3. Allocate GPU, train SwinIR finetuned on NorESM
+4. Verify checkpoint produces correct output shapes
+5. Commit
+
+### Iteration 4 results
+- Downloaded SwinIR x2 pretrained weights (65MB) to pool/datasets/noresm-dataset/pretrained_weights/
+- Wrote scripts/train_swinir.py — generalized SwinIR training CLI (works for era5/noresm)
+- Allocated GPU (L40S on node4504, job 13658046)
+- Trained SwinIR finetuned on NorESM: 37 epochs in 92.1 min (wall limit 1.5h)
+  - 11.7M trainable parameters
+  - Best val loss: 0.010771 at epoch 31
+  - Norm stats: vmin=203.3445, vmax=320.3327
+- Checkpoint verified: load + forward pass produces (B, 1, 64, 64)
+- Checkpoint at pool/datasets/noresm-dataset/models/swinir_ft/best_swinir.pt (65MB)
+- GPU released
+- Lint/format pass
+
+### NorESM models status (all trained)
+| Model | Checkpoint | Params |
+|-------|-----------|--------|
+| flow-wide96-amp | pool/.../flow-wide96-amp/best_flow.pt | 28.4M |
+| harder-cnn | pool/.../harder/twc_cnn_none.pth | 97K |
+| harder-cnn+smcl | pool/.../harder/twc_cnn_softmax.pth | 97K |
+| harder-gan+smcl | pool/.../harder/twc_gan_softmax.pth | 199K |
+| swinir-finetuned | pool/.../swinir_ft/best_swinir.pt | 11.7M |
+| swinir-zeroshot | (uses x2 pretrained weights directly) | 11.7M |
+| bilinear/bicubic | (no training needed) | - |
+
+### Next iteration
+- Evaluate ALL NorESM models, produce eval_results JSON (iteration 5)
+- Need to write eval script that handles NorESM 2x + x2 pretrained weights
+
+### Ending commit: (pending)
+### Ending time: (pending)
