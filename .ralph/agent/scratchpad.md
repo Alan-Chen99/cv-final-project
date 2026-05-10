@@ -412,3 +412,31 @@ Must view all generated figures after regeneration.
 3. Run make_figures.py (full, not --metrics-only) for both datasets
 4. View generated figures, fix issues
 5. Commit
+
+### Iteration 7 results
+- Fixed bug: generate_baseline_predictions was calling apply_addcl with hardcoded
+  upsampling_factor=4, crashing for NorESM 2x SR. Added upsampling_factor passthrough.
+- Refactored make_noresm_sample_figures: replaced inline Harder loading loop with
+  shared _load_harder_predictions helper using relative paths.
+- Allocated GPU (L40S node4210, job 13662769), ran full make_figures.py.
+- First run: ERA5 succeeded, NorESM crashed on addcl bug.
+- Second run: all 35 figures generated successfully.
+- Visual review of all figure categories:
+  - Cross-dataset metrics (dual_crps, dual_metrics_panel, constraint_impact): clean
+  - Per-dataset metrics (crps_comparison, metrics_panel, flow_vs_baseline): clean
+  - ERA5 samples: flow model clearly best, error maps show progressive improvement
+  - NorESM samples: flow model produces best visual fidelity, high polar error expected
+  - Ensemble spread: ERA5 std=0.54, NorESM std=0.99 (higher uncertainty, reasonable)
+- GPU released, lint/typecheck pass on changed files
+
+### Figure inventory (35 total)
+| Category | Count | Location |
+|----------|-------|----------|
+| Cross-dataset metrics | 3 | figures/ |
+| ERA5 metrics | 3 | figures/era5/ |
+| ERA5 samples | 13 | figures/era5/ (5 comparison + 5 error + 3 ensemble) |
+| NorESM metrics | 3 | figures/noresm/ |
+| NorESM samples | 13 | figures/noresm/ (5 comparison + 5 error + 3 ensemble) |
+
+### Ending commit: a681142
+### Ending time: 2026-05-10T01:30:00Z
