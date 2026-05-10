@@ -239,5 +239,5 @@ expected format (not the (N, 1, 1, H, W) 5D format used elsewhere).
 - Evaluate ALL NorESM models, produce eval_results JSON (iteration 5)
 - Need to write eval script that handles NorESM 2x + x2 pretrained weights
 
-### Ending commit: (pending)
-### Ending time: (pending)
+### Ending commit: 0853673
+### Ending time: 2026-05-09T20:55:00Z
