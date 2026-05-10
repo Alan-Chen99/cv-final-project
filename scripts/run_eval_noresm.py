@@ -103,7 +103,8 @@ def main() -> None:
     parser.add_argument("--max-samples", type=int, default=None)
     parser.add_argument("--n-ensemble", type=int, default=10)
     parser.add_argument("--ode-steps", type=int, default=10)
-    parser.add_argument("--constraint", default="addcl", choices=["addcl", "smcl", "none"])
+    # NorESM LR/HR from separate simulations — addcl constraint degrades metrics
+    parser.add_argument("--constraint", default="none", choices=["addcl", "smcl", "none"])
     parser.add_argument("--sampler", default="midpoint", choices=["euler", "midpoint"])
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--baselines-only", action="store_true")

@@ -94,7 +94,7 @@ def plot_error_maps(
     """Plot absolute error maps for each prediction method.
 
     Args:
-        hr: High-resolution ground truth, shape (N, 1, 128, 128) or (128, 128).
+        hr: High-resolution ground truth, shape (N, 1, H, W) or (H, W).
         predictions: Dict mapping method name to prediction tensor.
         sample_idx: Which sample to visualize.
         output_path: Optional path to save figure.
@@ -143,8 +143,8 @@ def plot_ensemble_spread(
     """Plot ensemble mean, std, and individual members for one sample.
 
     Args:
-        hr: Ground truth, shape (N, 1, 128, 128) or (128, 128).
-        ensemble_preds: Ensemble predictions, shape (N, M, 128, 128) or (M, 128, 128).
+        hr: Ground truth, shape (N, 1, H, W) or (H, W).
+        ensemble_preds: Ensemble predictions, shape (N, M, H, W) or (M, H, W).
             M = number of ensemble members.
         sample_idx: Which sample to visualize.
         output_path: Optional path to save figure.

@@ -527,3 +527,36 @@ All 4 objectives from the original request are complete:
 
 ### Ending commit: 800e152
 ### Ending time: 2026-05-10T01:38:00Z
+
+---
+
+## Iteration 10
+### Run prefix: (final-polish)
+### Starting commit: bd88a28
+### Starting time: 2026-05-10T01:40:40Z
+
+### Top 3 concerns (iteration 10)
+
+#### 1. Quality: run_eval_noresm.py defaults to --constraint addcl, but constraints degrade NorESM
+Prior agent identified this in iteration 5 but never fixed the default. Anyone re-running
+the script gets addcl results (flow CRPS=1.383) instead of none (flow CRPS=0.649).
+The saved JSON has constraint=none but the script's default contradicts this.
+→ Fixed: changed default to "none" with explanatory comment.
+
+#### 2. Quality: Docstrings in harder.py and samples.py hardcode ERA5 shapes (128x128)
+Multiple docstrings say "(N, 1, 128, 128)" when the functions now handle any resolution
+(ERA5 128x128 or NorESM 64x64). Code is correct but docs mislead.
+→ Fixed: generalized all shape docs to use H/W variables.
+
+#### 3. Assessment: Task is at completion — no remaining functional issues
+All objectives met. Tests pass. Figures generated and verified. Code linted/typechecked.
+Only remaining work is polish (this iteration).
+
+### Iteration 10 results
+- Fixed run_eval_noresm.py: default --constraint changed from "addcl" to "none"
+- Fixed 7 docstrings in harder.py and samples.py: shapes now generic (H/W not 128)
+- All lint/format/typecheck pass
+- No functional changes — purely doc/reproducibility fixes
+
+### Ending commit: 78d4473
+### Ending time: 2026-05-10T01:45:11Z

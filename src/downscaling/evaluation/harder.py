@@ -78,7 +78,7 @@ def load_harder_model(
         device: Target device.
         number_channels: Hidden channel count (paper default: 32).
         number_residual_blocks: Residual blocks (paper default: 4).
-        upsampling_factor: SR factor (4 for our dataset).
+        upsampling_factor: SR factor (4 for ERA5, 2 for NorESM).
 
     Returns:
         Model in eval mode on target device.
@@ -116,14 +116,14 @@ def evaluate_harder_cnn(
 
     Args:
         model: Loaded Harder CNN model (eval mode).
-        lr_orig: Original LR, shape (N, 1, 32, 32).
-        hr: Ground truth HR, shape (N, 1, 128, 128).
+        lr_orig: Original LR, shape (N, 1, H_lr, W_lr).
+        hr: Ground truth HR, shape (N, 1, H_hr, W_hr).
         min_val: Min-max normalization min value.
         max_val: Min-max normalization max value.
         device: Computation device.
         batch_size: Evaluation batch size.
         max_samples: Limit number of samples.
-        upsampling_factor: SR factor.
+        upsampling_factor: SR factor (4 for ERA5, 2 for NorESM).
 
     Returns:
         Dict with crps, mae, rmse, mass_violation.
@@ -140,9 +140,9 @@ def evaluate_harder_cnn(
     for start in range(0, n, batch_size):
         end = min(start + batch_size, n)
         # Harder input format: (B, 1, 1, H, W), min-max normalized
-        lr_batch = lr_orig[start:end]  # (B, 1, 32, 32)
+        lr_batch = lr_orig[start:end]
         lr_norm = (lr_batch - min_val) / val_range
-        lr_in = lr_norm.unsqueeze(1).to(device)  # (B, 1, 1, 32, 32)
+        lr_in = lr_norm.unsqueeze(1).to(device)
 
         with torch.no_grad():
             out = model(lr_in)  # (B, 1, H_hr, W_hr)
@@ -191,15 +191,15 @@ def evaluate_harder_gan(
 
     Args:
         model: Loaded Harder GAN model (eval mode).
-        lr_orig: Original LR, shape (N, 1, 32, 32).
-        hr: Ground truth HR, shape (N, 1, 128, 128).
+        lr_orig: Original LR, shape (N, 1, H_lr, W_lr).
+        hr: Ground truth HR, shape (N, 1, H_hr, W_hr).
         min_val: Min-max normalization min value.
         max_val: Min-max normalization max value.
         device: Computation device.
         n_ensemble: Number of noise samples per input.
         batch_size: Evaluation batch size.
         max_samples: Limit number of samples.
-        upsampling_factor: SR factor.
+        upsampling_factor: SR factor (4 for ERA5, 2 for NorESM).
 
     Returns:
         Dict with crps, mae, rmse, mass_violation.
@@ -270,7 +270,7 @@ def generate_harder_cnn_predictions(
     """Generate CNN predictions for visualization.
 
     Returns:
-        Predictions, shape (n_samples, 1, 128, 128).
+        Predictions, shape (n_samples, 1, H_hr, W_hr).
     """
     val_range = max_val - min_val
     lr = lr_orig[:n_samples]
@@ -299,8 +299,8 @@ def generate_harder_gan_predictions(
 
     Returns:
         Tuple of (ensemble_mean, ensemble_all):
-            ensemble_mean: shape (n_samples, 1, 128, 128)
-            ensemble_all: shape (n_samples, n_ensemble, 128, 128)
+            ensemble_mean: shape (n_samples, 1, H_hr, W_hr)
+            ensemble_all: shape (n_samples, n_ensemble, H_hr, W_hr)
     """
     val_range = max_val - min_val
     lr = lr_orig[:n_samples]
