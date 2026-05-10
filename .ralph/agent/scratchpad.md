@@ -596,3 +596,6 @@ saved (NaN loss never satisfies `val_loss < best_val_loss`). No error raised.
 - Renamed _compute_minmax_stats → compute_minmax_stats (4 files updated)
 - Added zero-std guard in flow_matching.py normalization
 - All lint/typecheck pass (ruff check, basedpyright: 0 errors)
+
+### Ending commit: ea9e8fa
+### Ending time: 2026-05-10T01:53:00Z
