@@ -478,3 +478,52 @@ valid datasets.
 
 ### Ending commit: 6396801
 ### Ending time: 2026-05-10T01:32:00Z
+
+---
+
+## Iteration 9
+### Run prefix: 7l2g2-xfx
+### Starting commit: b880ffb
+### Starting time: 2026-05-10T01:34:42Z
+
+### Top 3 concerns (iteration 9)
+
+#### 1. Workflow: Integration tests never run
+Prior iterations trained models, evaluated, generated figures, fixed bugs — but never
+ran `pytest tests/`. The test_data.py module has 7 NorESM tests added during this branch.
+If they fail, the data loader has a bug that could invalidate all downstream results.
+→ Fixed: ran all tests (14 data, 18 constraints/metrics, 17 baselines) — all 49 pass.
+
+#### 2. Quality: CLAUDE.md pool datasets table missing NorESM
+The pool layout diagram and shared datasets table were never updated to include the
+NorESM dataset (noresm-dataset/ with 968MB data, 529MB models, 48MB pretrained weights).
+Future agents would not know this data exists.
+→ Fixed: updated both pool layout diagram and shared datasets table.
+
+#### 3. Quality: Visual spot-check of figures
+Verified dual_crps.png, noresm_sample_0_comparison.png, noresm_sample_0_errors.png.
+All render correctly. Flow model shows best visual fidelity. Harder GAN+SmCL shows
+expected horizontal striping (discriminator collapsed in training). Constrained models
+visually worse on NorESM — consistent with metrics.
+
+### Plan for this iteration
+- Run all non-GPU tests
+- Update CLAUDE.md pool documentation
+- Visual spot-check of figures
+- Commit
+
+### Iteration 9 results
+- All 49 tests pass (test_data: 14, test_constraints: 8, test_metrics: 10, test_baselines: 17)
+- Updated CLAUDE.md: pool layout + shared datasets table now includes NorESM
+- Visual verification of 3 figures: all correct
+- src/ lint/format/typecheck: all pass
+
+### Task completion assessment
+All 4 objectives from the original request are complete:
+1. ✅ NorESM dataset added (src/downscaling/data/noresm.py, pool data, tests)
+2. ✅ All applicable models trained (flow-wide96-amp, harder×3, swinir-ft, swinir-zs, baselines)
+3. ✅ Visualizations updated (35 figures: per-dataset + dual-dataset comparison)
+4. ✅ Output visually checked (iterations 7, 8, 9)
+
+### Ending commit: 800e152
+### Ending time: 2026-05-10T01:38:00Z
