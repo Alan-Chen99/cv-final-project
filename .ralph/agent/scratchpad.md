@@ -599,3 +599,39 @@ saved (NaN loss never satisfies `val_loss < best_val_loss`). No error raised.
 
 ### Ending commit: ea9e8fa
 ### Ending time: 2026-05-10T01:53:00Z
+
+---
+
+## Iteration 12
+### Run prefix: f0bbb7b8
+### Starting commit: 423e20f
+### Starting time: 2026-05-10T01:54:52Z
+
+### Top 3 concerns (iteration 12)
+
+#### 1. Quality: evaluate.py and swinir.py docstrings still hardcode ERA5 shapes
+Iteration 10 fixed harder.py and samples.py docstrings but missed evaluate.py
+(lines 84-87: "(N, 1, 128, 128)", "(N, 1, 32, 32)"; line 133: "(bs, M, 1, 128, 128)")
+and swinir.py (module docstring "ERA5 TCW 4x", all predict/eval function shapes hardcoded).
+→ Fixed: generalized all shapes to H/W/H_lr/W_lr/H_hr/W_hr notation.
+
+#### 2. Quality: swinir.py module docstring says "ERA5 TCW 4x downscaling"
+Module is now used for both ERA5 4x and NorESM 2x. Misleading top-level description.
+→ Fixed: changed to "climate downscaling" with note about resolution flexibility.
+
+#### 3. Assessment: No remaining functional or documentation issues
+Full code review via subagent found 2 MUST-fix (both docstring), 4 SHOULD-fix,
+6 NICE-fix items. The MUST items are fixed this iteration. SHOULD items are
+minor improvements (input validation at boundaries, missing doc for constraint
+rationale) that don't affect correctness. Task at completion.
+
+### Plan for this iteration
+- Fix hardcoded shapes in evaluate.py and swinir.py docstrings
+- Lint/typecheck
+- Commit
+- Signal fixed-point if no more changes needed
+
+### Iteration 12 results
+- Fixed evaluate.py: 5 shape annotations generalized (N,1,128,128 → N,1,H,W etc.)
+- Fixed swinir.py: module docstring + 12 inline shape comments generalized
+- All lint/typecheck pass (ruff: 0 errors, basedpyright: 0 errors)

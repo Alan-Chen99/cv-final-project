@@ -1,8 +1,9 @@
-"""SwinIR evaluation for ERA5 TCW 4x downscaling.
+"""SwinIR evaluation for climate downscaling.
 
 Supports zero-shot (pretrained on DF2K) and finetuned evaluation.
 Zero-shot uses per-sample normalization to [0,1] with 3-channel replication.
 Finetuned uses global min-max normalization from training data.
+Resolution and upsampling factor depend on pretrained weights (e.g. 4x for ERA5, 2x for NorESM).
 """
 
 from __future__ import annotations
@@ -129,18 +130,18 @@ def predict_swinir_zeroshot(
 
     Args:
         model: Pretrained 3ch SwinIR model.
-        lr_orig: LR input, shape (N, 1, 32, 32).
+        lr_orig: LR input, shape (N, 1, H_lr, W_lr).
         device: Inference device.
 
     Returns:
-        HR predictions, shape (N, 1, 128, 128).
+        HR predictions, shape (N, 1, H_hr, W_hr) where H_hr = f * H_lr.
     """
     N = lr_orig.shape[0]
     results = []
 
     with torch.no_grad():
         for i in range(N):
-            x = lr_orig[i, 0]  # (32, 32)
+            x = lr_orig[i, 0]  # (H_lr, W_lr)
             x_min = x.min()
             x_max = x.max()
             if x_max - x_min < 1e-8:
@@ -149,17 +150,17 @@ def predict_swinir_zeroshot(
                 x_norm = (x - x_min) / (x_max - x_min)
 
             # Replicate to 3 channels
-            x_3ch = x_norm.unsqueeze(0).expand(3, -1, -1)  # (3, 32, 32)
-            x_3ch = x_3ch.unsqueeze(0).to(device)  # (1, 3, 32, 32)
+            x_3ch = x_norm.unsqueeze(0).expand(3, -1, -1)  # (3, H_lr, W_lr)
+            x_3ch = x_3ch.unsqueeze(0).to(device)  # (1, 3, H_lr, W_lr)
 
-            out = model(x_3ch)  # (1, 3, 128, 128)
-            out_1ch = out[0].mean(dim=0)  # (128, 128)
+            out = model(x_3ch)  # (1, 3, H_hr, W_hr)
+            out_1ch = out[0].mean(dim=0)  # (H_hr, W_hr)
 
             # Denormalize back to physical range
             out_1ch = out_1ch.clamp(0, 1) * (x_max - x_min) + x_min
             results.append(out_1ch.cpu())
 
-    return torch.stack(results).unsqueeze(1)  # (N, 1, 128, 128)
+    return torch.stack(results).unsqueeze(1)  # (N, 1, H_hr, W_hr)
 
 
 def predict_swinir_finetuned(
@@ -176,14 +177,14 @@ def predict_swinir_finetuned(
 
     Args:
         model: Finetuned 1ch SwinIR model.
-        lr_orig: LR input, shape (N, 1, 32, 32).
+        lr_orig: LR input, shape (N, 1, H_lr, W_lr).
         vmin: Global min from training data.
         vmax: Global max from training data.
         device: Inference device.
         batch_size: Batch size for inference.
 
     Returns:
-        HR predictions, shape (N, 1, 128, 128) in physical units.
+        HR predictions, shape (N, 1, H_hr, W_hr) in physical units.
     """
     N = lr_orig.shape[0]
     # Normalize to [0, 1]
@@ -194,10 +195,10 @@ def predict_swinir_finetuned(
         for start in range(0, N, batch_size):
             end = min(start + batch_size, N)
             batch = lr_norm[start:end].to(device)
-            pred = model(batch)  # (B, 1, 128, 128) normalized
+            pred = model(batch)  # (B, 1, H_hr, W_hr) normalized
             results.append(pred.cpu())
 
-    preds = torch.cat(results, dim=0)  # (N, 1, 128, 128) in [0,1]
+    preds = torch.cat(results, dim=0)  # (N, 1, H_hr, W_hr) in [0,1]
     # Denormalize
     return preds * (vmax - vmin) + vmin
 
@@ -213,8 +214,8 @@ def eval_swinir_zeroshot(
     """Evaluate zero-shot SwinIR on test data.
 
     Args:
-        hr: Ground truth HR, shape (N, 1, 128, 128).
-        lr_orig: Original LR, shape (N, 1, 32, 32).
+        hr: Ground truth HR, shape (N, 1, H, W).
+        lr_orig: Original LR, shape (N, 1, H/f, W/f) where f = upsampling_factor.
         weights_path: Path to pretrained SwinIR weights.
         device: Inference device.
         with_addcl: Whether to apply AddCL constraint.
@@ -244,8 +245,8 @@ def eval_swinir_finetuned(
     """Evaluate finetuned SwinIR on test data.
 
     Args:
-        hr: Ground truth HR, shape (N, 1, 128, 128).
-        lr_orig: Original LR, shape (N, 1, 32, 32).
+        hr: Ground truth HR, shape (N, 1, H, W).
+        lr_orig: Original LR, shape (N, 1, H/f, W/f) where f = upsampling_factor.
         pretrained_weights_path: Path to original pretrained weights.
         checkpoint_path: Path to finetuned checkpoint.
         device: Inference device.
