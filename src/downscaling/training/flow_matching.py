@@ -9,6 +9,7 @@ import os
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 import torch
 import torch.nn as nn
@@ -21,7 +22,9 @@ from downscaling.sampling.timesteps import sample_timesteps_logit_normal, sample
 from downscaling.training.ema import EMA
 
 # (data_dir, split) -> (lr_up, residual, hr, lr_orig)
-DataLoadFn = Callable[[str, str], tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]]
+DataLoadFn = Callable[
+    [str | Path, str], tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+]
 
 DATASET_LOADERS: dict[str, DataLoadFn] = {
     "era5": load_era5_tcw,
@@ -95,6 +98,8 @@ class FlowMatchingTrainer:
         """Run full training loop. Returns best validation loss."""
         cfg = self.config
 
+        if cfg.dataset not in DATASET_LOADERS:
+            raise ValueError(f"Unknown dataset {cfg.dataset!r}, valid: {list(DATASET_LOADERS)}")
         load_fn = DATASET_LOADERS[cfg.dataset]
         lr_up_train, res_train, _, _ = load_fn(cfg.data_dir, "train")
         lr_up_val, res_val, _, _ = load_fn(cfg.data_dir, "val")

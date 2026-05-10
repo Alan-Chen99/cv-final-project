@@ -48,8 +48,10 @@ def _compute_minmax_stats(
     """
     if dataset == "noresm":
         tgt_path = pool_dir / "noresm-dataset" / "noresm" / "target_train.pt"
-    else:
+    elif dataset == "era5":
         tgt_path = pool_dir / "era5_sr_data" / "train" / "target_train.pt"
+    else:
+        raise ValueError(f"Unknown dataset {dataset!r}, expected 'era5' or 'noresm'")
 
     train_tgt = torch.load(tgt_path, weights_only=False)
     # Harder code: max_val[i] = target_train[:,0,i,...].max() for channel i=0

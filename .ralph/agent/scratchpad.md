@@ -440,3 +440,41 @@ Must view all generated figures after regeneration.
 
 ### Ending commit: a681142
 ### Ending time: 2026-05-10T01:30:00Z
+
+---
+
+## Iteration 8
+### Run prefix: 2794-3159
+### Starting commit: d321156
+### Starting time: 2026-05-10T01:26:36Z
+
+### Top 3 concerns (iteration 8)
+
+#### 1. Quality: _compute_minmax_stats silently falls through to ERA5 for unknown datasets
+`harder.py:49-52` uses `if dataset == "noresm": ... else:` — any typo or new dataset
+silently loads ERA5 normalization stats, corrupting all downstream metrics with no error.
+Fixed: replaced else with explicit elif "era5" + ValueError for unknown.
+
+#### 2. Quality: DataLoadFn type alias narrower than actual signatures
+`flow_matching.py:24` declared `Callable[[str, str], ...]` but load_era5_tcw and
+load_noresm_tas accept `str | Path`. Fixed: widened to `Callable[[str | Path, str], ...]`.
+
+#### 3. Quality: DATASET_LOADERS access gives opaque KeyError
+`flow_matching.py:98` does bare dict lookup. A typo in dataset name gives unhelpful
+`KeyError('NorESM')`. Fixed: explicit validation with helpful error message listing
+valid datasets.
+
+### Plan for this iteration
+- Fix all 3 quality issues from code review
+- Verify lint/typecheck pass
+- Commit
+
+### Iteration 8 results
+- Fixed silent normalization bug in harder.py (MUST severity — wrong metrics with no error)
+- Widened DataLoadFn type in flow_matching.py
+- Added explicit dataset validation in flow_matching training loop
+- All 3 files pass ruff check, ruff format, basedpyright (0 errors, 0 warnings)
+- Visual review of all figures confirmed correct (done in this iteration)
+
+### Ending commit: (pending)
+### Ending time: (pending)
