@@ -241,3 +241,72 @@ expected format (not the (N, 1, 1, H, W) 5D format used elsewhere).
 
 ### Ending commit: 0853673
 ### Ending time: 2026-05-09T20:55:00Z
+
+---
+
+## Iteration 5
+### Run prefix: pine-reef
+### Starting commit: 8abfd26
+### Starting time: 2026-05-10T00:51:48Z
+
+### Top 3 concerns (iteration 5)
+
+#### 1. Workflow: evaluate_flow_model returns EvalMetrics dataclass, not dict
+run_eval.py wraps EvalMetrics into a dict via eval_flow_matching_model helper.
+Writing run_eval_noresm.py, I initially called evaluate_flow_model directly and
+tried to subscript the result as a dict — TypeError crash. Fixed by converting
+EvalMetrics fields to dict after the call.
+
+#### 2. Quality: Constraint flag applies globally to flow model eval
+The --constraint flag defaults to "addcl" but NorESM LR/HR violate the mass
+constraint (~1.8K mean violation). With addcl, flow model CRPS=1.383 (worse
+than SwinIR finetuned). With constraint=none, CRPS=0.649 (best model).
+Ran evaluation with constraint=none for the final JSON.
+
+#### 3. Workflow: GPU nodes can't access /workspace mount
+Compute nodes use NFS paths, not /workspace bind mount. Must use scripts/gpu_run.py
+wrapper which resolves the real NFS path and runs inside the Apptainer container.
+
+### Plan for this iteration
+- Write scripts/run_eval_noresm.py — NorESM-specific evaluation script
+- Allocate GPU, run evaluation with 500 test samples
+- Save noresm_eval_results_500.json
+
+### Iteration 5 results
+- Wrote scripts/run_eval_noresm.py — complete NorESM evaluation script
+- Allocated GPU (L40S on node4210, job 13661966, mit_preemptable)
+- Evaluated all 12 model variants on 500 NorESM test samples
+- Total eval time: ~100s (baselines ~1s, SwinIR ~30s, Harder ~2s, flow ~62s)
+- GPU released
+
+#### NorESM evaluation results (500 test samples, constraint=none for flow)
+
+| Rank | Method | CRPS | MAE | RMSE | MassViol |
+|------|--------|------|-----|------|----------|
+| 1 | flow-wide96-amp (28M) | 0.649 | 0.967 | 1.513 | 1.119 |
+| 2 | swinir-finetuned | 0.988 | 0.988 | 1.534 | 1.065 |
+| 3 | harder-cnn | 1.131 | 1.131 | 1.694 | 0.943 |
+| 4 | harder-cnn+smcl | 1.453 | 1.453 | 2.277 | 0.000 |
+| 5 | swinir-finetuned+addcl | 1.455 | 1.455 | 2.279 | 0.000 |
+| 6 | bilinear | 1.473 | 1.473 | 2.307 | 0.162 |
+| 7 | swinir-zeroshot | 1.475 | 1.475 | 2.324 | 0.067 |
+| 8 | bicubic | 1.477 | 1.477 | 2.319 | 0.061 |
+| 9-12 | (addcl/smcl variants) | 1.478-1.481 | — | — | ~0.000 |
+
+#### Key findings
+- **Flow model is best** (CRPS=0.649) when unconstrained, beating SwinIR-FT by 34%
+- **Constraints universally hurt NorESM** — LR/HR from different simulations
+- **Unconstrained models** (flow, swinir-ft, harder-cnn) have high mass violation (~1K)
+  but much better CRPS/MAE/RMSE
+- **Zero-shot methods useless** — SwinIR-ZS barely beats bicubic
+- Results saved to noresm_eval_results_500.json
+
+### Bug fixed
+- evaluate_flow_model returns EvalMetrics, not dict — must convert fields
+
+### Next iteration
+- Update figures to show both ERA5 and NorESM results (iteration 6)
+- Generalize plotting code for multi-dataset comparison
+
+### Ending commit: 7d4fae9
+### Ending time: 2026-05-10T01:08:00Z
