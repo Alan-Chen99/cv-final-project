@@ -230,5 +230,5 @@ Allocation prefix: `wafer-plug`
 - Key insight: single-sample coherence is NOT trivially 1.0 for independent fields — azimuthal averaging within wavenumber bins causes phase cancellation. This is correct behavior.
 
 ### Iteration 7 End
-End commit: (pending)
+End commit: `ec62c69`
 End time: ~14:15 EDT
