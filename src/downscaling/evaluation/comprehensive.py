@@ -17,6 +17,7 @@ from pathlib import Path
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 from downscaling.constraints.layers import apply_addcl
 from downscaling.data import load_noresm_tas
@@ -331,6 +332,25 @@ def run_comprehensive_eval(
 
     results: dict[str, dict[str, object]] = {}
 
+    # Anvita's checkpoints (6h training, different machine) — used when ours are missing
+    anvita_dir = Path("/orcd/pool/007/chenxy/datasets/anvita")
+
+    # --- Bicubic baseline ---
+    print("\n--- Bicubic ---")
+    bicubic_up = F.interpolate(
+        lr_orig, size=(hr.shape[2], hr.shape[3]), mode="bicubic", align_corners=False
+    )
+    bicubic_preds = bicubic_up[:, 0].numpy()
+    results["Bicubic"] = compute_all_metrics(
+        truth, bicubic_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR
+    )
+    results["Bicubic"]["inference_time_s"] = 0.0
+    results["Bicubic"]["is_ensemble"] = False
+    print(
+        f"  CRPS={results['Bicubic']['crps']:.4f}  MAE={results['Bicubic']['mae']:.4f}  "
+        f"RMSE={results['Bicubic']['rmse']:.4f}  SSIM={results['Bicubic']['ssim']:.4f}"
+    )
+
     # --- Flow Matching ---
     print("\n--- Loading Flow model ---")
     model = AttentionUNet(base_channels=96).to(device)
@@ -338,86 +358,209 @@ def run_comprehensive_eval(
     norm_stats = load_norm_stats(str(models_dir / "flow-wide96-amp" / "norm_stats.pt"), device)
     lr_up_norm = (lr_up - norm_stats["lr_mean"]) / norm_stats["lr_std"]
 
-    for addcl, label in [(False, "Flow"), (True, "Flow+AddCL")]:
-        print(f"\n--- {label} ---")
-        t0 = time.time()
-        flow_preds = generate_flow_predictions(
-            model, lr_up_norm, lr_up, lr_orig, norm_stats, device,
-            n_ensemble=n_ensemble, ode_steps=ode_steps, with_addcl=addcl,
-        )
-        flow_time = time.time() - t0
-        print(f"  Inference: {flow_time:.1f}s")
-        print("  Computing metrics...")
-        results[label] = compute_all_metrics(truth, flow_preds, lr_orig, is_ensemble=True, upsampling_factor=UPSAMPLING_FACTOR)
-        results[label]["inference_time_s"] = flow_time
-        results[label]["is_ensemble"] = True
-        results[label]["n_ensemble"] = n_ensemble
-        print(f"  CRPS={results[label]['crps']:.4f}  MAE={results[label]['mae']:.4f}  "
-              f"RMSE={results[label]['rmse']:.4f}  SSIM={results[label]['ssim']:.4f}  "
-              f"SSR={results[label].get('ssr', '?')}")
+    print("\n--- Flow ---")
+    t0 = time.time()
+    flow_preds = generate_flow_predictions(
+        model,
+        lr_up_norm,
+        lr_up,
+        lr_orig,
+        norm_stats,
+        device,
+        n_ensemble=n_ensemble,
+        ode_steps=ode_steps,
+        with_addcl=False,
+    )
+    flow_time = time.time() - t0
+    print(f"  Inference: {flow_time:.1f}s")
+    print("  Computing metrics...")
+    results["Flow"] = compute_all_metrics(
+        truth, flow_preds, lr_orig, is_ensemble=True, upsampling_factor=UPSAMPLING_FACTOR
+    )
+    results["Flow"]["inference_time_s"] = flow_time
+    results["Flow"]["is_ensemble"] = True
+    results["Flow"]["n_ensemble"] = n_ensemble
+    print(
+        f"  CRPS={results['Flow']['crps']:.4f}  MAE={results['Flow']['mae']:.4f}  "
+        f"RMSE={results['Flow']['rmse']:.4f}  SSIM={results['Flow']['ssim']:.4f}  "
+        f"SSR={results['Flow'].get('ssr', '?')}"
+    )
 
     del model
     torch.cuda.empty_cache()
 
-    # --- CNN (Harder et al.) ---
+    # --- CNN (Harder et al.) — prefer Anvita 6h checkpoint ---
     min_val, max_val = compute_minmax_stats(POOL, "noresm")
     print(f"\nHarder min/max: {min_val:.2f} / {max_val:.2f}")
 
-    print("\n--- Loading CNN model ---")
+    cnn_ckpt = anvita_dir / "noresm_cnn_none.pth"
+    if not cnn_ckpt.exists():
+        cnn_ckpt = models_dir / "harder" / "twc_cnn_none.pth"
+    print(f"\n--- CNN (from {cnn_ckpt}) ---")
     cnn = load_harder_model(
-        models_dir / "harder" / "twc_cnn_none.pth",
-        model_type="cnn", constraints="none", device=device,
+        cnn_ckpt,
+        model_type="cnn",
+        constraints="none",
+        device=device,
         upsampling_factor=UPSAMPLING_FACTOR,
     )
     t0 = time.time()
-    cnn_preds_raw = generate_cnn_predictions(cnn, lr_orig, min_val, max_val, device)
+    cnn_preds = generate_cnn_predictions(cnn, lr_orig, min_val, max_val, device)
     del cnn
     torch.cuda.empty_cache()
     cnn_time = time.time() - t0
     print(f"  Inference: {cnn_time:.1f}s")
+    print("  Computing metrics...")
+    results["CNN"] = compute_all_metrics(
+        truth, cnn_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR
+    )
+    results["CNN"]["inference_time_s"] = cnn_time
+    results["CNN"]["is_ensemble"] = False
+    print(
+        f"  CRPS={results['CNN']['crps']:.4f}  MAE={results['CNN']['mae']:.4f}  "
+        f"RMSE={results['CNN']['rmse']:.4f}  SSIM={results['CNN']['ssim']:.4f}"
+    )
 
-    # CNN without and with AddCL (post-hoc)
-    cnn_preds_addcl = apply_addcl(
-        torch.from_numpy(cnn_preds_raw).unsqueeze(1), lr_orig, UPSAMPLING_FACTOR,
-    )[:, 0].numpy()
-
-    for preds, label in [(cnn_preds_raw, "CNN"), (cnn_preds_addcl, "CNN+AddCL")]:
-        print(f"\n--- {label} ---")
+    # --- CNN+SmCL (train) — prefer Anvita 6h checkpoint ---
+    cnn_sm_ckpt = anvita_dir / "noresm_cnn_softmax.pth"
+    if not cnn_sm_ckpt.exists():
+        cnn_sm_ckpt = models_dir / "harder" / "twc_cnn_softmax.pth"
+    if cnn_sm_ckpt.exists():
+        print(f"\n--- CNN+SmCL (train) (from {cnn_sm_ckpt}) ---")
+        cnn_sm = load_harder_model(
+            cnn_sm_ckpt,
+            model_type="cnn",
+            constraints="softmax",
+            device=device,
+            upsampling_factor=UPSAMPLING_FACTOR,
+        )
+        t0 = time.time()
+        cnn_sm_preds = generate_cnn_predictions(cnn_sm, lr_orig, min_val, max_val, device)
+        del cnn_sm
+        torch.cuda.empty_cache()
+        cnn_sm_time = time.time() - t0
+        print(f"  Inference: {cnn_sm_time:.1f}s")
         print("  Computing metrics...")
-        results[label] = compute_all_metrics(truth, preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
-        results[label]["inference_time_s"] = cnn_time
-        results[label]["is_ensemble"] = False
-        print(f"  CRPS={results[label]['crps']:.4f}  MAE={results[label]['mae']:.4f}  "
-              f"RMSE={results[label]['rmse']:.4f}  SSIM={results[label]['ssim']:.4f}")
+        results["CNN+SmCL (train)"] = compute_all_metrics(
+            truth, cnn_sm_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR
+        )
+        results["CNN+SmCL (train)"]["inference_time_s"] = cnn_sm_time
+        results["CNN+SmCL (train)"]["is_ensemble"] = False
+        print(
+            f"  CRPS={results['CNN+SmCL (train)']['crps']:.4f}  MAE={results['CNN+SmCL (train)']['mae']:.4f}  "
+            f"RMSE={results['CNN+SmCL (train)']['rmse']:.4f}  SSIM={results['CNN+SmCL (train)']['ssim']:.4f}"
+        )
+    else:
+        print("  Skipping CNN+SmCL (train): no checkpoint found")
+
+    # --- GAN — prefer Anvita 6h checkpoint (ours missing for NorESM) ---
+    gan_ckpt = anvita_dir / "noresm_gan_none.pth"
+    if not gan_ckpt.exists():
+        gan_ckpt = models_dir / "harder" / "twc_gan_none.pth"
+    if gan_ckpt.exists():
+        print(f"\n--- GAN (from {gan_ckpt}) ---")
+        gan = load_harder_model(
+            gan_ckpt,
+            model_type="gan",
+            constraints="none",
+            device=device,
+            upsampling_factor=UPSAMPLING_FACTOR,
+        )
+        t0 = time.time()
+        gan_preds = generate_gan_predictions(
+            gan, lr_orig, min_val, max_val, device, n_ensemble=n_ensemble
+        )
+        del gan
+        torch.cuda.empty_cache()
+        gan_time = time.time() - t0
+        print(f"  Inference: {gan_time:.1f}s")
+        print("  Computing metrics...")
+        results["GAN"] = compute_all_metrics(
+            truth, gan_preds, lr_orig, is_ensemble=True, upsampling_factor=UPSAMPLING_FACTOR
+        )
+        results["GAN"]["inference_time_s"] = gan_time
+        results["GAN"]["is_ensemble"] = True
+        results["GAN"]["n_ensemble"] = n_ensemble
+        print(
+            f"  CRPS={results['GAN']['crps']:.4f}  MAE={results['GAN']['mae']:.4f}  "
+            f"RMSE={results['GAN']['rmse']:.4f}  SSIM={results['GAN']['ssim']:.4f}"
+        )
+    else:
+        print("  Skipping GAN: no checkpoint found")
+
+    # --- GAN+SmCL (train) — prefer Anvita 6h checkpoint ---
+    gan_sm_ckpt = anvita_dir / "noresm_gan_softmax.pth"
+    if not gan_sm_ckpt.exists():
+        gan_sm_ckpt = models_dir / "harder" / "twc_gan_softmax.pth"
+    if gan_sm_ckpt.exists():
+        print(f"\n--- GAN+SmCL (train) (from {gan_sm_ckpt}) ---")
+        gan_sm = load_harder_model(
+            gan_sm_ckpt,
+            model_type="gan",
+            constraints="softmax",
+            device=device,
+            upsampling_factor=UPSAMPLING_FACTOR,
+        )
+        t0 = time.time()
+        gan_sm_preds = generate_gan_predictions(
+            gan_sm, lr_orig, min_val, max_val, device, n_ensemble=n_ensemble
+        )
+        del gan_sm
+        torch.cuda.empty_cache()
+        gan_sm_time = time.time() - t0
+        print(f"  Inference: {gan_sm_time:.1f}s")
+        print("  Computing metrics...")
+        results["GAN+SmCL (train)"] = compute_all_metrics(
+            truth, gan_sm_preds, lr_orig, is_ensemble=True, upsampling_factor=UPSAMPLING_FACTOR
+        )
+        results["GAN+SmCL (train)"]["inference_time_s"] = gan_sm_time
+        results["GAN+SmCL (train)"]["is_ensemble"] = True
+        results["GAN+SmCL (train)"]["n_ensemble"] = n_ensemble
+        print(
+            f"  CRPS={results['GAN+SmCL (train)']['crps']:.4f}  MAE={results['GAN+SmCL (train)']['mae']:.4f}  "
+            f"RMSE={results['GAN+SmCL (train)']['rmse']:.4f}  SSIM={results['GAN+SmCL (train)']['ssim']:.4f}"
+        )
+    else:
+        print("  Skipping GAN+SmCL (train): no checkpoint found")
 
     # --- SwinIR finetuned ---
-    print("\n--- Loading SwinIR model ---")
+    print("\n--- SwinIR ---")
     pretrained_weights = pretrained_dir / "001_classicalSR_DF2K_s64w8_SwinIR-M_x2.pth"
     swinir_ckpt = models_dir / "swinir_ft" / "best_swinir.pt"
 
-    for addcl, label in [(False, "SwinIR"), (True, "SwinIR+AddCL")]:
-        print(f"\n--- {label} ---")
-        t0 = time.time()
-        swinir_preds = generate_swinir_predictions(
-            lr_orig, pretrained_weights, swinir_ckpt, device, with_addcl=addcl,
-        )
-        swinir_time = time.time() - t0
-        print(f"  Inference: {swinir_time:.1f}s")
-        print("  Computing metrics...")
-        results[label] = compute_all_metrics(truth, swinir_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
-        results[label]["inference_time_s"] = swinir_time
-        results[label]["is_ensemble"] = False
-        print(f"  CRPS={results[label]['crps']:.4f}  MAE={results[label]['mae']:.4f}  "
-              f"RMSE={results[label]['rmse']:.4f}  SSIM={results[label]['ssim']:.4f}")
+    t0 = time.time()
+    swinir_preds = generate_swinir_predictions(
+        lr_orig,
+        pretrained_weights,
+        swinir_ckpt,
+        device,
+        with_addcl=False,
+    )
+    swinir_time = time.time() - t0
+    print(f"  Inference: {swinir_time:.1f}s")
+    print("  Computing metrics...")
+    results["SwinIR"] = compute_all_metrics(
+        truth, swinir_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR
+    )
+    results["SwinIR"]["inference_time_s"] = swinir_time
+    results["SwinIR"]["is_ensemble"] = False
+    print(
+        f"  CRPS={results['SwinIR']['crps']:.4f}  MAE={results['SwinIR']['mae']:.4f}  "
+        f"RMSE={results['SwinIR']['rmse']:.4f}  SSIM={results['SwinIR']['ssim']:.4f}"
+    )
 
     # --- Truth+AddCL (upper bound for AddCL constraint) ---
     print("\n--- Truth+AddCL ---")
     truth_addcl = apply_addcl(hr, lr_orig, UPSAMPLING_FACTOR)[:, 0].numpy()
-    results["Truth+AddCL"] = compute_all_metrics(truth, truth_addcl, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
+    results["Truth+AddCL"] = compute_all_metrics(
+        truth, truth_addcl, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR
+    )
     results["Truth+AddCL"]["inference_time_s"] = 0.0
     results["Truth+AddCL"]["is_ensemble"] = False
-    print(f"  CRPS={results['Truth+AddCL']['crps']:.4f}  MAE={results['Truth+AddCL']['mae']:.4f}  "
-          f"RMSE={results['Truth+AddCL']['rmse']:.4f}  SSIM={results['Truth+AddCL']['ssim']:.4f}")
+    print(
+        f"  CRPS={results['Truth+AddCL']['crps']:.4f}  MAE={results['Truth+AddCL']['mae']:.4f}  "
+        f"RMSE={results['Truth+AddCL']['rmse']:.4f}  SSIM={results['Truth+AddCL']['ssim']:.4f}"
+    )
 
     # --- Save results ---
     print("\n--- Saving results ---")
@@ -452,14 +595,16 @@ ERA5_UPSAMPLING_FACTOR = 4
 # Cached flow predictions (pre-computed .pt files)
 ERA5_FLOW_PREDICTIONS: dict[str, str] = {
     "flow_flow_none_test_ensemble.pt": "Flow",
-    "flow_flow_v2_addcl_test_ensemble.pt": "Flow+AddCL",
+    "flow_flow_v2_addcl_test_ensemble.pt": "Flow+AddCL (post hoc)",
 }
 
 # ERA5 Harder CNN checkpoint (organize2 branch)
 ERA5_HARDER_DIR = POOL / "organize2" / "models" / "harder"
 
 # ERA5 SwinIR checkpoint (research5 branch)
-ERA5_SWINIR_PRETRAINED = POOL / "research5" / "pretrained_weights" / "001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth"
+ERA5_SWINIR_PRETRAINED = (
+    POOL / "research5" / "pretrained_weights" / "001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth"
+)
 ERA5_SWINIR_CKPT = POOL / "research5" / "models" / "swinir_ft" / "best_swinir.pt"
 
 
@@ -485,98 +630,235 @@ def run_era5_eval(
     results: dict[str, dict[str, object]] = {}
     pred_dir = POOL / "era5_sr_data" / "prediction"
 
-    # --- Flow (cached ensemble predictions) ---
-    for filename, display_name in ERA5_FLOW_PREDICTIONS.items():
-        pred_path = pred_dir / filename
-        if not pred_path.exists():
-            print(f"  Skipping {display_name}: {pred_path} not found")
-            continue
+    # Anvita's checkpoints (6h training, different machine)
+    anvita_dir = Path("/orcd/pool/007/chenxy/datasets/anvita")
 
-        print(f"\n--- {display_name} ---")
+    # --- Bicubic baseline ---
+    print("\n--- Bicubic ---")
+    bicubic_up = F.interpolate(lr_orig, size=(128, 128), mode="bicubic", align_corners=False)
+    bicubic_preds = bicubic_up[:, 0].numpy()
+    results["Bicubic"] = compute_all_metrics(
+        truth, bicubic_preds, lr_orig, is_ensemble=False, upsampling_factor=ERA5_UPSAMPLING_FACTOR
+    )
+    results["Bicubic"]["inference_time_s"] = 0.0
+    results["Bicubic"]["is_ensemble"] = False
+    print(
+        f"  CRPS={results['Bicubic']['crps']:.4f}  MAE={results['Bicubic']['mae']:.4f}  "
+        f"RMSE={results['Bicubic']['rmse']:.4f}  SSIM={results['Bicubic']['ssim']:.4f}"
+    )
+
+    # --- Flow (cached ensemble predictions) — only Flow(none) ---
+    flow_filename = "flow_flow_none_test_ensemble.pt"
+    flow_path = pred_dir / flow_filename
+    if flow_path.exists():
+        print("\n--- Flow ---")
         t0 = time.time()
-        raw = torch.load(str(pred_path), map_location="cpu", weights_only=True)
-        # Shape: (N, M, 1, 1, 128, 128) → (N, M, 128, 128)
+        raw = torch.load(str(flow_path), map_location="cpu", weights_only=True)
         preds_all = raw[:n].squeeze(2).squeeze(2).numpy()
         n_ens = preds_all.shape[1]
         load_time = time.time() - t0
         print(f"  Loaded {preds_all.shape}, {n_ens} members, {load_time:.1f}s")
 
         print("  Computing metrics...")
-        results[display_name] = compute_all_metrics(
-            truth, preds_all, lr_orig, is_ensemble=True,
+        results["Flow"] = compute_all_metrics(
+            truth,
+            preds_all,
+            lr_orig,
+            is_ensemble=True,
             upsampling_factor=ERA5_UPSAMPLING_FACTOR,
         )
-        results[display_name]["is_ensemble"] = True
-        results[display_name]["n_ensemble"] = n_ens
-        results[display_name]["inference_time_s"] = 0.0  # pre-computed
-        r = results[display_name]
-        print(f"  CRPS={r['crps']:.4f}  MAE={r['mae']:.4f}  "
-              f"RMSE={r['rmse']:.4f}  SSIM={r['ssim']:.4f}  "
-              f"SSR={r.get('ssr', '?')}  Coh={r.get('spectral_coherence', '?')}")
+        results["Flow"]["is_ensemble"] = True
+        results["Flow"]["n_ensemble"] = n_ens
+        results["Flow"]["inference_time_s"] = 0.0
+        r = results["Flow"]
+        print(
+            f"  CRPS={r['crps']:.4f}  MAE={r['mae']:.4f}  "
+            f"RMSE={r['rmse']:.4f}  SSIM={r['ssim']:.4f}  "
+            f"SSR={r.get('ssr', '?')}  Coh={r.get('spectral_coherence', '?')}"
+        )
+    else:
+        print(f"  Skipping Flow: {flow_path} not found")
 
-    # --- CNN (Harder et al.) ---
+    # --- CNN — prefer Anvita 6h checkpoint ---
     min_val, max_val = compute_minmax_stats(POOL, "era5")
     print(f"\nHarder min/max: {min_val:.2f} / {max_val:.2f}")
 
-    cnn_ckpt = ERA5_HARDER_DIR / "twc_cnn_none.pth"
+    cnn_ckpt = anvita_dir / "twc_cnn_noconstraints.pth"
+    if not cnn_ckpt.exists():
+        cnn_ckpt = ERA5_HARDER_DIR / "twc_cnn_none.pth"
     if cnn_ckpt.exists():
-        print("\n--- Loading CNN model ---")
+        print(f"\n--- CNN (from {cnn_ckpt}) ---")
         cnn = load_harder_model(
-            cnn_ckpt, model_type="cnn", constraints="none", device=device,
+            cnn_ckpt,
+            model_type="cnn",
+            constraints="none",
+            device=device,
             upsampling_factor=ERA5_UPSAMPLING_FACTOR,
         )
         t0 = time.time()
-        cnn_preds_raw = generate_cnn_predictions(cnn, lr_orig, min_val, max_val, device)
+        cnn_preds = generate_cnn_predictions(cnn, lr_orig, min_val, max_val, device)
         del cnn
         torch.cuda.empty_cache()
         cnn_time = time.time() - t0
         print(f"  Inference: {cnn_time:.1f}s")
-
-        # CNN without and with AddCL (post-hoc)
-        cnn_preds_addcl = apply_addcl(
-            torch.from_numpy(cnn_preds_raw).unsqueeze(1), lr_orig, ERA5_UPSAMPLING_FACTOR,
-        )[:, 0].numpy()
-
-        for preds, label in [(cnn_preds_raw, "CNN"), (cnn_preds_addcl, "CNN+AddCL")]:
-            print(f"\n--- {label} ---")
-            print("  Computing metrics...")
-            results[label] = compute_all_metrics(truth, preds, lr_orig, is_ensemble=False, upsampling_factor=ERA5_UPSAMPLING_FACTOR)
-            results[label]["inference_time_s"] = cnn_time
-            results[label]["is_ensemble"] = False
-            print(f"  CRPS={results[label]['crps']:.4f}  MAE={results[label]['mae']:.4f}  "
-                  f"RMSE={results[label]['rmse']:.4f}  SSIM={results[label]['ssim']:.4f}")
+        print("  Computing metrics...")
+        results["CNN"] = compute_all_metrics(
+            truth, cnn_preds, lr_orig, is_ensemble=False, upsampling_factor=ERA5_UPSAMPLING_FACTOR
+        )
+        results["CNN"]["inference_time_s"] = cnn_time
+        results["CNN"]["is_ensemble"] = False
+        print(
+            f"  CRPS={results['CNN']['crps']:.4f}  MAE={results['CNN']['mae']:.4f}  "
+            f"RMSE={results['CNN']['rmse']:.4f}  SSIM={results['CNN']['ssim']:.4f}"
+        )
     else:
-        print(f"  Skipping CNN: {cnn_ckpt} not found")
+        print("  Skipping CNN: no checkpoint found")
+
+    # --- CNN+SmCL (train) — prefer Anvita 6h checkpoint ---
+    cnn_sm_ckpt = anvita_dir / "twc_cnn_softmax.pth"
+    if not cnn_sm_ckpt.exists():
+        cnn_sm_ckpt = ERA5_HARDER_DIR / "twc_cnn_softmax.pth"
+    if cnn_sm_ckpt.exists():
+        print(f"\n--- CNN+SmCL (train) (from {cnn_sm_ckpt}) ---")
+        cnn_sm = load_harder_model(
+            cnn_sm_ckpt,
+            model_type="cnn",
+            constraints="softmax",
+            device=device,
+            upsampling_factor=ERA5_UPSAMPLING_FACTOR,
+        )
+        t0 = time.time()
+        cnn_sm_preds = generate_cnn_predictions(cnn_sm, lr_orig, min_val, max_val, device)
+        del cnn_sm
+        torch.cuda.empty_cache()
+        cnn_sm_time = time.time() - t0
+        print(f"  Inference: {cnn_sm_time:.1f}s")
+        print("  Computing metrics...")
+        results["CNN+SmCL (train)"] = compute_all_metrics(
+            truth,
+            cnn_sm_preds,
+            lr_orig,
+            is_ensemble=False,
+            upsampling_factor=ERA5_UPSAMPLING_FACTOR,
+        )
+        results["CNN+SmCL (train)"]["inference_time_s"] = cnn_sm_time
+        results["CNN+SmCL (train)"]["is_ensemble"] = False
+        print(
+            f"  CRPS={results['CNN+SmCL (train)']['crps']:.4f}  MAE={results['CNN+SmCL (train)']['mae']:.4f}  "
+            f"RMSE={results['CNN+SmCL (train)']['rmse']:.4f}  SSIM={results['CNN+SmCL (train)']['ssim']:.4f}"
+        )
+    else:
+        print("  Skipping CNN+SmCL (train): no checkpoint found")
+
+    # --- GAN — prefer Anvita 6h checkpoint ---
+    gan_ckpt = anvita_dir / "twc_gan_noconstraints.pth"
+    if not gan_ckpt.exists():
+        gan_ckpt = ERA5_HARDER_DIR / "twc_gan_none.pth"
+    if gan_ckpt.exists():
+        print(f"\n--- GAN (from {gan_ckpt}) ---")
+        gan = load_harder_model(
+            gan_ckpt,
+            model_type="gan",
+            constraints="none",
+            device=device,
+            upsampling_factor=ERA5_UPSAMPLING_FACTOR,
+        )
+        t0 = time.time()
+        gan_preds = generate_gan_predictions(gan, lr_orig, min_val, max_val, device)
+        del gan
+        torch.cuda.empty_cache()
+        gan_time = time.time() - t0
+        print(f"  Inference: {gan_time:.1f}s")
+        print("  Computing metrics...")
+        results["GAN"] = compute_all_metrics(
+            truth, gan_preds, lr_orig, is_ensemble=True, upsampling_factor=ERA5_UPSAMPLING_FACTOR
+        )
+        results["GAN"]["inference_time_s"] = gan_time
+        results["GAN"]["is_ensemble"] = True
+        results["GAN"]["n_ensemble"] = 10
+        print(
+            f"  CRPS={results['GAN']['crps']:.4f}  MAE={results['GAN']['mae']:.4f}  "
+            f"RMSE={results['GAN']['rmse']:.4f}  SSIM={results['GAN']['ssim']:.4f}"
+        )
+    else:
+        print("  Skipping GAN: no checkpoint found")
+
+    # --- GAN+SmCL (train) — prefer Anvita 6h checkpoint ---
+    gan_sm_ckpt = anvita_dir / "twc_gan_softmax.pth"
+    if not gan_sm_ckpt.exists():
+        gan_sm_ckpt = ERA5_HARDER_DIR / "twc_gan_softmax.pth"
+    if gan_sm_ckpt.exists():
+        print(f"\n--- GAN+SmCL (train) (from {gan_sm_ckpt}) ---")
+        gan_sm = load_harder_model(
+            gan_sm_ckpt,
+            model_type="gan",
+            constraints="softmax",
+            device=device,
+            upsampling_factor=ERA5_UPSAMPLING_FACTOR,
+        )
+        t0 = time.time()
+        gan_sm_preds = generate_gan_predictions(gan_sm, lr_orig, min_val, max_val, device)
+        del gan_sm
+        torch.cuda.empty_cache()
+        gan_sm_time = time.time() - t0
+        print(f"  Inference: {gan_sm_time:.1f}s")
+        print("  Computing metrics...")
+        results["GAN+SmCL (train)"] = compute_all_metrics(
+            truth, gan_sm_preds, lr_orig, is_ensemble=True, upsampling_factor=ERA5_UPSAMPLING_FACTOR
+        )
+        results["GAN+SmCL (train)"]["inference_time_s"] = gan_sm_time
+        results["GAN+SmCL (train)"]["is_ensemble"] = True
+        results["GAN+SmCL (train)"]["n_ensemble"] = 10
+        print(
+            f"  CRPS={results['GAN+SmCL (train)']['crps']:.4f}  MAE={results['GAN+SmCL (train)']['mae']:.4f}  "
+            f"RMSE={results['GAN+SmCL (train)']['rmse']:.4f}  SSIM={results['GAN+SmCL (train)']['ssim']:.4f}"
+        )
+    else:
+        print("  Skipping GAN+SmCL (train): no checkpoint found")
 
     # --- SwinIR finetuned ---
     if ERA5_SWINIR_CKPT.exists():
-        print("\n--- Loading SwinIR model ---")
-        for addcl, label in [(False, "SwinIR"), (True, "SwinIR+AddCL")]:
-            print(f"\n--- {label} ---")
-            t0 = time.time()
-            swinir_preds = generate_swinir_predictions(
-                lr_orig, ERA5_SWINIR_PRETRAINED, ERA5_SWINIR_CKPT, device,
-                with_addcl=addcl, upsampling_factor=ERA5_UPSAMPLING_FACTOR,
-            )
-            swinir_time = time.time() - t0
-            print(f"  Inference: {swinir_time:.1f}s")
-            print("  Computing metrics...")
-            results[label] = compute_all_metrics(truth, swinir_preds, lr_orig, is_ensemble=False, upsampling_factor=ERA5_UPSAMPLING_FACTOR)
-            results[label]["inference_time_s"] = swinir_time
-            results[label]["is_ensemble"] = False
-            print(f"  CRPS={results[label]['crps']:.4f}  MAE={results[label]['mae']:.4f}  "
-                  f"RMSE={results[label]['rmse']:.4f}  SSIM={results[label]['ssim']:.4f}")
+        print("\n--- SwinIR ---")
+        t0 = time.time()
+        swinir_preds = generate_swinir_predictions(
+            lr_orig,
+            ERA5_SWINIR_PRETRAINED,
+            ERA5_SWINIR_CKPT,
+            device,
+            with_addcl=False,
+            upsampling_factor=ERA5_UPSAMPLING_FACTOR,
+        )
+        swinir_time = time.time() - t0
+        print(f"  Inference: {swinir_time:.1f}s")
+        print("  Computing metrics...")
+        results["SwinIR"] = compute_all_metrics(
+            truth,
+            swinir_preds,
+            lr_orig,
+            is_ensemble=False,
+            upsampling_factor=ERA5_UPSAMPLING_FACTOR,
+        )
+        results["SwinIR"]["inference_time_s"] = swinir_time
+        results["SwinIR"]["is_ensemble"] = False
+        print(
+            f"  CRPS={results['SwinIR']['crps']:.4f}  MAE={results['SwinIR']['mae']:.4f}  "
+            f"RMSE={results['SwinIR']['rmse']:.4f}  SSIM={results['SwinIR']['ssim']:.4f}"
+        )
     else:
         print(f"  Skipping SwinIR: {ERA5_SWINIR_CKPT} not found")
 
     # --- Truth+AddCL (upper bound for AddCL constraint) ---
     print("\n--- Truth+AddCL ---")
     truth_addcl = apply_addcl(hr, lr_orig, ERA5_UPSAMPLING_FACTOR)[:, 0].numpy()
-    results["Truth+AddCL"] = compute_all_metrics(truth, truth_addcl, lr_orig, is_ensemble=False, upsampling_factor=ERA5_UPSAMPLING_FACTOR)
+    results["Truth+AddCL"] = compute_all_metrics(
+        truth, truth_addcl, lr_orig, is_ensemble=False, upsampling_factor=ERA5_UPSAMPLING_FACTOR
+    )
     results["Truth+AddCL"]["inference_time_s"] = 0.0
     results["Truth+AddCL"]["is_ensemble"] = False
-    print(f"  CRPS={results['Truth+AddCL']['crps']:.4f}  MAE={results['Truth+AddCL']['mae']:.4f}  "
-          f"RMSE={results['Truth+AddCL']['rmse']:.4f}  SSIM={results['Truth+AddCL']['ssim']:.4f}")
+    print(
+        f"  CRPS={results['Truth+AddCL']['crps']:.4f}  MAE={results['Truth+AddCL']['mae']:.4f}  "
+        f"RMSE={results['Truth+AddCL']['rmse']:.4f}  SSIM={results['Truth+AddCL']['ssim']:.4f}"
+    )
 
     # --- Save results ---
     print("\n--- Saving results ---")

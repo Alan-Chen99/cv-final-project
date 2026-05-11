@@ -129,6 +129,23 @@ pool/datasets/
 | `noresm-dataset/models/` | 529 MB | Trained NorESM checkpoints: flow-wide96-amp, harder (cnn/gan), swinir_ft |
 | `noresm-dataset/pretrained_weights/` | 48 MB | SwinIR x2 pretrained weights (DF2K) |
 
+### External checkpoints (Anvita)
+
+Located at `/orcd/pool/007/chenxy/datasets/anvita/`. Trained by a teammate on a different machine, each for 6 hours. Not trained on this machine. Read-only.
+
+| File | Dataset | Model | Constraint |
+|---|---|---|---|
+| `noresm_cnn_none.pth` | NorESM 2x | CNN | none |
+| `noresm_cnn_softmax.pth` | NorESM 2x | CNN | SmCL (train-time) |
+| `noresm_gan_none.pth` | NorESM 2x | GAN | none |
+| `noresm_gan_softmax.pth` | NorESM 2x | GAN | SmCL (train-time) |
+| `swinir_ft_noresm_2x/best_swinir.pt` | NorESM 2x | SwinIR | none |
+| `twc_cnn_noconstraints.pth` | ERA5 4x | CNN | none |
+| `twc_cnn_softmax.pth` | ERA5 4x | CNN | SmCL (train-time) |
+| `twc_gan_noconstraints.pth` | ERA5 4x | GAN | none |
+| `twc_gan_softmax.pth` | ERA5 4x | GAN | SmCL (train-time) |
+| `swinir_ft/best_swinir.pt` | ERA5 4x | SwinIR | none |
+
 # Notes
 
 IMPORTANT: prior agent notes MUST be taken as CONTEXT ONLY. Verify all claims before using.

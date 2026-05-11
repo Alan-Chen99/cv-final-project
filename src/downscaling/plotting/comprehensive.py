@@ -24,14 +24,24 @@ NORESM_RESULTS = POOL / "metrics" / "noresm" / "comprehensive_results.json"
 ERA5_RESULTS = POOL / "metrics" / "era5" / "era5_comprehensive_results.json"
 
 # Canonical model families — both panels show the same set in the same order/color
-MODEL_FAMILIES = ["CNN", "CNN+AddCL", "Flow", "Flow+AddCL", "SwinIR", "SwinIR+AddCL", "Truth+AddCL"]
+MODEL_FAMILIES = [
+    "Bicubic",
+    "CNN",
+    "CNN+SmCL (train)",
+    "GAN",
+    "GAN+SmCL (train)",
+    "Flow",
+    "SwinIR",
+    "Truth+AddCL",
+]
 MODEL_COLORS = {
+    "Bicubic": "#666666",
     "CNN": "#e41a1c",
-    "CNN+AddCL": "#984ea3",
+    "CNN+SmCL (train)": "#984ea3",
+    "GAN": "#a6761d",
+    "GAN+SmCL (train)": "#66a61e",
     "Flow": "#377eb8",
-    "Flow+AddCL": "#4daf4a",
     "SwinIR": "#ff7f00",
-    "SwinIR+AddCL": "#a65628",
     "Truth+AddCL": "#999999",
 }
 
@@ -56,7 +66,6 @@ SCALAR_METRICS: list[tuple[str, str, bool]] = [
 _NAME_MAP: dict[str, str] = {
     "CNN(none)": "CNN",
     "Flow(none)": "Flow",
-    "FlowV2+AddCL": "Flow+AddCL",
 }
 
 
@@ -88,7 +97,7 @@ def plot_psd_comparison(
     era5: dict[str, dict[str, object]],
     output_path: Path,
 ) -> None:
-    fig, (ax_n, ax_e) = plt.subplots(1, 2, figsize=(16, 6))
+    fig, (ax_n, ax_e) = plt.subplots(1, 2, figsize=(18, 7))
 
     for ax, results, title in [
         (ax_n, noresm, "NorESM TAS 2x SR"),
@@ -123,7 +132,7 @@ def plot_psd_comparison(
         ax.set_xlabel("Wavenumber k", fontsize=11)
         ax.set_ylabel("Power / Truth", fontsize=11)
         ax.set_title(title, fontsize=13)
-        ax.legend(fontsize=8, loc="best")
+        ax.legend(fontsize=7, loc="best")
         ax.grid(True, alpha=0.3)
 
     fig.suptitle("Radially Averaged PSD Ratio (Model / Truth)", fontsize=14, y=1.02)
@@ -154,9 +163,7 @@ def plot_rank_histograms(
     if n_cols == 1:
         axes = axes.reshape(2, 1)
 
-    for row, (ens_models, ds_label) in enumerate(
-        [(n_ens, "NorESM"), (e_ens, "ERA5")]
-    ):
+    for row, (ens_models, ds_label) in enumerate([(n_ens, "NorESM"), (e_ens, "ERA5")]):
         for col, (name, r) in enumerate(ens_models.items()):
             ax = axes[row, col]
             rh = np.array(r["rank_histogram"])
@@ -169,9 +176,7 @@ def plot_rank_histograms(
                 edgecolor="white",
                 linewidth=0.5,
             )
-            ax.axhline(
-                y=uniform, color="red", linestyle="--", linewidth=1.5, label="Uniform"
-            )
+            ax.axhline(y=uniform, color="red", linestyle="--", linewidth=1.5, label="Uniform")
             ax.set_xlabel("Rank")
             ax.set_ylabel("Count")
             ssr = r.get("ssr", float("nan"))
@@ -265,9 +270,7 @@ def plot_spectral_panel(
     ]
     fig, axes = plt.subplots(len(spectral_keys), 2, figsize=(14, 3.5 * len(spectral_keys)))
 
-    for col, (results, ds_label) in enumerate(
-        [(noresm, "NorESM TAS 2x"), (era5, "ERA5 TCW 4x")]
-    ):
+    for col, (results, ds_label) in enumerate([(noresm, "NorESM TAS 2x"), (era5, "ERA5 TCW 4x")]):
         names = list(results.keys())
         n_models = len(names)
         for row, (key, display, higher_better) in enumerate(spectral_keys):
@@ -321,7 +324,9 @@ def plot_calibration_panel(
     ]:
         ens_models = {k: v for k, v in results.items() if "ssr" in v}
         if not ens_models:
-            ax.text(0.5, 0.5, "No ensemble models", ha="center", va="center", transform=ax.transAxes)
+            ax.text(
+                0.5, 0.5, "No ensemble models", ha="center", va="center", transform=ax.transAxes
+            )
             ax.set_title(ds_label)
             continue
 
