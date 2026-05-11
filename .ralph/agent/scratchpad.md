@@ -201,6 +201,6 @@ Key findings:
 5. 2x SR is spectrally easy — all models preserve fine-scale structure
 
 ### Iteration 6 End
-End commit: (pending)
-End time: ~14:10 EDT
-Wall clock: ~34 min (including GPU queue wait)
+End commit: `eead769`
+End time: ~14:07 EDT
+Wall clock: ~31 min (including GPU queue wait)
