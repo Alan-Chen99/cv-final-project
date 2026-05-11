@@ -289,5 +289,5 @@ Single deliverable: Add ERA5 evaluation to comprehensive.py with same metrics.
 ERA5 ensembles well-calibrated (SSR ~1.0) vs NorESM severely underdispersive (SSR ~0.05). Same flow matching framework. Difference: ERA5 LR/HR from same reanalysis (consistent physics), NorESM LR/HR from different sims.
 
 ### Iteration 8 End
-End commit: (pending)
-End time: (pending)
+End commit: `170befc`
+End time: ~14:25 EDT
