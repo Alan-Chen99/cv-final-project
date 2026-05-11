@@ -696,3 +696,18 @@ All 5 original remaining work items are DONE. The metrics-v2 task is feature-com
 
 ### Plan for this iteration
 Add a conclusion section to METRICS_REPORT.md. This is the highest-impact single improvement: it synthesizes the findings into actionable takeaways. The color issue and dual panel crampedness are lower priority — the current plots convey the key messages despite imperfect aesthetics.
+
+### Work done
+- **Added conclusion section to METRICS_REPORT.md**: 5 key takeaways, limitations, and reproducibility info. Replaces completed remaining-work checklist.
+- **Verified all numbers** in conclusion against JSON data: CRPS, RALSD, EMD, improvement percentages, constraint degradation percentages — all match.
+- **Fixed one number**: constraint degradation was "29-47%" in draft, corrected to "28-47%" per actual data.
+- **Visual inspection of 7 figures**: extended_metrics_panel (ERA5), psd_comparison (ERA5), dual_metrics_panel, spectral_bias (ERA5, NorESM), psd_comparison (NorESM), ensemble (ERA5 sample 0) — all correct.
+- 146/146 tests pass, lint clean, typecheck 0 errors
+
+### Assessment: task near-complete
+- Remaining aesthetic concerns (similar blue colors in ERA5 spectral plots, cramped dual panel) are minor and don't affect the message.
+- All functional requirements met: 8 metrics, 15+12 methods, comprehensive figures, report with findings and conclusion.
+- Declaring this iteration's work: report conclusion added.
+
+
+- **End**: 2026-05-11T23:16:00Z, commit 6c4c00b
