@@ -614,3 +614,35 @@ Fix the y-axis zoom issue for narrow-range metrics (SSIM, PSNR) in both plotting
 - Fix ensemble plots for ERA5 samples 3-4 and NorESM samples 3-4 (needs GPU, squeue empty)
 
 - **End**: 2026-05-11T22:50:00Z, commit 0112cb1
+
+## Iteration 16
+- **Start**: 2026-05-11T22:52:39Z, commit 1fcc299
+- **Prefix**: (no GPU work needed)
+
+### Concerns (3+)
+
+1. **Quality: Spectral bias plots have 15/12 overlapping lines** — Both ERA5 and NorESM `spectral_bias.png` plotted all methods at same visual weight with markers. 15 colored lines with markers in ERA5, 12 in NorESM. NorESM especially unreadable with all lines crossing in -0.6 to 0.6 range. Iter15 noted this as concern #3 but did not fix it. The PSD comparison was fixed in iter14 with a highlighting approach, but spectral_bias was not.
+
+2. **Missing: Ensemble plots for samples 3-4** — Still the only remaining work item after 15 iterations. Code fix applied in iter8. Needs GPU re-run of `make_figures.py` without `--metrics-only`. One normal GPU slot available (birch-amber occupies the other, not our chain).
+
+3. **Quality: NorESM spectral bias high-frequency noise** — NorESM spectral bias plot shows oscillation at frequencies >0.35 cycles/pixel. Partly addressed by highlighting (GAN+SmCL's oscillation is now clearly the worst method), but residual noise in dimmed lines still visible.
+
+### Plan for this iteration
+Fix spectral bias plot readability by applying same highlighting approach used for PSD comparison (iter14). Rank methods by mean absolute bias, highlight 3 best + 1 worst, dim rest to gray. No GPU needed.
+
+### Work done
+- **Updated `plot_spectral_bias`** in `src/downscaling/plotting/spectral.py`:
+  - Added `_rank_methods_by_mean_abs_bias()` helper to rank methods by mean |bias|
+  - When >5 methods: highlights 3 best + 1 worst, dims rest to light gray (linewidth=0.7, alpha=0.4, no markers)
+  - Highlighted methods keep full color, thick lines (2.0), and markers
+  - <=5 methods: all highlighted (backward compatible)
+- **Added test** `test_highlighting_with_many_methods`: verifies 10-method case produces 10 lines (4 highlighted + 6 dimmed)
+- **Regenerated spectral bias figures** for both ERA5 and NorESM:
+  - ERA5: highlights Wide96, ZScore, Uniform (best 3) + Bilinear (worst). Clear story: flow models near 0 dB, bilinear peaking at ~2 dB
+  - NorESM: highlights Wide96, SwinIR Finetuned, Harder CNN (best 3) + Harder GAN+SmCL (worst). GAN oscillation clearly visible
+- **Updated METRICS_REPORT.md**: figure descriptions, test count 145->146
+- 146/146 tests pass, lint clean, format clean
+
+### Next iteration work
+- Fix ensemble plots for ERA5 samples 3-4 and NorESM samples 3-4 (needs GPU, one normal slot available)
+

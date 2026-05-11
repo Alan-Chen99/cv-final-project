@@ -200,7 +200,7 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 | `extended_metrics_panel.png` | 3x3 grid: all 8 metrics (CRPS, MAE, RMSE, SSIM, PSNR, RALSD, EMD, mass_violation) | Current |
 | `ralsd_comparison.png` | Sorted RALSD bar chart (15 methods) | Current |
 | `psd_comparison.png` | 2-panel PSD: log-log curves (top, key methods highlighted) + PSD ratio in dB (bottom, all methods) | Current |
-| `spectral_bias.png` | Per-frequency spectral bias (dB) for each method | Current |
+| `spectral_bias.png` | Per-frequency spectral bias (dB), 3 best + 1 worst highlighted, rest dimmed | Current |
 | `era5_sample_{0-4}_comparison.png` | Per-sample visual comparison (9 methods) | Current |
 | `era5_sample_{0-4}_errors.png` | Per-sample error maps | Current |
 | `era5_sample_{0-2}_ensemble.png` | Ensemble spread visualization | Current |
@@ -215,7 +215,7 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 | `extended_metrics_panel.png` | 3x3 grid: all 8 metrics (12 methods) | Current |
 | `ralsd_comparison.png` | Sorted RALSD bar chart (12 methods) | Current |
 | `psd_comparison.png` | 2-panel PSD: log-log curves (top, key methods highlighted) + PSD ratio in dB (bottom, all methods) | Current |
-| `spectral_bias.png` | Per-frequency spectral bias (dB) for each method | Current |
+| `spectral_bias.png` | Per-frequency spectral bias (dB), 3 best + 1 worst highlighted, rest dimmed | Current |
 | `noresm_sample_{0-4}_comparison.png` | Per-sample visual comparison | Current |
 | `noresm_sample_{0-4}_errors.png` | Per-sample error maps | Current |
 | `noresm_sample_{0-2}_ensemble.png` | Ensemble spread visualization | Current |
@@ -237,7 +237,7 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 - `spectral.py`: `plot_psd_comparison()`, `plot_spectral_bias()`, `plot_extended_metrics_panel()`, `plot_ralsd_comparison()`
 
 ### Test Coverage
-- 145 non-GPU tests pass (spectral metrics, structural metrics, distribution metrics, batch metrics, plotting)
+- 146 non-GPU tests pass (spectral metrics, structural metrics, distribution metrics, batch metrics, plotting)
 - Lint (ruff), format (ruff), typecheck (basedpyright): all pass
 
 ## Remaining Work

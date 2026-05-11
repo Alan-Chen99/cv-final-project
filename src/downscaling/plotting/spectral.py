@@ -87,9 +87,7 @@ def plot_psd_comparison(
     # Dimmed methods first (behind)
     for name, psd in method_psds.items():
         if name not in highlight:
-            ax_psd.loglog(
-                freq, psd, linewidth=0.8, color="#cccccc", alpha=0.5, zorder=1
-            )
+            ax_psd.loglog(freq, psd, linewidth=0.8, color="#cccccc", alpha=0.5, zorder=1)
 
     # Highlighted methods on top
     for name in ranked:
@@ -124,8 +122,13 @@ def plot_psd_comparison(
             zorder = 5 if name in highlight else 1
             label = _display(name) if name in highlight else None
             ax_ratio.plot(
-                freq, ratio_db, linewidth=lw, color=color, alpha=alpha,
-                zorder=zorder, label=label,
+                freq,
+                ratio_db,
+                linewidth=lw,
+                color=color,
+                alpha=alpha,
+                zorder=zorder,
+                label=label,
             )
 
         ax_ratio.set_xlabel("Spatial Frequency (cycles/pixel)", fontsize=11)
@@ -143,6 +146,17 @@ def plot_psd_comparison(
     return fig
 
 
+def _rank_methods_by_mean_abs_bias(
+    method_biases: dict[str, NDArray[np.floating]],
+) -> list[str]:
+    """Rank methods by mean absolute spectral bias (lower = better)."""
+    scores: dict[str, float] = {}
+    for name, bias in method_biases.items():
+        valid = bias[~np.isnan(bias)]
+        scores[name] = float(np.mean(np.abs(valid))) if len(valid) > 0 else float("inf")
+    return sorted(scores, key=lambda n: scores[n])
+
+
 def plot_spectral_bias(
     freq: NDArray[np.floating],
     method_biases: dict[str, NDArray[np.floating]],
@@ -150,7 +164,10 @@ def plot_spectral_bias(
     title: str = "Spectral Bias (positive = underestimates power, too smooth)",
     figsize: tuple[float, float] = (8, 5),
 ) -> plt.Figure:
-    """Per-frequency spectral bias for each method.
+    """Per-frequency spectral bias with highlighting for readability.
+
+    When >5 methods: highlights 3 best + 1 worst by mean absolute bias,
+    dims the rest to gray. Same approach as plot_psd_comparison.
 
     Args:
         freq: Frequency bin centers, shape (n_bins,).
@@ -161,21 +178,46 @@ def plot_spectral_bias(
         figsize: Figure size.
     """
     fig, ax = plt.subplots(figsize=figsize)
-
     ax.axhline(0, color="black", linewidth=0.8, linestyle="--")
 
-    for name, bias in method_biases.items():
-        valid = ~np.isnan(bias)
-        ax.plot(
-            freq[valid],
-            bias[valid],
-            linewidth=1.5,
-            color=_color(name),
-            label=_display(name),
-            alpha=0.85,
-            marker="o",
-            markersize=3,
-        )
+    n_methods = len(method_biases)
+    ranked = _rank_methods_by_mean_abs_bias(method_biases)
+
+    if n_methods > 5:
+        highlight = set(ranked[:3] + ranked[-1:])
+    else:
+        highlight = set(ranked)
+
+    # Dimmed methods first (behind)
+    for name in ranked:
+        if name not in highlight:
+            bias = method_biases[name]
+            valid = ~np.isnan(bias)
+            ax.plot(
+                freq[valid],
+                bias[valid],
+                linewidth=0.7,
+                color="#cccccc",
+                alpha=0.4,
+                zorder=1,
+            )
+
+    # Highlighted methods on top
+    for name in ranked:
+        if name in highlight:
+            bias = method_biases[name]
+            valid = ~np.isnan(bias)
+            ax.plot(
+                freq[valid],
+                bias[valid],
+                linewidth=2.0,
+                color=_color(name),
+                label=_display(name),
+                alpha=0.9,
+                marker="o",
+                markersize=3,
+                zorder=5,
+            )
 
     ax.set_xlabel("Spatial Frequency (cycles/pixel)", fontsize=11)
     ax.set_ylabel("Spectral Bias (dB)", fontsize=11)

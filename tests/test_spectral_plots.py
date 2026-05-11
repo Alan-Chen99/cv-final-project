@@ -78,9 +78,7 @@ class TestPSDComparison:
     def test_ratio_subplot_with_many_methods(self, freq):
         """When >5 methods, produces 2-panel layout with PSD ratio subplot."""
         psd_truth = 1.0 / (freq**2 + 0.01)
-        method_psds = {
-            f"method-{i}": psd_truth * (0.5 + 0.1 * i) for i in range(8)
-        }
+        method_psds = {f"method-{i}": psd_truth * (0.5 + 0.1 * i) for i in range(8)}
         fig = plot_psd_comparison(freq, psd_truth, method_psds)
         assert fig is not None
         assert len(fig.axes) == 2
@@ -108,6 +106,19 @@ class TestSpectralBias:
         }
         fig = plot_spectral_bias(freq, biases)
         assert fig is not None
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
+
+    def test_highlighting_with_many_methods(self, freq):
+        """When >5 methods, highlights 3 best + 1 worst, dims rest."""
+        biases = {f"method-{i}": np.random.randn(26) * (0.1 + 0.3 * i) for i in range(10)}
+        fig = plot_spectral_bias(freq, biases)
+        assert fig is not None
+        ax = fig.axes[0]
+        lines = [ln for ln in ax.get_lines() if ln.get_linestyle() != "--"]
+        # 4 highlighted + 6 dimmed = 10 lines total
+        assert len(lines) == 10
         import matplotlib.pyplot as plt
 
         plt.close(fig)
