@@ -521,3 +521,5 @@ Fix the NPZ name mapping bug. Generate all spectral/extended metric figures from
 - Fix ensemble plots for ERA5 samples 3-4 and NorESM samples 3-4 (needs GPU)
 - Update dual metrics panel to show all 8 metrics (currently 4)
 - Consider updating `make_figures.py` defaults to point to 8-metric results
+
+- **End**: 2026-05-11T22:26:49Z, commit c920344
