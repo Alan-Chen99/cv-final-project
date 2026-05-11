@@ -137,3 +137,29 @@ Start commit: `3846684`
 End commit: `d6bfbb1`
 End time: ~13:30 EDT
 Next: Implement KL divergence / distribution comparison (task-1778519850-519e)
+
+## Iteration 5 — 2026-05-11 13:32 EDT
+Start commit: `e0635af`
+
+### Concerns Review
+1. **Quality**: Prior implementations (PSD, calibration, SSIM) are solid — correct formulas, good test coverage, clean type checks. No issues found.
+2. **Workflow**: Prior iterations committed properly, ran all checks (ruff, basedpyright, pytest). No missing steps.
+3. **Design**: KL divergence on binned histograms requires shared bin edges from the joint range and Laplace smoothing to avoid log(0). Both implemented correctly.
+
+### Work Done
+- Implemented distributional metrics in `src/downscaling/metrics/distributional.py`:
+  - `histogram_kl_divergence()`: KL(P||Q) via shared-edge histograms + Laplace smoothing
+  - `ensemble_mean_kl_divergence()`: per-member KL then average
+  - Handles arbitrary shapes (flattens both inputs), degenerate constant fields
+- Added 13 integration tests in `tests/test_metrics.py`:
+  - Identical → 0, non-negative (Gibbs), shifted → positive, larger shift → higher KL
+  - Scaled distribution, constant fields, shape mismatch, n_bins validation
+  - More bins test, arbitrary 3D shape, ensemble single-member consistency, better ensemble lower KL, rejects 1D
+- All 60 tests pass (10 CRPS + 14 PSD + 11 calibration + 12 SSIM + 13 KL), ruff clean, basedpyright clean
+- Fixed unused import (scipy.ndimage.gaussian_filter) in test file
+- Committed: `d9a40bd`
+
+### Iteration 5 End
+End commit: `d9a40bd`
+End time: ~13:35 EDT
+Next: Run comprehensive evaluation on all models + write report (task-1778519851-14b5)
