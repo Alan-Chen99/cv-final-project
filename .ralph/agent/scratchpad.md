@@ -111,3 +111,29 @@ Start commit: `0c54176`
 End commit: `e62cbd9`
 End time: ~13:25 EDT
 Next: Implement SSIM metric (task-1778519849-067b)
+
+## Iteration 4 — 2026-05-11 13:27 EDT
+Start commit: `3846684`
+
+### Concerns Review
+1. **Quality**: Prior implementations (PSD, calibration) are solid — correct formulas, good test coverage, clean type checks. No issues.
+2. **Workflow**: Prior iterations committed properly, ran all checks. No missing steps.
+3. **Design**: SSIM data_range initially computed from truth only, breaking symmetry. Fixed to use joint min/max of both inputs. Also: negated field test was based on wrong assumption about SSIM behavior — negation flips both luminance and structure terms, making their product positive. Replaced with uncorrelated-field test.
+
+### Work Done
+- Implemented SSIM metric in `src/downscaling/metrics/structural.py`:
+  - `ssim()`: Gaussian-weighted SSIM with scipy.ndimage.gaussian_filter
+  - `ensemble_mean_ssim()`: per-member SSIM then average
+  - Joint data_range from both inputs for symmetry
+  - Default window_sigma=1.5, k1=0.01, k2=0.03 (standard Wang et al. 2004)
+- Added 12 integration tests in `tests/test_metrics.py`:
+  - Identical fields → 1.0, uncorrelated → near 0, noisy → intermediate (monotone with noise)
+  - Constant fields, explicit data_range, shape errors, non-2D errors
+  - Symmetry, range bounded [-1, 1], ensemble single-member consistency, better ensemble higher SSIM, non-3D error
+- All 47 tests pass (10 CRPS + 14 PSD + 11 calibration + 12 SSIM), ruff clean, basedpyright clean
+- Committed: `d6bfbb1`
+
+### Iteration 4 End
+End commit: `d6bfbb1`
+End time: ~13:30 EDT
+Next: Implement KL divergence / distribution comparison (task-1778519850-519e)
