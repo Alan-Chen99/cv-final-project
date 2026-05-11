@@ -463,9 +463,7 @@ def main():
                 vals.append(f"{'N/A':>10}")
             elif m == "ralsd":
                 vals.append(f"{v:>9.2f}dB")
-            elif m in ("ssim", "psnr"):
-                vals.append(f"{v:>10.4f}")
-            elif m == "emd":
+            elif m in ("ssim", "psnr", "emd"):
                 vals.append(f"{v:>10.4f}")
             else:
                 vals.append(f"{v:>10.6f}")

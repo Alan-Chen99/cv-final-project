@@ -394,3 +394,39 @@ Add EMD (Earth Mover Distance) as the 8th metric — addresses the distribution 
 - Regenerate ensemble plots for samples 3-4
 
 - **End**: 2026-05-11T21:32:24Z, commit 63c5da1
+
+## Iteration 10
+- **Start**: 2026-05-11T21:33:38Z, commit 495081d
+- **Prefix**: rqdn-5230
+
+### Concerns (3+)
+
+1. **Fact: GPU eval would FAIL without singularity** — The editable install `.pth` file (`_editable_impl_climate_downscaling.pth`) contains `/workspace/src`, but `/workspace` does NOT exist on GPU nodes. The worktree path is `/home/chenxy/repos/workspace/metrics-v2`. Direct srun without singularity gets `ModuleNotFoundError: No module named 'downscaling'`. The sbatch script works because singularity binds the project dir to `/workspace` inside the container. Prior iterations did not discover this because iter5 used singularity. Iter9's mysterious `python -m downscaling.evaluation.comprehensive` process was somehow running despite this — unclear how (maybe module was loaded before `/workspace` unmounted, or a different mechanism).
+
+2. **Workflow: Rogue process on GPU from prior iteration** — Job 13763778 (salloc, "metrics-eval") was running `python -m downscaling.evaluation.comprehensive` — a module that does NOT exist in any worktree. No output files produced. GPU at 100% for 8+ minutes with no results. Killed it. Root cause: prior iteration launched an eval using a non-existent module, process consumed GPU without producing output. This wasted the entire 1hr allocation.
+
+3. **Workflow: 10 iterations, zero GPU results on disk** — This is now a systemic issue. Iter5 ran eval but job was killed before save. Iter6-9 blocked by ivy-ash or Priority. Iter10: found GPU allocation but rogue process wasted it, then allocation expired. The PYTHONPATH/singularity issue means even if we get GPU, direct srun fails.
+
+4. **Quality: sbatch output names were stale (7metrics → 8metrics)** — Fixed this iteration.
+
+### Plan for this iteration
+Diagnose and fix the eval execution path. The sbatch script (singularity) is the correct approach. Direct srun requires PYTHONPATH workaround.
+
+### Work done
+- Killed rogue `python -m downscaling.evaluation.comprehensive` process on GPU node4102 (PID 2214962)
+- **Diagnosed PYTHONPATH bug**: editable install `.pth` references `/workspace/src` which doesn't exist on GPU nodes. Singularity works because it bind-mounts project dir to `/workspace`.
+- **Fixed sbatch script**: updated output filenames from 7metrics to 8metrics
+- **Created `scripts/eval_srun.sh`**: helper for interactive srun usage that sets `PYTHONPATH=$PROJECT_DIR/src` to work without singularity
+- GPU allocation attempt: both normal and preemptable Priority-blocked. No GPU available.
+- Cancelled expired salloc 13763778 (was already expired) and pending 13765443, 13765455
+- Fixed lint issues in run_eval.py and run_eval_noresm.py (SIM114: combined elif branches for ssim/psnr/emd)
+- 144/144 tests pass, lint clean on eval scripts
+- Memory recorded: mem-1778536219-ba0a (PYTHONPATH GPU fix)
+
+### Next iteration work
+- Submit sbatch job (singularity approach confirmed working) — must wait for GPU availability
+- OR use eval_srun.sh with PYTHONPATH workaround for interactive srun
+- When results arrive: update report with RALSD/SSIM/PSNR/EMD data, generate spectral figures
+- Regenerate ensemble plots for samples 3-4
+
+- **End**: 2026-05-11T21:50:33Z, commit (pending)

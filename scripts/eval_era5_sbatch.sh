@@ -10,8 +10,8 @@
 
 # Runs ERA5 (500 samples) + NorESM (500 samples) evaluation with all 8 metrics.
 # Incremental saving: JSON written after each method group.
-# Outputs: eval_results_7metrics.json, eval_results_7metrics_spectral.npz,
-#          noresm_eval_results_7metrics.json, noresm_eval_results_7metrics_spectral.npz
+# Outputs: eval_results_8metrics.json, eval_results_8metrics_spectral.npz,
+#          noresm_eval_results_8metrics.json, noresm_eval_results_8metrics_spectral.npz
 
 set -euo pipefail
 
@@ -39,11 +39,11 @@ run_in_container() {
 }
 
 echo "=== ERA5 TCW 4x evaluation ==="
-run_in_container 'python scripts/run_eval.py --max-samples 500 --output eval_results_7metrics.json'
+run_in_container 'python scripts/run_eval.py --max-samples 500 --output eval_results_8metrics.json'
 echo "ERA5 eval completed at $(date)"
 
 echo "=== NorESM TAS 2x evaluation ==="
-run_in_container 'python scripts/run_eval_noresm.py --max-samples 500 --output noresm_eval_results_7metrics.json'
+run_in_container 'python scripts/run_eval_noresm.py --max-samples 500 --output noresm_eval_results_8metrics.json'
 echo "NorESM eval completed at $(date)"
 
 echo "Job $SLURM_JOB_ID finished at $(date)"
