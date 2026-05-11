@@ -1,12 +1,12 @@
-"""Integration tests for CRPS and spectral metrics.
+"""Integration tests for evaluation metrics: CRPS, PSD, calibration, SSIM.
 
-Tests verify mathematical correctness of CRPS implementations
-using known analytical properties and cross-validation between formulas.
-Tests verify PSD implementation against analytical Fourier results.
+Tests verify mathematical correctness using known analytical properties,
+cross-validation between formulas, and expected behavior on synthetic data.
 """
 
 import numpy as np
 import pytest
+from scipy.ndimage import gaussian_filter
 
 from downscaling.metrics.calibration import rank_histogram, spread_skill_ratio
 from downscaling.metrics.crps import crps_energy, crps_paper
@@ -15,6 +15,7 @@ from downscaling.metrics.spectral import (
     psd_log_ratio,
     radial_psd,
 )
+from downscaling.metrics.structural import ensemble_mean_ssim, ssim
 
 
 @pytest.fixture
@@ -422,3 +423,106 @@ class TestSpreadSkillRatio:
 
         ssr = spread_skill_ratio(truth, ensemble)
         assert ssr == pytest.approx(corrected, rel=1e-10)
+
+
+class TestSSIM:
+    """Test structural similarity index."""
+
+    def test_identical_fields_perfect_score(self):
+        """Identical fields should give SSIM = 1.0."""
+        rng = np.random.default_rng(42)
+        field = rng.standard_normal((64, 64))
+        assert ssim(field, field) == pytest.approx(1.0, abs=1e-10)
+
+    def test_uncorrelated_field_low_score(self):
+        """Uncorrelated random field should give SSIM near zero."""
+        rng = np.random.default_rng(42)
+        a = rng.standard_normal((64, 64))
+        b = rng.standard_normal((64, 64))
+        score = ssim(a, b)
+        assert abs(score) < 0.3, f"SSIM={score:.3f}, expected near 0 for uncorrelated"
+
+    def test_noisy_field_intermediate(self):
+        """Adding noise should reduce SSIM proportionally to noise level."""
+        rng = np.random.default_rng(42)
+        field = rng.standard_normal((64, 64))
+        low_noise = field + rng.normal(0, 0.1, field.shape)
+        high_noise = field + rng.normal(0, 1.0, field.shape)
+
+        ssim_low = ssim(field, low_noise)
+        ssim_high = ssim(field, high_noise)
+        assert ssim_low > ssim_high, (
+            f"Low noise SSIM={ssim_low:.3f} should exceed high noise SSIM={ssim_high:.3f}"
+        )
+        assert ssim_low > 0.8, f"Low noise SSIM={ssim_low:.3f}, expected > 0.8"
+
+    def test_constant_fields_equal(self):
+        """Two constant fields with same value should give SSIM = 1."""
+        a = np.full((32, 32), 5.0)
+        b = np.full((32, 32), 5.0)
+        assert ssim(a, b) == pytest.approx(1.0, abs=1e-10)
+
+    def test_explicit_data_range(self):
+        """Explicit data_range should override auto-detection."""
+        rng = np.random.default_rng(42)
+        field = rng.standard_normal((64, 64))
+        noisy = field + rng.normal(0, 0.5, field.shape)
+
+        ssim_auto = ssim(field, noisy)
+        # Larger data_range makes C1/C2 larger → SSIM closer to 1
+        ssim_wide = ssim(field, noisy, data_range=100.0)
+        assert ssim_wide > ssim_auto
+
+    def test_shape_mismatch_raises(self):
+        """Mismatched shapes should raise ValueError."""
+        with pytest.raises(ValueError, match="mismatch"):
+            ssim(np.zeros((32, 32)), np.zeros((32, 64)))
+
+    def test_non_2d_raises(self):
+        """Non-2D inputs should raise ValueError."""
+        with pytest.raises(ValueError, match="2D"):
+            ssim(np.zeros((3, 32, 32)), np.zeros((3, 32, 32)))
+
+    def test_symmetry(self):
+        """SSIM(a, b) == SSIM(b, a) by construction."""
+        rng = np.random.default_rng(42)
+        a = rng.standard_normal((64, 64))
+        b = rng.standard_normal((64, 64))
+        assert ssim(a, b) == pytest.approx(ssim(b, a), rel=1e-12)
+
+    def test_range_bounded(self):
+        """SSIM should be in [-1, 1]."""
+        rng = np.random.default_rng(42)
+        a = rng.standard_normal((64, 64))
+        b = rng.standard_normal((64, 64))
+        score = ssim(a, b)
+        assert -1.0 <= score <= 1.0, f"SSIM={score} out of bounds"
+
+
+class TestEnsembleMeanSSIM:
+    """Test ensemble SSIM averaging."""
+
+    def test_single_member_matches_ssim(self):
+        """Single-member ensemble should match direct ssim()."""
+        rng = np.random.default_rng(42)
+        truth = rng.standard_normal((64, 64))
+        pred = rng.standard_normal((64, 64))
+        ens_score = ensemble_mean_ssim(truth, pred[np.newaxis, ...])
+        direct_score = ssim(truth, pred)
+        assert ens_score == pytest.approx(direct_score, rel=1e-12)
+
+    def test_better_ensemble_higher_ssim(self):
+        """Ensemble closer to truth should have higher mean SSIM."""
+        rng = np.random.default_rng(42)
+        truth = rng.standard_normal((64, 64))
+        good = truth[None, ...] + rng.normal(0, 0.1, (5, 64, 64))
+        bad = rng.standard_normal((5, 64, 64))
+
+        ssim_good = ensemble_mean_ssim(truth, good)
+        ssim_bad = ensemble_mean_ssim(truth, bad)
+        assert ssim_good > ssim_bad
+
+    def test_rejects_non_3d(self):
+        """Should raise on non-3D ensemble."""
+        with pytest.raises(ValueError, match="3D"):
+            ensemble_mean_ssim(np.zeros((8, 8)), np.zeros((8, 8)))
