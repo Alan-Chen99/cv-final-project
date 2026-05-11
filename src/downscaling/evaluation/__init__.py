@@ -5,6 +5,7 @@ from downscaling.evaluation.baselines import (
     upsample_bicubic,
     upsample_bilinear,
 )
+from downscaling.evaluation.batch_metrics import compute_batch_metrics, compute_spectral_curves
 from downscaling.evaluation.checkpoints import load_checkpoint, load_norm_stats
 from downscaling.evaluation.evaluate import evaluate_ensemble, evaluate_flow_model
 from downscaling.evaluation.harder import (
@@ -20,6 +21,8 @@ from downscaling.evaluation.swinir import (
 )
 
 __all__ = [
+    "compute_batch_metrics",
+    "compute_spectral_curves",
     "eval_bicubic",
     "eval_bilinear",
     "eval_swinir_finetuned",

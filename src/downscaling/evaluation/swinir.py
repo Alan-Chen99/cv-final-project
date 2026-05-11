@@ -210,7 +210,8 @@ def eval_swinir_zeroshot(
     device: str = "cpu",
     with_addcl: bool = False,
     upsampling_factor: int = 4,
-) -> dict[str, float]:
+    return_predictions: bool = False,
+) -> dict[str, float] | tuple[dict[str, float], np.ndarray]:
     """Evaluate zero-shot SwinIR on test data.
 
     Args:
@@ -220,9 +221,12 @@ def eval_swinir_zeroshot(
         device: Inference device.
         with_addcl: Whether to apply AddCL constraint.
         upsampling_factor: SR factor.
+        return_predictions: If True, return (metrics, predictions) where
+            predictions has shape (N, H, W).
 
     Returns:
-        Dict with crps, mae, rmse, mass_violation.
+        Dict with crps, mae, rmse, mass_violation. If return_predictions,
+        returns (metrics_dict, predictions_ndarray).
     """
     model = load_swinir_pretrained(weights_path, device)
     preds = predict_swinir_zeroshot(model, lr_orig, device)
@@ -230,7 +234,10 @@ def eval_swinir_zeroshot(
         preds = apply_addcl(preds, lr_orig, upsampling_factor)
     del model
     torch.cuda.empty_cache()
-    return _eval_deterministic(preds, hr, lr_orig, upsampling_factor)
+    metrics = _eval_deterministic(preds, hr, lr_orig, upsampling_factor)
+    if return_predictions:
+        return metrics, preds[:, 0].numpy()
+    return metrics
 
 
 def eval_swinir_finetuned(
@@ -241,7 +248,8 @@ def eval_swinir_finetuned(
     device: str = "cpu",
     with_addcl: bool = False,
     upsampling_factor: int = 4,
-) -> dict[str, float]:
+    return_predictions: bool = False,
+) -> dict[str, float] | tuple[dict[str, float], np.ndarray]:
     """Evaluate finetuned SwinIR on test data.
 
     Args:
@@ -252,9 +260,12 @@ def eval_swinir_finetuned(
         device: Inference device.
         with_addcl: Whether to apply AddCL constraint.
         upsampling_factor: SR factor.
+        return_predictions: If True, return (metrics, predictions) where
+            predictions has shape (N, H, W).
 
     Returns:
-        Dict with crps, mae, rmse, mass_violation.
+        Dict with crps, mae, rmse, mass_violation. If return_predictions,
+        returns (metrics_dict, predictions_ndarray).
     """
     model, vmin, vmax = load_swinir_finetuned(pretrained_weights_path, checkpoint_path, device)
     preds = predict_swinir_finetuned(model, lr_orig, vmin, vmax, device)
@@ -262,7 +273,10 @@ def eval_swinir_finetuned(
         preds = apply_addcl(preds, lr_orig, upsampling_factor)
     del model
     torch.cuda.empty_cache()
-    return _eval_deterministic(preds, hr, lr_orig, upsampling_factor)
+    metrics = _eval_deterministic(preds, hr, lr_orig, upsampling_factor)
+    if return_predictions:
+        return metrics, preds[:, 0].numpy()
+    return metrics
 
 
 def _eval_deterministic(

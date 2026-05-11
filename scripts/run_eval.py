@@ -20,10 +20,18 @@ import json
 import time
 from pathlib import Path
 
+import numpy as np
 import torch
 
+from downscaling.constraints.layers import apply_addcl
 from downscaling.data.era5 import load_era5_tcw
-from downscaling.evaluation.baselines import eval_bicubic, eval_bilinear
+from downscaling.evaluation.baselines import (
+    eval_bicubic,
+    eval_bilinear,
+    upsample_bicubic,
+    upsample_bilinear,
+)
+from downscaling.evaluation.batch_metrics import compute_batch_metrics
 from downscaling.evaluation.checkpoints import load_checkpoint, load_norm_stats
 from downscaling.evaluation.evaluate import evaluate_flow_model
 from downscaling.evaluation.harder import (
@@ -78,8 +86,12 @@ def eval_flow_matching_model(
     max_samples: int | None = None,
     base_channels: int = 64,
     channel_mults: tuple[int, ...] = (1, 2, 4),
-) -> dict[str, float]:
-    """Load and evaluate a flow matching model."""
+) -> tuple[dict[str, float], np.ndarray]:
+    """Load and evaluate a flow matching model.
+
+    Returns:
+        Tuple of (metrics_dict, predictions) where predictions has shape (N, H, W).
+    """
     model = AttentionUNet(
         in_channels=2,
         out_channels=1,
@@ -103,7 +115,7 @@ def eval_flow_matching_model(
         print(f" (epoch {metadata['epoch']})", end="")
     print()
 
-    result = evaluate_flow_model(
+    result, preds = evaluate_flow_model(
         model=model,
         lr_up_norm=lr_up_norm,
         hr=hr,
@@ -115,13 +127,14 @@ def eval_flow_matching_model(
         constraint=constraint,
         sampler=sampler,
         max_samples=max_samples,
+        return_predictions=True,
     )
     return {
         "crps": result.crps,
         "mae": result.mae,
         "rmse": result.rmse,
         "mass_violation": result.mass_violation,
-    }
+    }, preds
 
 
 # Model registry: name -> config
@@ -199,37 +212,45 @@ def main():
         print(f"  Using {n} samples")
 
     results: dict[str, dict[str, float]] = {}
+    predictions: dict[str, np.ndarray] = {}  # method -> (N, H, W) for batch metrics
 
-    # Baselines
+    n_eval = min(hr.shape[0], args.max_samples) if args.max_samples else hr.shape[0]
+    gt = hr[:n_eval, 0].numpy()  # (N, H, W) ground truth for batch metrics
+
+    def _print_metrics(name: str) -> None:
+        r = results[name]
+        parts = [f"CRPS={r['crps']:.6f}", f"MAE={r['mae']:.6f}", f"RMSE={r['rmse']:.6f}"]
+        if "ralsd" in r:
+            parts.append(f"RALSD={r['ralsd']:.2f}dB")
+        if "ssim" in r:
+            parts.append(f"SSIM={r['ssim']:.4f}")
+        print(f"  {'  '.join(parts)}")
+
+    def _add_batch_metrics(name: str) -> None:
+        """Compute RALSD/SSIM/PSNR from stored predictions and merge into results."""
+        if name in predictions:
+            batch = compute_batch_metrics(gt, predictions[name])
+            results[name].update(batch)
+
+    # Baselines — cheap to recompute predictions for batch metrics
     print("\n=== Baselines ===")
 
-    print("Evaluating bilinear...")
-    results["bilinear"] = eval_bilinear(hr, lr_orig)
-    print(
-        f"  CRPS={results['bilinear']['crps']:.6f}  MAE={results['bilinear']['mae']:.6f}  "
-        f"RMSE={results['bilinear']['rmse']:.6f}  MassViol={results['bilinear']['mass_violation']:.6f}"
-    )
-
-    print("Evaluating bilinear + AddCL...")
-    results["bilinear+addcl"] = eval_bilinear(hr, lr_orig, with_addcl=True)
-    print(
-        f"  CRPS={results['bilinear+addcl']['crps']:.6f}  MAE={results['bilinear+addcl']['mae']:.6f}  "
-        f"RMSE={results['bilinear+addcl']['rmse']:.6f}  MassViol={results['bilinear+addcl']['mass_violation']:.6f}"
-    )
-
-    print("Evaluating bicubic...")
-    results["bicubic"] = eval_bicubic(hr, lr_orig)
-    print(
-        f"  CRPS={results['bicubic']['crps']:.6f}  MAE={results['bicubic']['mae']:.6f}  "
-        f"RMSE={results['bicubic']['rmse']:.6f}  MassViol={results['bicubic']['mass_violation']:.6f}"
-    )
-
-    print("Evaluating bicubic + AddCL...")
-    results["bicubic+addcl"] = eval_bicubic(hr, lr_orig, with_addcl=True)
-    print(
-        f"  CRPS={results['bicubic+addcl']['crps']:.6f}  MAE={results['bicubic+addcl']['mae']:.6f}  "
-        f"RMSE={results['bicubic+addcl']['rmse']:.6f}  MassViol={results['bicubic+addcl']['mass_violation']:.6f}"
-    )
+    for bname, upsample_fn, with_addcl in [
+        ("bilinear", upsample_bilinear, False),
+        ("bilinear+addcl", upsample_bilinear, True),
+        ("bicubic", upsample_bicubic, False),
+        ("bicubic+addcl", upsample_bicubic, True),
+    ]:
+        print(f"Evaluating {bname}...")
+        eval_fn = eval_bilinear if "bilinear" in bname else eval_bicubic
+        results[bname] = eval_fn(hr[:n_eval], lr_orig[:n_eval], with_addcl=with_addcl)
+        # Generate predictions for batch metrics
+        pred = upsample_fn(lr_orig[:n_eval])
+        if with_addcl:
+            pred = apply_addcl(pred, lr_orig[:n_eval], 4)
+        predictions[bname] = pred[:, 0].numpy()
+        _add_batch_metrics(bname)
+        _print_metrics(bname)
 
     # SwinIR models
     if not args.baselines_only:
@@ -243,20 +264,20 @@ def main():
                 print(f"Evaluating {name}...")
                 t_start = time.time()
                 try:
-                    results[name] = eval_swinir_zeroshot(
-                        hr=hr,
-                        lr_orig=lr_orig,
+                    r, preds = eval_swinir_zeroshot(
+                        hr=hr[:n_eval],
+                        lr_orig=lr_orig[:n_eval],
                         weights_path=SWINIR_PRETRAINED_WEIGHTS,
                         device=args.device,
                         with_addcl=with_addcl,
+                        return_predictions=True,
                     )
+                    results[name] = r
+                    predictions[name] = preds
+                    _add_batch_metrics(name)
                     elapsed = time.time() - t_start
-                    r = results[name]
-                    print(
-                        f"  CRPS={r['crps']:.6f}  MAE={r['mae']:.6f}  "
-                        f"RMSE={r['rmse']:.6f}  MassViol={r['mass_violation']:.6f}  "
-                        f"({elapsed:.1f}s)"
-                    )
+                    _print_metrics(name)
+                    print(f"  ({elapsed:.1f}s)")
                 except Exception as e:
                     print(f"  ERROR {name}: {e}")
             else:
@@ -267,21 +288,21 @@ def main():
                 print(f"Evaluating {name}...")
                 t_start = time.time()
                 try:
-                    results[name] = eval_swinir_finetuned(
-                        hr=hr,
-                        lr_orig=lr_orig,
+                    r, preds = eval_swinir_finetuned(
+                        hr=hr[:n_eval],
+                        lr_orig=lr_orig[:n_eval],
                         pretrained_weights_path=SWINIR_PRETRAINED_WEIGHTS,
                         checkpoint_path=ckpt_path,
                         device=args.device,
                         with_addcl=with_addcl,
+                        return_predictions=True,
                     )
+                    results[name] = r
+                    predictions[name] = preds
+                    _add_batch_metrics(name)
                     elapsed = time.time() - t_start
-                    r = results[name]
-                    print(
-                        f"  CRPS={r['crps']:.6f}  MAE={r['mae']:.6f}  "
-                        f"RMSE={r['rmse']:.6f}  MassViol={r['mass_violation']:.6f}  "
-                        f"({elapsed:.1f}s)"
-                    )
+                    _print_metrics(name)
+                    print(f"  ({elapsed:.1f}s)")
                 except Exception as e:
                     print(f"  ERROR {name}: {e}")
 
@@ -307,33 +328,34 @@ def main():
                     device=args.device,
                 )
                 if config["model_type"] == "gan":
-                    results[name] = evaluate_harder_gan(
+                    r, preds = evaluate_harder_gan(
                         model=model,
-                        lr_orig=lr_orig,
-                        hr=hr,
+                        lr_orig=lr_orig[:n_eval],
+                        hr=hr[:n_eval],
                         min_val=min_val,
                         max_val=max_val,
                         device=args.device,
                         n_ensemble=args.n_ensemble,
                         max_samples=args.max_samples,
+                        return_predictions=True,
                     )
                 else:
-                    results[name] = evaluate_harder_cnn(
+                    r, preds = evaluate_harder_cnn(
                         model=model,
-                        lr_orig=lr_orig,
-                        hr=hr,
+                        lr_orig=lr_orig[:n_eval],
+                        hr=hr[:n_eval],
                         min_val=min_val,
                         max_val=max_val,
                         device=args.device,
                         max_samples=args.max_samples,
+                        return_predictions=True,
                     )
+                results[name] = r
+                predictions[name] = preds
+                _add_batch_metrics(name)
                 elapsed = time.time() - t_start
-                r = results[name]
-                print(
-                    f"  CRPS={r['crps']:.6f}  MAE={r['mae']:.6f}  "
-                    f"RMSE={r['rmse']:.6f}  MassViol={r['mass_violation']:.6f}  "
-                    f"({elapsed:.1f}s)"
-                )
+                _print_metrics(name)
+                print(f"  ({elapsed:.1f}s)")
                 del model
                 torch.cuda.empty_cache()
             except Exception as e:
@@ -372,7 +394,7 @@ def main():
                 print(f"\nEvaluating {name}...")
                 t_start = time.time()
                 try:
-                    results[name] = eval_flow_matching_model(
+                    r, preds = eval_flow_matching_model(
                         name=name,
                         model_dir=model_dir,
                         lr_up_norm=model_lr_up_norm,
@@ -389,25 +411,39 @@ def main():
                         base_channels=int(config["base_channels"]),
                         channel_mults=tuple(config["channel_mults"]),  # type: ignore[arg-type]
                     )
+                    results[name] = r
+                    predictions[name] = preds
+                    _add_batch_metrics(name)
                     elapsed = time.time() - t_start
-                    r = results[name]
-                    print(
-                        f"  CRPS={r['crps']:.6f}  MAE={r['mae']:.6f}  "
-                        f"RMSE={r['rmse']:.6f}  MassViol={r['mass_violation']:.6f}  "
-                        f"({elapsed:.1f}s)"
-                    )
+                    _print_metrics(name)
+                    print(f"  ({elapsed:.1f}s)")
                 except Exception as e:
                     print(f"  ERROR {name}: {e}")
 
     # Print comparison table
-    print(f"\n{'=' * 85}")
-    print(f"{'Method':<40} {'CRPS':>10} {'MAE':>10} {'RMSE':>10} {'MassViol':>10}")
-    print(f"{'=' * 85}")
+    all_metrics = ["crps", "mae", "rmse", "mass_violation", "ralsd", "ssim", "psnr"]
+    has_batch = any("ralsd" in r for r in results.values())
+    display_metrics = all_metrics if has_batch else ["crps", "mae", "rmse", "mass_violation"]
+
+    header = f"{'Method':<40}" + "".join(f" {m:>10}" for m in display_metrics)
+    sep = "=" * len(header)
+    print(f"\n{sep}")
+    print(header)
+    print(sep)
     for name, r in sorted(results.items(), key=lambda x: x[1]["crps"]):
-        print(
-            f"{name:<40} {r['crps']:>10.6f} {r['mae']:>10.6f} {r['rmse']:>10.6f} {r['mass_violation']:>10.6f}"
-        )
-    print(f"{'=' * 85}")
+        vals = []
+        for m in display_metrics:
+            v = r.get(m)
+            if v is None:
+                vals.append(f"{'N/A':>10}")
+            elif m == "ralsd":
+                vals.append(f"{v:>9.2f}dB")
+            elif m in ("ssim", "psnr"):
+                vals.append(f"{v:>10.4f}")
+            else:
+                vals.append(f"{v:>10.6f}")
+        print(f"{name:<40}{''.join(vals)}")
+    print(sep)
 
     # Save results
     output_path = args.output or Path("eval_results.json")
@@ -415,7 +451,7 @@ def main():
         json.dump(
             {
                 "split": args.split,
-                "n_samples": hr.shape[0],
+                "n_samples": int(n_eval),
                 "n_ensemble": args.n_ensemble,
                 "ode_steps": args.ode_steps,
                 "constraint": args.constraint,

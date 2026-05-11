@@ -41,3 +41,44 @@ Implement spectral metrics (PSD computation + RALSD + spectral power plots) in `
 3. RALSD(dB) = sqrt(1/N * sum_i (10*log10(F_true_i / F_pred_i))^2)
 - Lower is better
 - Key: weights errors at all scales equally in log space
+
+## Iteration 2
+- **Start**: 2026-05-11T19:38:14Z, commit da578a4
+- **Prefix**: gamma-delta (reusing from iteration 1)
+
+### Concerns (3+)
+
+1. **Workflow: New metrics are dead code** — spectral.py and structural.py exist but are NOT wired into the evaluation pipeline. `EvalMetrics` only has crps/mae/rmse/mass_violation. `run_eval.py` only computes and stores these 4 metrics. The new metrics cannot be computed without pipeline integration.
+
+2. **Quality: RALSD is a batch metric, not per-sample** — RALSD averages PSDs over the dataset first, then computes log spectral distance. Current eval pipeline is per-sample (accumulate, average). This architectural mismatch means RALSD cannot simply be added to the per-sample loop — it needs all predictions collected first.
+
+3. **Workflow: No prediction storage** — The current pipeline discards predictions after computing per-sample metrics. To compute RALSD (and to generate spectral plots), predictions must be preserved. This requires structural changes to eval functions.
+
+### Plan for this iteration
+Wire new metrics into the evaluation pipeline:
+- Create `src/downscaling/evaluation/batch_metrics.py` — computes RALSD, SSIM, PSNR from collected predictions
+- Modify `evaluate_flow_model` to optionally return ensemble-mean predictions
+- Update `run_eval.py` to collect predictions and compute all 7 metrics
+- Run lint/typecheck/tests
+
+### Work done
+- Created `src/downscaling/evaluation/batch_metrics.py` with `compute_batch_metrics()` and `compute_spectral_curves()`
+- Modified `evaluate_flow_model` — added `return_predictions=True` parameter to return ensemble means (N, H, W)
+- Modified `eval_swinir_zeroshot`, `eval_swinir_finetuned` — added `return_predictions=True`
+- Modified `evaluate_harder_cnn`, `evaluate_harder_gan` — added `return_predictions=True`
+- Rewrote `run_eval.py` main() to collect predictions from ALL methods and compute batch metrics (RALSD, SSIM, PSNR) alongside per-sample metrics (CRPS, MAE, RMSE, mass_violation)
+- Updated console output table to show all 7 metrics
+- Updated JSON results format to include new metrics
+- Updated `evaluation/__init__.py` exports
+- Added 4 integration tests for batch_metrics module (20/20 pass)
+- All existing tests pass (10/10 CRPS tests)
+- Lint: pass (TC002 warnings are pre-existing pattern, numpy used at runtime)
+- Format: pass
+- Typecheck: 0 errors
+
+### Next iteration work
+- Add spectral PSD plot functions to `src/downscaling/plotting/`
+- Re-run full evaluation on GPU to generate updated results with all 7 metrics
+- Update existing figures with new data
+- Start writing the report file
+- Review and fix figure inconsistencies (missing ensemble plots for samples 3-4)

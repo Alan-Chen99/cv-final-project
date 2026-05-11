@@ -111,7 +111,8 @@ def evaluate_harder_cnn(
     batch_size: int = 256,
     max_samples: int | None = None,
     upsampling_factor: int = 4,
-) -> dict[str, float]:
+    return_predictions: bool = False,
+) -> dict[str, float] | tuple[dict[str, float], np.ndarray]:
     """Evaluate a deterministic Harder CNN model.
 
     Args:
@@ -124,9 +125,12 @@ def evaluate_harder_cnn(
         batch_size: Evaluation batch size.
         max_samples: Limit number of samples.
         upsampling_factor: SR factor (4 for ERA5, 2 for NorESM).
+        return_predictions: If True, return (metrics, predictions) where
+            predictions has shape (N, H, W).
 
     Returns:
-        Dict with crps, mae, rmse, mass_violation.
+        Dict with crps, mae, rmse, mass_violation. If return_predictions,
+        returns (metrics_dict, predictions_ndarray).
     """
     pool = nn.AvgPool2d(kernel_size=upsampling_factor)
     n = min(lr_orig.shape[0], max_samples) if max_samples else lr_orig.shape[0]
@@ -136,6 +140,7 @@ def evaluate_harder_cnn(
     all_mae: list[float] = []
     all_rmse_sq: list[float] = []
     all_mass_viol: list[float] = []
+    all_preds: list[np.ndarray] = []
 
     for start in range(0, n, batch_size):
         end = min(start + batch_size, n)
@@ -163,16 +168,21 @@ def evaluate_harder_cnn(
             pooled = pool(pred[i : i + 1]).squeeze()
             lr_i = lr_batch_orig[i, 0]
             all_mass_viol.append(float(torch.mean(torch.abs(pooled - lr_i)).item()))
+            if return_predictions:
+                all_preds.append(p)
 
         if (start // batch_size) % 20 == 0:
             print(f"  Evaluated {end}/{n}...")
 
-    return {
+    metrics = {
         "crps": float(np.mean(all_crps)),
         "mae": float(np.mean(all_mae)),
         "rmse": float(np.sqrt(np.mean(all_rmse_sq))),
         "mass_violation": float(np.mean(all_mass_viol)),
     }
+    if return_predictions:
+        return metrics, np.stack(all_preds, axis=0)
+    return metrics
 
 
 def evaluate_harder_gan(
@@ -186,7 +196,8 @@ def evaluate_harder_gan(
     batch_size: int = 256,
     max_samples: int | None = None,
     upsampling_factor: int = 4,
-) -> dict[str, float]:
+    return_predictions: bool = False,
+) -> dict[str, float] | tuple[dict[str, float], np.ndarray]:
     """Evaluate a Harder GAN model with ensemble sampling.
 
     Args:
@@ -200,9 +211,12 @@ def evaluate_harder_gan(
         batch_size: Evaluation batch size.
         max_samples: Limit number of samples.
         upsampling_factor: SR factor (4 for ERA5, 2 for NorESM).
+        return_predictions: If True, return (metrics, predictions) where
+            predictions has shape (N, H, W) — ensemble means.
 
     Returns:
-        Dict with crps, mae, rmse, mass_violation.
+        Dict with crps, mae, rmse, mass_violation. If return_predictions,
+        returns (metrics_dict, predictions_ndarray).
     """
     pool = nn.AvgPool2d(kernel_size=upsampling_factor)
     n = min(lr_orig.shape[0], max_samples) if max_samples else lr_orig.shape[0]
@@ -212,6 +226,7 @@ def evaluate_harder_gan(
     all_mae: list[float] = []
     all_rmse_sq: list[float] = []
     all_mass_viol: list[float] = []
+    all_preds: list[np.ndarray] = []
 
     for start in range(0, n, batch_size):
         end = min(start + batch_size, n)
@@ -247,16 +262,21 @@ def evaluate_harder_gan(
             pooled = pool(pred_t).squeeze()
             lr_i = lr_batch_orig[i, 0]
             all_mass_viol.append(float(torch.mean(torch.abs(pooled - lr_i)).item()))
+            if return_predictions:
+                all_preds.append(ens_mean)
 
         if (start // batch_size) % 20 == 0:
             print(f"  Evaluated {end}/{n}...")
 
-    return {
+    metrics = {
         "crps": float(np.mean(all_crps)),
         "mae": float(np.mean(all_mae)),
         "rmse": float(np.sqrt(np.mean(all_rmse_sq))),
         "mass_violation": float(np.mean(all_mass_viol)),
     }
+    if return_predictions:
+        return metrics, np.stack(all_preds, axis=0)
+    return metrics
 
 
 def generate_harder_cnn_predictions(

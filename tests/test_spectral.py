@@ -3,6 +3,7 @@
 import numpy as np
 import pytest
 
+from downscaling.evaluation.batch_metrics import compute_batch_metrics, compute_spectral_curves
 from downscaling.metrics.spectral import radial_psd, radial_psd_batch, ralsd, spectral_bias
 from downscaling.metrics.structural import psnr, ssim
 
@@ -149,3 +150,41 @@ class TestPSNR:
         mild_noise = img + rng.standard_normal(img.shape) * 0.1
         heavy_noise = img + rng.standard_normal(img.shape) * 1.0
         assert psnr(img, mild_noise) > psnr(img, heavy_noise)
+
+
+class TestBatchMetrics:
+    """Tests for the batch metrics computation module."""
+
+    def test_returns_all_keys(self, rng):
+        """compute_batch_metrics returns ralsd, ssim, psnr keys."""
+        gt = rng.standard_normal((10, 64, 64))
+        pred = gt + rng.standard_normal(gt.shape) * 0.1
+        result = compute_batch_metrics(gt, pred)
+        assert set(result.keys()) == {"ralsd", "ssim", "psnr"}
+
+    def test_identical_fields(self, rng):
+        """Identical predictions should give perfect scores."""
+        gt = rng.standard_normal((10, 64, 64))
+        result = compute_batch_metrics(gt, gt)
+        assert result["ralsd"] == 0.0
+        assert result["ssim"] == 1.0
+        assert result["psnr"] == float("inf")
+
+    def test_noisy_prediction_degrades(self, rng):
+        """Adding noise should degrade all metrics."""
+        gt = rng.standard_normal((10, 64, 64))
+        pred = gt + rng.standard_normal(gt.shape) * 0.5
+        result = compute_batch_metrics(gt, pred)
+        assert result["ralsd"] > 0
+        assert result["ssim"] < 1.0
+        assert result["psnr"] < 100  # finite
+
+    def test_spectral_curves_shape(self, rng):
+        """compute_spectral_curves returns correct array shapes."""
+        gt = rng.standard_normal((10, 64, 64))
+        pred = gt + rng.standard_normal(gt.shape) * 0.1
+        curves = compute_spectral_curves(gt, pred, n_bins=26)
+        assert curves["freq"].shape == (26,)
+        assert curves["psd_truth"].shape == (26,)
+        assert curves["psd_pred"].shape == (26,)
+        assert curves["bias"].shape == (26,)

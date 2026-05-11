@@ -76,7 +76,8 @@ def evaluate_flow_model(
     batch_size: int = 32,
     max_samples: int | None = None,
     upsampling_factor: int = 4,
-) -> EvalMetrics:
+    return_predictions: bool = False,
+) -> EvalMetrics | tuple[EvalMetrics, np.ndarray]:
     """Evaluate a flow matching model on a dataset split.
 
     Args:
@@ -93,9 +94,12 @@ def evaluate_flow_model(
         batch_size: Evaluation batch size.
         max_samples: Limit number of samples evaluated.
         upsampling_factor: SR factor for mass violation computation.
+        return_predictions: If True, also return ensemble-mean predictions
+            as ndarray of shape (N, H, W) for batch metric computation.
 
     Returns:
-        EvalMetrics averaged over all samples.
+        EvalMetrics averaged over all samples. If return_predictions is True,
+        returns (EvalMetrics, predictions) tuple.
     """
     device = next(model.parameters()).device
     sample_fn = midpoint_sample if sampler == "midpoint" else euler_sample
@@ -105,6 +109,7 @@ def evaluate_flow_model(
     all_mae: list[float] = []
     all_rmse_sq: list[float] = []
     all_mass_viol: list[float] = []
+    all_preds: list[np.ndarray] = [] if return_predictions else []
     pool = nn.AvgPool2d(kernel_size=upsampling_factor)
 
     for start_idx in range(0, n_samples, batch_size):
@@ -146,12 +151,18 @@ def evaluate_flow_model(
             lr_i = batch_lr_orig[i, 0, ...]
             all_mass_viol.append(float(torch.mean(torch.abs(pooled - lr_i)).item()))
 
+            if return_predictions:
+                all_preds.append(ens_mean)
+
         if (start_idx // batch_size) % 20 == 0:
             print(f"  Evaluated {end_idx}/{n_samples}...")
 
-    return EvalMetrics(
+    metrics = EvalMetrics(
         crps=float(np.mean(all_crps)),
         mae=float(np.mean(all_mae)),
         rmse=float(np.sqrt(np.mean(all_rmse_sq))),
         mass_violation=float(np.mean(all_mass_viol)),
     )
+    if return_predictions:
+        return metrics, np.stack(all_preds, axis=0)
+    return metrics
