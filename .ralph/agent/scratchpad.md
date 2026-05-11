@@ -544,6 +544,6 @@ Allocation prefix: none (no GPU needed this iteration)
 - No dangling processes
 
 ### Iteration 18 End
-End commit: TBD
+End commit: `b8acc9f`
 End time: ~16:00 EDT
 Next: Re-run evaluation on both datasets to get corrected SSIM values, regenerate figures.
