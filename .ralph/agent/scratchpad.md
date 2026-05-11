@@ -51,3 +51,14 @@ ERA5 4x SR cached predictions: `pool/datasets/era5_sr_data/prediction/`
 
 ### Allocation Prefix
 `qzcs-imez`
+
+### Iteration 1 End
+End commit: `74bd78c`
+End time: ~13:20 EDT
+
+Work done:
+- Literature search: found and downloaded 2 papers (2410.01776, 2604.03275)
+- Identified 5 metrics to implement: PSD, rank histogram, SSR, SSIM, KL divergence
+- Created 5 tasks for implementation
+- Updated CLAUDE.md with new papers
+- All committed
