@@ -548,3 +548,5 @@ Update `plot_dual_metrics_panel` to show all 8 metrics. Fix `make_figures.py` de
 
 ### Next iteration work
 - Fix ensemble plots for ERA5 samples 3-4 and NorESM samples 3-4 (needs GPU)
+
+- **End**: 2026-05-11T22:32:38Z, commit 1b7daf2
