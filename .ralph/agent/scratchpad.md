@@ -87,3 +87,21 @@ Start commit: `f9e5b00`
 End commit: `35db58e`
 End time: ~13:24 EDT
 Next: Implement rank histogram + spread-skill ratio (task-1778519848-3f8f)
+
+## Iteration 3 — 2026-05-11 13:23 EDT
+Start commit: `0c54176`
+
+### Concerns Review
+1. **Quality**: PSD implementation is solid — tests cover analytical properties. SSR formula from CDSI paper is the standard reference (Fortin et al., 2014).
+2. **Workflow**: Prior iteration implemented PSD correctly, committed, updated scratchpad. No workflow issues.
+3. **Literature**: Rank histogram and SSR are standard calibration diagnostics used in CorrDiff, IPSL-AID, CDSI, R2D2. The formulas are well-established. No need for additional literature search.
+
+### Work Done
+- Implemented calibration metrics in `src/downscaling/metrics/calibration.py`:
+  - `rank_histogram()`: counts rank of truth among M members, returns M+1 bin histogram
+  - `spread_skill_ratio()`: bias-corrected SSR = sqrt((M+1)/M) * spread / RMSE
+- Added 11 integration tests in `tests/test_metrics.py`:
+  - Rank histogram: uniform calibrated ensemble (chi-squared test), U-shape for under-dispersive, deterministic ensemble, output shape, multichannel
+  - SSR: perfect calibration ~1.0, underdispersive <0.5, overdispersive >2.0, perfect prediction returns inf, single member raises, finite-size correction verification
+- All 35 tests pass (10 CRPS + 14 PSD + 11 calibration), ruff clean, basedpyright clean
+- Updated `__init__.py` with re-exports

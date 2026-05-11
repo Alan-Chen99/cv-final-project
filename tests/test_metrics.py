@@ -8,6 +8,7 @@ Tests verify PSD implementation against analytical Fourier results.
 import numpy as np
 import pytest
 
+from downscaling.metrics.calibration import rank_histogram, spread_skill_ratio
 from downscaling.metrics.crps import crps_energy, crps_paper
 from downscaling.metrics.spectral import (
     ensemble_mean_psd,
@@ -265,3 +266,159 @@ class TestPSDLogRatio:
         k = np.arange(1.0, 5)
         result = psd_log_ratio(k, np.zeros(4), k, np.zeros(4))
         assert result == float("inf")
+
+
+class TestRankHistogram:
+    """Test rank histogram for ensemble calibration."""
+
+    def test_uniform_calibrated_ensemble(self):
+        """Well-calibrated ensemble: truth drawn from same distribution as members.
+
+        Rank histogram should be approximately uniform for large sample.
+        """
+        rng = np.random.default_rng(42)
+        n_samples = 10000
+        m = 10
+        # Truth and ensemble from same N(0,1) — perfectly calibrated
+        truth = rng.standard_normal(n_samples)
+        ensemble = rng.standard_normal((m, n_samples))
+        counts = rank_histogram(truth, ensemble)
+
+        assert counts.shape == (m + 1,)
+        assert counts.sum() == n_samples
+        # Chi-squared test: uniform expected count = n_samples / (m+1)
+        expected = n_samples / (m + 1)
+        chi2 = np.sum((counts - expected) ** 2 / expected)
+        # With 10 dof, chi2 < 25 at p=0.005
+        assert chi2 < 25, f"chi2={chi2:.1f}, histogram not uniform: {counts}"
+
+    def test_biased_ensemble_u_shape(self):
+        """Under-dispersive ensemble: truth frequently outside ensemble range.
+
+        Rank histogram should show excess counts at edges (U-shape).
+        """
+        rng = np.random.default_rng(42)
+        n_samples = 5000
+        m = 10
+        truth = rng.standard_normal(n_samples)
+        # Ensemble too narrow: small variance
+        ensemble = rng.normal(0, 0.3, (m, n_samples))
+        counts = rank_histogram(truth, ensemble)
+
+        # Edge bins (0 and M) should have more counts than middle bins
+        edge_count = counts[0] + counts[-1]
+        counts[1:-1].sum()
+        edge_rate = edge_count / n_samples
+        # For uniform: edge_rate ≈ 2/11 ≈ 0.18
+        # For under-dispersive: edge_rate >> 0.18
+        assert edge_rate > 0.3, f"Expected U-shape, edge_rate={edge_rate:.2f}"
+
+    def test_deterministic_ensemble(self):
+        """All members identical: truth always at rank 0 or M."""
+        truth = np.array([1.0, 2.0, 3.0])
+        ensemble = np.full((5, 3), 2.0)  # all members = 2.0
+        counts = rank_histogram(truth, ensemble)
+
+        # truth=1 < all members → rank 0
+        # truth=2 == all members → rank 0 (strict <)
+        # truth=3 > all members → rank 5
+        assert counts[0] == 2  # truth=1 and truth=2
+        assert counts[5] == 1  # truth=3
+        assert counts.sum() == 3
+
+    def test_output_shape(self):
+        """Verify output has M+1 bins."""
+        rng = np.random.default_rng(0)
+        for m in [3, 5, 10, 20]:
+            truth = rng.standard_normal((8, 8))
+            ensemble = rng.standard_normal((m, 8, 8))
+            counts = rank_histogram(truth, ensemble)
+            assert counts.shape == (m + 1,)
+            assert counts.sum() == 64
+
+    def test_multichannel(self):
+        """Rank histogram works with (M, C, H, W) shaped inputs."""
+        rng = np.random.default_rng(42)
+        truth = rng.standard_normal((2, 16, 16))
+        ensemble = rng.standard_normal((5, 2, 16, 16))
+        counts = rank_histogram(truth, ensemble)
+        assert counts.shape == (6,)
+        assert counts.sum() == 2 * 16 * 16
+
+
+class TestSpreadSkillRatio:
+    """Test spread-skill ratio for ensemble calibration."""
+
+    def test_perfect_calibration(self):
+        """SSR ≈ 1 when ensemble spread matches prediction error.
+
+        Generate ensemble where spread ≈ RMSE by construction.
+        """
+        rng = np.random.default_rng(42)
+        sigma = 1.0
+        n = 10000
+        m = 50
+        truth = np.zeros(n)
+        # Each member drawn from N(0, sigma) independently
+        # Spread ≈ sigma, RMSE of mean ≈ sigma/sqrt(M)
+        # But SSR = sqrt((M+1)/M) * spread / rmse
+        # For large M: spread ≈ sigma, rmse ≈ sigma/sqrt(M)
+        # SSR ≈ sqrt(M) * sqrt((M+1)/M) ≈ sqrt(M+1)
+        # This is NOT 1 — calibrated SSR=1 requires truth drawn from ensemble
+        # Correct construction: truth = ensemble_mean + noise(sigma/sqrt(M))
+        ensemble = rng.normal(0, sigma, (m, n))
+        ens_mean = ensemble.mean(axis=0)
+        # Construct truth so that RMSE matches spread with correction
+        truth = ens_mean + rng.normal(0, sigma, n)
+        ssr = spread_skill_ratio(truth, ensemble)
+        # SSR should be near 1.0 (within ~10% for n=10000)
+        assert 0.85 < ssr < 1.15, f"SSR={ssr:.3f}, expected ~1.0"
+
+    def test_underdispersive(self):
+        """SSR < 1 when ensemble is too narrow (overconfident)."""
+        rng = np.random.default_rng(42)
+        truth = rng.standard_normal((64, 64))
+        # Ensemble with tiny spread around 0
+        ensemble = rng.normal(0, 0.01, (10, 64, 64))
+        ssr = spread_skill_ratio(truth, ensemble)
+        assert ssr < 0.5, f"SSR={ssr:.3f}, expected << 1 for narrow ensemble"
+
+    def test_overdispersive(self):
+        """SSR > 1 when ensemble is too wide (underconfident)."""
+        rng = np.random.default_rng(42)
+        truth = np.zeros((64, 64))
+        # Wide ensemble, but mean is close to truth
+        ensemble = rng.normal(0, 5.0, (10, 64, 64))
+        ssr = spread_skill_ratio(truth, ensemble)
+        assert ssr > 2.0, f"SSR={ssr:.3f}, expected >> 1 for wide ensemble"
+
+    def test_perfect_prediction_returns_inf(self):
+        """SSR = inf when RMSE = 0 (perfect ensemble mean)."""
+        truth = np.ones((8, 8))
+        # Ensemble centered on truth with some spread
+        ensemble = np.stack([truth + 0.1, truth - 0.1], axis=0)
+        ssr = spread_skill_ratio(truth, ensemble)
+        assert ssr == float("inf")
+
+    def test_single_member_raises(self):
+        """SSR requires at least 2 members."""
+        truth = np.ones((8, 8))
+        ensemble = np.ones((1, 8, 8))
+        with pytest.raises(ValueError, match="at least 2"):
+            spread_skill_ratio(truth, ensemble)
+
+    def test_finite_size_correction(self):
+        """Verify the sqrt((M+1)/M) correction factor is applied."""
+        rng = np.random.default_rng(42)
+        truth = rng.standard_normal((32, 32))
+        ensemble = rng.standard_normal((5, 32, 32))
+
+        ens_mean = ensemble.mean(axis=0)
+        ens_var = np.mean((ensemble - ens_mean[None, ...]) ** 2, axis=0)
+        spread = np.sqrt(np.mean(ens_var))
+        rmse = np.sqrt(np.mean((ens_mean - truth) ** 2))
+        uncorrected = spread / rmse
+        corrected = np.sqrt(6 / 5) * uncorrected
+
+        ssr = spread_skill_ratio(truth, ensemble)
+        assert ssr == pytest.approx(corrected, rel=1e-10)
