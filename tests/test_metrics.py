@@ -1,4 +1,4 @@
-"""Integration tests for evaluation metrics: CRPS, PSD, calibration, SSIM.
+"""Integration tests for evaluation metrics: CRPS, PSD, calibration, SSIM, KL divergence.
 
 Tests verify mathematical correctness using known analytical properties,
 cross-validation between formulas, and expected behavior on synthetic data.
@@ -6,10 +6,13 @@ cross-validation between formulas, and expected behavior on synthetic data.
 
 import numpy as np
 import pytest
-from scipy.ndimage import gaussian_filter
 
 from downscaling.metrics.calibration import rank_histogram, spread_skill_ratio
 from downscaling.metrics.crps import crps_energy, crps_paper
+from downscaling.metrics.distributional import (
+    ensemble_mean_kl_divergence,
+    histogram_kl_divergence,
+)
 from downscaling.metrics.spectral import (
     ensemble_mean_psd,
     psd_log_ratio,
@@ -526,3 +529,114 @@ class TestEnsembleMeanSSIM:
         """Should raise on non-3D ensemble."""
         with pytest.raises(ValueError, match="3D"):
             ensemble_mean_ssim(np.zeros((8, 8)), np.zeros((8, 8)))
+
+
+class TestHistogramKLDivergence:
+    """Test KL divergence between empirical distributions."""
+
+    def test_identical_fields_zero_kl(self):
+        """Identical fields should give KL divergence = 0."""
+        rng = np.random.default_rng(42)
+        field = rng.standard_normal((64, 64))
+        kl = histogram_kl_divergence(field, field)
+        assert kl == pytest.approx(0.0, abs=1e-10)
+
+    def test_nonnegative(self):
+        """KL divergence is always non-negative (Gibbs' inequality)."""
+        rng = np.random.default_rng(42)
+        a = rng.standard_normal((64, 64))
+        b = rng.standard_normal((64, 64))
+        kl = histogram_kl_divergence(a, b)
+        assert kl >= -1e-10
+
+    def test_shifted_distribution_positive_kl(self):
+        """Shifting the distribution should produce positive KL divergence."""
+        rng = np.random.default_rng(42)
+        truth = rng.standard_normal((64, 64))
+        shifted = truth + 2.0
+        kl = histogram_kl_divergence(truth, shifted)
+        assert kl > 0.1, f"KL={kl:.4f}, expected > 0.1 for shifted distribution"
+
+    def test_larger_shift_higher_kl(self):
+        """Larger distribution shift should produce higher KL divergence."""
+        rng = np.random.default_rng(42)
+        truth = rng.standard_normal((64, 64))
+        small_shift = truth + 0.5
+        large_shift = truth + 3.0
+        kl_small = histogram_kl_divergence(truth, small_shift)
+        kl_large = histogram_kl_divergence(truth, large_shift)
+        assert kl_large > kl_small, (
+            f"KL(large)={kl_large:.4f} should exceed KL(small)={kl_small:.4f}"
+        )
+
+    def test_scaled_distribution(self):
+        """Scaling the distribution (compressed tails) should produce positive KL."""
+        rng = np.random.default_rng(42)
+        truth = rng.standard_normal((64, 64))
+        compressed = truth * 0.5
+        kl = histogram_kl_divergence(truth, compressed)
+        assert kl > 0.01, f"KL={kl:.4f}, expected positive for compressed distribution"
+
+    def test_constant_fields_zero_kl(self):
+        """Two constant fields with same value should give KL = 0."""
+        a = np.full((32, 32), 5.0)
+        b = np.full((32, 32), 5.0)
+        kl = histogram_kl_divergence(a, b)
+        assert kl == pytest.approx(0.0, abs=1e-10)
+
+    def test_shape_mismatch_raises(self):
+        """Mismatched shapes should raise ValueError."""
+        with pytest.raises(ValueError, match="mismatch"):
+            histogram_kl_divergence(np.zeros((32, 32)), np.zeros((32, 64)))
+
+    def test_n_bins_too_small_raises(self):
+        """n_bins < 2 should raise ValueError."""
+        with pytest.raises(ValueError, match="n_bins"):
+            histogram_kl_divergence(np.zeros((8, 8)), np.zeros((8, 8)), n_bins=1)
+
+    def test_more_bins_finer_resolution(self):
+        """More bins should give different (generally higher) KL for non-identical."""
+        rng = np.random.default_rng(42)
+        truth = rng.standard_normal((64, 64))
+        pred = rng.normal(0.5, 1.0, (64, 64))
+        kl_few = histogram_kl_divergence(truth, pred, n_bins=10)
+        kl_many = histogram_kl_divergence(truth, pred, n_bins=200)
+        # Both should be positive; exact relationship depends on data
+        assert kl_few > 0
+        assert kl_many > 0
+
+    def test_arbitrary_shape(self):
+        """Works with any shape (3D, 1D, etc.)."""
+        rng = np.random.default_rng(42)
+        truth = rng.standard_normal((4, 32, 32))
+        pred = rng.standard_normal((4, 32, 32))
+        kl = histogram_kl_divergence(truth, pred)
+        assert kl >= 0
+
+
+class TestEnsembleMeanKLDivergence:
+    """Test ensemble-averaged KL divergence."""
+
+    def test_single_member_matches_direct(self):
+        """Single-member ensemble should match direct histogram_kl_divergence."""
+        rng = np.random.default_rng(42)
+        truth = rng.standard_normal((64, 64))
+        pred = rng.standard_normal((64, 64))
+        ens_kl = ensemble_mean_kl_divergence(truth, pred[np.newaxis, ...])
+        direct_kl = histogram_kl_divergence(truth, pred)
+        assert ens_kl == pytest.approx(direct_kl, rel=1e-12)
+
+    def test_better_ensemble_lower_kl(self):
+        """Ensemble closer to truth distribution should have lower mean KL."""
+        rng = np.random.default_rng(42)
+        truth = rng.standard_normal((64, 64))
+        good = truth[None, ...] + rng.normal(0, 0.1, (5, 64, 64))
+        bad = rng.normal(3.0, 1.0, (5, 64, 64))
+        kl_good = ensemble_mean_kl_divergence(truth, good)
+        kl_bad = ensemble_mean_kl_divergence(truth, bad)
+        assert kl_good < kl_bad
+
+    def test_rejects_1d(self):
+        """Should raise on 1D ensemble."""
+        with pytest.raises(ValueError, match="2D"):
+            ensemble_mean_kl_divergence(np.zeros(8), np.zeros(8))
