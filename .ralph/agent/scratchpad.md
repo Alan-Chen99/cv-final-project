@@ -599,3 +599,19 @@ Allocation prefix: iter20-2438
 End commit: `ea3f80c`
 End time: ~16:25 EDT
 Status: NorESM SSIM re-evaluation remains blocked on GPU availability. All other work complete.
+
+## Iteration 21 — 2026-05-11 16:25 EDT
+Start commit: `21954af`
+
+### Concerns Review
+1. **Quality**: NorESM SSIM stale — same as iterations 19-20. GPU queue still packed: 1629 preemptable pending, 350 normal pending. User already using 1/2 normal (ridge-ce), 2/4 preemptable (cpu-pree running, 3277-eva pending). Could try 1 more normal allocation, but 350 pending makes it unlikely to land within iteration budget.
+2. **Workflow**: Three consecutive iterations (19-21) blocked on same GPU constraint. No code changes possible without GPU. This is a genuine fixed-point — continuing to iterate without GPU is wasted compute.
+3. **Quality**: Verified all existing work: 107 tests pass, ruff clean, basedpyright 0 errors, report and figures consistent with JSON data. No regressions.
+
+### Assessment
+Fixed-point reached. The NorESM SSIM stale issue is the sole remaining gap, and it requires GPU for live inference (Flow+AddCL 113M params × 10 ensemble × 10 ODE steps). No code, documentation, or report changes are possible without the re-evaluation data.
+
+### Iteration 21 End
+End commit: `21954af` (no changes)
+End time: ~16:26 EDT
+Status: FIXED-POINT. No changes made. NorESM SSIM re-eval blocked on GPU.
