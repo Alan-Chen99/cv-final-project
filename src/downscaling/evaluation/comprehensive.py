@@ -14,10 +14,6 @@ import sys
 import time
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 import torch.nn as nn
@@ -293,111 +289,6 @@ def compute_all_metrics(
 
 
 # ---------------------------------------------------------------------------
-# Plotting
-# ---------------------------------------------------------------------------
-
-
-def plot_psd_comparison(
-    results: dict[str, dict[str, object]],
-    output_dir: Path,
-    *,
-    title_suffix: str = "",
-) -> None:
-    """Plot PSD curves for all models vs truth on a single log-log plot."""
-    fig, ax = plt.subplots(1, 1, figsize=(10, 7))
-
-    first = next(iter(results.values()))
-    k = np.array(first["psd_k"])
-    truth_power = np.array(first["psd_truth_power"])
-    ax.loglog(k, truth_power, "k-", linewidth=2.5, label="Truth", zorder=10)
-
-    colors = plt.cm.tab10(np.linspace(0, 1, len(results)))  # type: ignore[attr-defined]
-    for (name, r), color in zip(results.items(), colors, strict=False):
-        power = np.array(r["psd_power"])
-        ratio = r["psd_log_ratio"]
-        ax.loglog(k, power, "-", color=color, linewidth=1.5, label=f"{name} (ratio={ratio:.3f})")
-
-    ax.set_xlabel("Wavenumber k")
-    ax.set_ylabel("Power")
-    ax.set_title(f"Radially Averaged Power Spectral Density{title_suffix}")
-    ax.legend(fontsize=9)
-    ax.grid(True, alpha=0.3)
-    fig.tight_layout()
-    fig.savefig(output_dir / "psd_comparison.png", dpi=150)
-    plt.close(fig)
-    print(f"  Saved {output_dir / 'psd_comparison.png'}")
-
-
-def plot_rank_histograms(
-    results: dict[str, dict[str, object]],
-    output_dir: Path,
-) -> None:
-    """Plot rank histograms for ensemble models."""
-    ensemble_models = {k: v for k, v in results.items() if "rank_histogram" in v}
-    if not ensemble_models:
-        return
-
-    n = len(ensemble_models)
-    fig, axes = plt.subplots(1, n, figsize=(5 * n, 4))
-    if n == 1:
-        axes = [axes]
-
-    for ax, (name, r) in zip(axes, ensemble_models.items(), strict=False):
-        rh = np.array(r["rank_histogram"])
-        n_bins = len(rh)
-        uniform = rh.sum() / n_bins  # expected count per bin
-        ax.bar(range(n_bins), rh, color="steelblue", edgecolor="white", linewidth=0.5)
-        ax.axhline(y=uniform, color="red", linestyle="--", linewidth=1.5, label="Uniform")
-        ax.set_xlabel("Rank")
-        ax.set_ylabel("Count")
-        ax.set_title(f"Rank Histogram: {name}\nSSR={r.get('ssr', '?'):.3f}")
-        ax.legend()
-
-    fig.tight_layout()
-    fig.savefig(output_dir / "rank_histograms.png", dpi=150)
-    plt.close(fig)
-    print(f"  Saved {output_dir / 'rank_histograms.png'}")
-
-
-def plot_metrics_summary(
-    results: dict[str, dict[str, object]],
-    output_dir: Path,
-    *,
-    title_suffix: str = "",
-) -> None:
-    """Plot bar chart comparing scalar metrics across models."""
-    metrics_to_plot = ["crps", "mae", "rmse", "mass_violation", "ssim", "kl_divergence", "psd_log_ratio", "ralsd", "spectral_coherence"]
-    # ssim: higher is better; everything else: lower is better
-    names = list(results.keys())
-    n_metrics = len(metrics_to_plot)
-    n_models = len(names)
-
-    fig, axes = plt.subplots(3, 3, figsize=(18, 10))
-    axes = axes.ravel()
-
-    for idx, metric in enumerate(metrics_to_plot):
-        ax = axes[idx]
-        vals = [float(results[name].get(metric, 0)) for name in names]  # type: ignore[arg-type]
-        colors = ["steelblue"] * n_models
-        ax.barh(range(n_models), vals, color=colors, edgecolor="white")
-        ax.set_yticks(range(n_models))
-        ax.set_yticklabels(names, fontsize=8)
-        ax.set_title(metric.upper(), fontsize=10)
-        ax.invert_yaxis()
-
-    # Hide unused subplot
-    if n_metrics < len(axes):
-        for idx in range(n_metrics, len(axes)):
-            axes[idx].set_visible(False)
-
-    fig.suptitle(f"Comprehensive Metric Comparison{title_suffix}", fontsize=13)
-    fig.tight_layout()
-    fig.savefig(output_dir / "metrics_summary.png", dpi=150)
-    plt.close(fig)
-    print(f"  Saved {output_dir / 'metrics_summary.png'}")
-
-
-# ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
@@ -559,13 +450,6 @@ def run_comprehensive_eval(
         json.dump(results, f, indent=2)
     print(f"  Saved {results_path}")
 
-    # --- Plots ---
-    print("\n--- Generating plots ---")
-    title_suffix = " — NorESM TAS 2x SR"
-    plot_psd_comparison(results, output_dir, title_suffix=title_suffix)
-    plot_rank_histograms(results, output_dir)
-    plot_metrics_summary(results, output_dir, title_suffix=title_suffix)
-
     # --- Summary table ---
     print("\n" + "=" * 100)
     print("COMPREHENSIVE EVALUATION RESULTS — NorESM TAS 2x SR")
@@ -676,13 +560,6 @@ def run_era5_eval(
     with open(results_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"  Saved {results_path}")
-
-    # --- Plots ---
-    print("\n--- Generating plots ---")
-    title_suffix = " — ERA5 TCW 4x SR"
-    plot_psd_comparison(results, output_dir, title_suffix=title_suffix)
-    plot_rank_histograms(results, output_dir)
-    plot_metrics_summary(results, output_dir, title_suffix=title_suffix)
 
     # --- Summary table ---
     print("\n" + "=" * 110)

@@ -326,15 +326,17 @@ def generate_all_figures(output_dir: Path) -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     print("Loading cached results...")
-    noresm = _load(NORESM_RESULTS)
+    noresm_raw = _load(NORESM_RESULTS)
     era5_raw = _load(ERA5_RESULTS)
 
-    # Filter broken models (e.g. ResFlow-Heun with RALSD > 10)
+    # Filter broken models from both datasets (RALSD > 10 threshold)
+    noresm = _filter_broken(noresm_raw)
     era5 = _filter_broken(era5_raw)
-    n_filtered = len(era5_raw) - len(era5)
-    if n_filtered:
-        removed = set(era5_raw) - set(era5)
-        print(f"  Filtered {n_filtered} broken model(s): {removed}")
+    for label, raw, filtered in [("NorESM", noresm_raw, noresm), ("ERA5", era5_raw, era5)]:
+        n_filtered = len(raw) - len(filtered)
+        if n_filtered:
+            removed = set(raw) - set(filtered)
+            print(f"  Filtered {n_filtered} broken {label} model(s): {removed}")
 
     print(f"  NorESM: {len(noresm)} models, ERA5: {len(era5)} models")
 
