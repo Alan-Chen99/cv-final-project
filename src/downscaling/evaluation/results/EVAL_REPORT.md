@@ -91,13 +91,13 @@
 
 | Model | CRPS | MAE | RMSE | MassViol | SSIM | KL | PSD-LR | RALSD | Coh | SSR |
 |-------|------|-----|------|----------|------|-----|--------|-------|-----|-----|
-| Flow(none) | 0.2187 | 0.2929 | 0.5710 | 0.0000 | 0.9282 | 0.0151 | 0.0297 | 0.391 | 0.916 | 0.936 |
-| ResFlow(none) | 0.2190 | 0.2952 | 0.5723 | 0.0289 | 0.9261 | 0.0142 | 0.0296 | 0.391 | 0.916 | 0.953 |
-| FlowV2+AddCL | 0.2174 | 0.3052 | 0.5684 | 0.0000 | 0.9014 | 0.0212 | 0.0360 | 0.458 | 0.915 | 1.196 |
-| ResFlow-20s+AddCL | **0.2116** | **0.2934** | 0.5729 | 0.0000 | 0.9255 | 0.0157 | **0.0270** | **0.350** | 0.915 | **1.013** |
-| ResFlow-Heun+AddCL | 1.6307 | 2.4558 | 3.1016 | 0.0000 | 0.2514 | 0.4108 | 1.1922 | 14.252 | 0.398 | 3.023 |
-| Bicubic | 0.3778 | 0.3778 | 0.7646 | 0.1436 | **0.9524** | **0.0089** | 0.0722 | 0.887 | 0.884 | -- |
-| Bilinear | 0.4989 | 0.4989 | 0.9404 | 0.3096 | 0.9376 | 0.0198 | 0.0915 | 1.067 | 0.872 | -- |
+| Flow(none) | 0.2187 | 0.2929 | 0.5710 | 0.0000 | **0.9840** | 0.0151 | 0.0297 | 0.391 | 0.916 | 0.936 |
+| ResFlow(none) | 0.2190 | 0.2952 | 0.5723 | 0.0289 | 0.9837 | 0.0142 | 0.0296 | 0.391 | 0.916 | 0.953 |
+| FlowV2+AddCL | 0.2174 | 0.3052 | 0.5684 | 0.0000 | 0.9794 | 0.0212 | 0.0360 | 0.458 | 0.915 | 1.196 |
+| ResFlow-20s+AddCL | **0.2116** | **0.2934** | 0.5729 | 0.0000 | 0.9830 | 0.0157 | **0.0270** | **0.350** | 0.915 | **1.013** |
+| ResFlow-Heun+AddCL | 1.6307 | 2.4558 | 3.1016 | 0.0000 | 0.3265 | 0.4108 | 1.1922 | 14.252 | 0.398 | 3.023 |
+| Bicubic | 0.3778 | 0.3778 | 0.7646 | 0.1436 | 0.9830 | **0.0089** | 0.0722 | 0.887 | 0.884 | -- |
+| Bilinear | 0.4989 | 0.4989 | 0.9404 | 0.3096 | 0.9780 | 0.0198 | 0.0915 | 1.067 | 0.872 | -- |
 
 ### ERA5 Findings
 
@@ -109,7 +109,7 @@
 
 4. **4x SR is harder than 2x SR — models differentiate more.** Best-model-vs-bicubic improvement: 44% on ERA5 4x vs 6% on NorESM 2x. The 4x task has more fine-scale structure to recover.
 
-5. **Bicubic has highest SSIM (0.952) despite worst CRPS.** SSIM favors smooth fields; bicubic produces blurry but structurally coherent outputs. This highlights SSIM's bias toward smoothness.
+5. **SSIM is nearly saturated across working models (~0.98).** With dataset-level data_range, all working models achieve SSIM 0.979-0.984. Flow(none) is highest (0.984), bicubic ties with ResFlow-20s (0.983). SSIM does not differentiate models at this performance level — CRPS, RALSD, and calibration metrics are more discriminating.
 
 6. **Spectral coherence is uniformly high (~0.915) across working models.** All flow models achieve similar phase alignment with truth. Coherence differentiates broken models (Heun: 0.40) but does not separate working models.
 
@@ -156,6 +156,6 @@ Regenerate: `python -m downscaling.plotting.comprehensive [--output-dir DIR]`
 
 ## Known Issues
 
-**SSIM values stale**: Prior evaluations used per-pair auto data_range for SSIM, which systematically
-favors models with compressed outputs (e.g., bicubic). Code now uses dataset-level data_range.
-SSIM columns in tables above are from the old computation. Re-run evaluation to update.
+**NorESM SSIM values stale**: NorESM table SSIM values were computed with per-pair auto data_range,
+which systematically favors models with compressed outputs. Code now uses dataset-level data_range
+(commit b8acc9f). ERA5 table was re-evaluated with corrected SSIM. NorESM requires GPU re-evaluation.

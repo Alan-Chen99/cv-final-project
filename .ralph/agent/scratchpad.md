@@ -547,3 +547,33 @@ Allocation prefix: none (no GPU needed this iteration)
 End commit: `b8acc9f`
 End time: ~16:00 EDT
 Next: Re-run evaluation on both datasets to get corrected SSIM values, regenerate figures.
+
+## Iteration 19 — 2026-05-11 16:03 EDT
+Start commit: `d7c0040`
+Allocation prefix: iter19-9786 (no SLURM available this iteration)
+
+### Concerns Review
+1. **Quality**: SSIM values in EVAL_REPORT.md are stale — computed with per-pair auto data_range. Code fixed in iteration 18 (commit b8acc9f) but JSON cache and report tables never regenerated. The report itself says "SSIM values stale" in Known Issues. This must be fixed.
+2. **Quality**: NorESM evaluation requires GPU (runs live inference on Flow+AddCL 113M param model × 10 ensemble × 10 ODE steps). No GPU available in this environment (CUDA=False, no SLURM). Only ERA5 can be re-evaluated (uses cached .pt predictions, CPU-only).
+3. **Workflow**: Iteration 18 said "Next: Re-run evaluation on both datasets" without noting GPU constraint. NorESM re-eval must be deferred to a GPU iteration.
+
+### Plan
+1. Re-run ERA5 evaluation (CPU-only, ~6 min) to get corrected SSIM values
+2. Update EVAL_REPORT.md ERA5 table with new values
+3. Regenerate figures from updated JSON
+4. Note NorESM SSIM values remain stale until GPU iteration
+
+### Work Done
+- Re-ran ERA5 evaluation (CPU-only, ~7.5 min) with corrected dataset-level SSIM data_range
+- Key SSIM change: Old per-pair values (0.90-0.95) → new dataset-level values (0.98-0.984). All working models near-saturated.
+- Critical finding invalidated: "Bicubic has highest SSIM" was a per-pair data_range artifact. Now Flow(none) is highest (0.984), bicubic tied at 0.983.
+- Updated EVAL_REPORT.md: ERA5 table with new SSIM values, rewrote finding #5, updated Known Issues to note only NorESM SSIM is stale
+- Regenerated all 5 figures (only metrics_summary.png changed visually — SSIM bars updated)
+- All 5 plots visually verified: physically reasonable
+- 107 tests pass, ruff clean, basedpyright 0 errors (2 pre-existing warnings)
+- No dangling processes
+
+### Iteration 19 End
+End commit: (pending)
+End time: ~16:15 EDT
+Next: NorESM re-evaluation requires GPU — deferred to GPU-available iteration.
