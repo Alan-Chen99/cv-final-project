@@ -62,3 +62,28 @@ Work done:
 - Created 5 tasks for implementation
 - Updated CLAUDE.md with new papers
 - All committed
+
+## Iteration 2 — 2026-05-11 13:19 EDT
+Start commit: `f9e5b00`
+
+### Concerns Review
+1. **Workflow**: Iteration 1 was literature-only. No code written. Tasks created but no implementation started. This is fine for a first iteration.
+2. **Quality**: The existing CRPS implementation has O(M^2) pairwise loop — acceptable for small M but worth noting.
+3. **Literature**: PSD approach is standard and well-documented across CorrDiff, CDSI, R2D2 papers. The CDSI Appendix A has the SSR formula with finite-size correction: sqrt((M+1)/M) * spread/RMSE.
+
+### Work Done
+- Implemented PSD metric in `src/downscaling/metrics/spectral.py`:
+  - `radial_psd()`: 2D FFT → |F|^2 → azimuthal average over wavenumber bins
+  - `ensemble_mean_psd()`: per-member PSD then average (preserves fine-scale variability)
+  - `psd_log_ratio()`: scalar summary = mean |log10(P_pred/P_truth)|
+- Added 14 integration tests in `tests/test_metrics.py`:
+  - White noise flat spectrum, sinusoid peak detection, constant field zero power
+  - Output shapes, rectangular fields, ensemble variance reduction
+  - Log-ratio analytical values
+- All 24 tests pass, ruff clean, basedpyright clean
+- Committed: `35db58e`
+
+### Iteration 2 End
+End commit: `35db58e`
+End time: ~13:24 EDT
+Next: Implement rank histogram + spread-skill ratio (task-1778519848-3f8f)
