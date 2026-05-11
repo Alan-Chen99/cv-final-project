@@ -131,10 +131,16 @@ The most striking cross-dataset finding is the calibration contrast. NorESM ense
 
 ## Diagnostic Plots
 
-Plots are saved per dataset in `pool/datasets/metrics/{noresm,era5}/`:
-- `psd_comparison.png` — radially averaged PSD vs truth
-- `rank_histograms.png` — calibration diagnostic for ensemble models
-- `metrics_summary.png` — bar chart comparison of all scalar metrics
+Canonical side-by-side plots are in `/workspace/figures/`:
+- `psd_comparison.png` — radially averaged PSD vs truth, RALSD in legend
+- `rank_histograms.png` — calibration diagnostic for ensemble models (NorESM + ERA5)
+- `metrics_summary.png` — 9 scalar metrics (CRPS through Coherence), best model highlighted
+- `spectral_metrics.png` — focused PSD-LR, RALSD, Coherence comparison
+- `calibration.png` — SSR with red/green color coding (0.8-1.2 = well-calibrated)
+
+Broken models (RALSD > 10) are auto-filtered from all plots.
+
+Regenerate: `python -m downscaling.plotting.comprehensive [--output-dir DIR]`
 
 ## Reproducibility
 

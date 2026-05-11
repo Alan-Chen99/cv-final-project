@@ -34,7 +34,6 @@ SCALAR_METRICS: list[tuple[str, str, bool]] = [
     ("psd_log_ratio", "PSD Log-Ratio", False),
     ("ralsd", "RALSD", False),
     ("spectral_coherence", "Spectral Coherence", True),
-    ("ssr", "Spread-Skill Ratio", False),
 ]
 
 

@@ -386,3 +386,21 @@ Start commit: `f5c1f0c`
 ### Iteration 11 End
 End commit: `00582c5`
 End time: ~15:07 EDT
+
+## Iteration 12 — 2026-05-11 15:08 EDT
+Start commit: `8abaa15`
+
+### Concerns Review
+1. **Quality**: SSR in SCALAR_METRICS was marked "lower is better" but SSR optimal is 1.0. The metrics_summary plot showed non-ensemble models at SSR=0 highlighted green as "best". This is semantically wrong — SSR=0 means N/A, not optimal. The calibration panel already handles SSR correctly with |SSR-1| distance and ensemble-only filtering.
+2. **Quality**: EVAL_REPORT.md Diagnostic Plots section referenced stale pool paths and listed only 3 plots. The canonical plots are 5 side-by-side figures in /workspace/figures/ (regenerated in iteration 11).
+3. **Workflow**: All prior iteration claims verified: 80 tests pass, ruff clean, basedpyright 0 errors, all 5 figures visually correct and physically reasonable.
+
+### Work Done
+- Removed SSR from SCALAR_METRICS in plotting/comprehensive.py (SSR already handled by calibration panel)
+- Updated EVAL_REPORT.md Diagnostic Plots section: correct paths (/workspace/figures/), all 5 plots listed, regeneration command
+- Regenerated all 5 figures
+- Verified: ruff clean, basedpyright clean
+
+### Iteration 12 End
+End commit: (pending)
+End time: ~15:12 EDT
