@@ -387,7 +387,10 @@ Add EMD (Earth Mover Distance) as the 8th metric — addresses the distribution 
 - 144/144 tests pass, lint pass, format pass, typecheck 0 errors (2 pre-existing warnings)
 
 ### Next iteration work
-- Monitor sbatch job 13764285 for GPU eval completion
+- GPU eval: sbatch job 13764285 was cancelled (guardrail 1011). Must resubmit next iteration.
+- GPU Priority-blocked on ALL partitions. Normal has 1 slot free but Priority insufficient. Preemptable same.
 - When results arrive: update report with RALSD/SSIM/PSNR/EMD data
 - Generate spectral figures from .npz data
 - Regenerate ensemble plots for samples 3-4
+
+- **End**: 2026-05-11T21:32:24Z, commit 63c5da1
