@@ -574,6 +574,28 @@ Allocation prefix: iter19-9786 (no SLURM available this iteration)
 - No dangling processes
 
 ### Iteration 19 End
-End commit: (pending)
+End commit: `1be040d`
 End time: ~16:15 EDT
 Next: NorESM re-evaluation requires GPU — deferred to GPU-available iteration.
+
+## Iteration 20 — 2026-05-11 16:16 EDT
+Start commit: `1be040d`
+Allocation prefix: iter20-2438
+
+### Concerns Review
+1. **Quality**: ERA5 table in EVAL_REPORT.md has ResFlow(none) RALSD = 0.391, but JSON data says 0.390 (0.390456 rounds to 0.390, not 0.391). Manual transcription error from iteration 19.
+2. **Quality**: NorESM SSIM stale (known issue, documented). Attempted GPU allocation — 728 pending jobs in mit_preemptable, 265 in mit_normal_gpu. Cancelled after ~2 min wait. Cannot fix this iteration.
+3. **Workflow**: Task is at diminishing returns. Core work complete since iteration 12. Iterations 13-19 were polish. Only remaining substantive gap is NorESM SSIM re-evaluation (GPU-blocked).
+
+### Work Done
+- Verified all ERA5 report values against JSON — found 1 mismatch: ResFlow(none) RALSD 0.391→0.390
+- Verified all NorESM report values against JSON — all match
+- Fixed RALSD discrepancy in EVAL_REPORT.md
+- Attempted GPU allocation (salloc mit_preemptable l40s:1) — cancelled after queue depth check (728 pending)
+- 107 CPU-safe tests pass (80 test_metrics + 27 test_baselines), ruff clean, basedpyright 0 errors
+- No dangling processes (verified: GPU alloc cancelled, no background tasks)
+
+### Iteration 20 End
+End commit: (pending)
+End time: ~16:25 EDT
+Status: NorESM SSIM re-evaluation remains blocked on GPU availability. All other work complete.
