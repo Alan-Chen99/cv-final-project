@@ -197,9 +197,20 @@ def compute_all_metrics(
     psd_samples: int = 500,
     coherence_samples: int = 500,
 ) -> dict[str, object]:
-    """Compute all metrics. truth: (N,H,W), preds: (N,H,W) or (N,M,H,W)."""
+    """Compute all metrics including CRPS, MAE, RMSE, mass violation, SSIM,
+    KL divergence, PSD log-ratio, RALSD, spectral coherence, rank histogram, SSR.
+
+    truth: (N,H,W), preds: (N,H,W) or (N,M,H,W).
+    """
     n = truth.shape[0]
     pool = nn.AvgPool2d(kernel_size=upsampling_factor)
+
+    # Dataset-level dynamic range for SSIM — ensures values are comparable
+    # across models. Per-pair auto-range would systematically favor models
+    # with compressed outputs (smaller range → smaller C1/C2 constants).
+    truth_data_range = float(truth.max()) - float(truth.min())
+    if truth_data_range < 1e-30:
+        truth_data_range = 1.0
 
     crps_v: list[float] = []
     mae_v: list[float] = []
@@ -214,13 +225,13 @@ def compute_all_metrics(
             ens = preds[i]  # (M, H, W)
             ens_mean = ens.mean(axis=0)
             crps_v.append(crps_energy(gt, ens))
-            ssim_v.append(ensemble_mean_ssim(gt, ens))
+            ssim_v.append(ensemble_mean_ssim(gt, ens, data_range=truth_data_range))
             kl_v.append(ensemble_mean_kl_divergence(gt, ens))
         else:
             p = preds[i]
             ens_mean = p
             crps_v.append(crps_energy(gt, p[None, ...]))
-            ssim_v.append(float(ssim_metric(gt, p)))
+            ssim_v.append(float(ssim_metric(gt, p, data_range=truth_data_range)))
             kl_v.append(float(histogram_kl_divergence(gt, p)))
 
         mae_v.append(float(np.mean(np.abs(gt - ens_mean))))

@@ -12,7 +12,7 @@
 | MAE | lower better | Mean absolute error (ensemble mean vs truth) |
 | RMSE | lower better | Root mean squared error (ensemble mean vs truth) |
 | MassViol | lower better | \|avgpool(pred) - lr_orig\| — conservation violation |
-| SSIM | higher better | Structural similarity index |
+| SSIM | higher better | Structural similarity index (dataset-level data_range) |
 | KL | lower better | Histogram KL divergence (nats) |
 | PSD-LR | lower better | Mean \|log10(P_pred/P_truth)\| — spectral power match |
 | RALSD | lower better | RMS of dB-scale spectral ratio: sqrt(mean((10*log10(S_ref/S_pred))^2)) |
@@ -153,3 +153,9 @@ Regenerate: `python -m downscaling.plotting.comprehensive [--output-dir DIR]`
 - NorESM checkpoints: `pool/datasets/noresm-dataset/models/`
 - ERA5 cached predictions: `pool/datasets/era5_sr_data/prediction/`
 - Results JSON: `pool/datasets/metrics/{noresm,era5}/*_comprehensive_results.json`
+
+## Known Issues
+
+**SSIM values stale**: Prior evaluations used per-pair auto data_range for SSIM, which systematically
+favors models with compressed outputs (e.g., bicubic). Code now uses dataset-level data_range.
+SSIM columns in tables above are from the old computation. Re-run evaluation to update.

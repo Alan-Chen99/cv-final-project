@@ -325,3 +325,28 @@ class TestComputeAllMetrics:
         preds = truth + np.random.default_rng(99).normal(0, 0.1, truth.shape).astype(np.float32)
         result = compute_all_metrics(truth, preds, lr_orig, is_ensemble=False, upsampling_factor=factor)
         assert 0.0 <= result["spectral_coherence"] <= 1.0 + 1e-10
+
+    def test_ssim_uses_consistent_data_range(self, synthetic_data):
+        """SSIM comparison is fair: compressed-output model doesn't get inflated scores.
+
+        A model that compresses outputs to a narrow range would get artificially
+        higher SSIM with per-pair auto data_range (smaller C1/C2 denominators).
+        With dataset-level data_range, both models use the same denominator scaling.
+        """
+        truth, lr_orig, factor = synthetic_data
+        rng = np.random.default_rng(42)
+
+        # Model A: predictions close to truth but with full dynamic range
+        preds_a = truth + rng.normal(0, 0.1, truth.shape).astype(np.float32)
+
+        # Model B: predictions compressed to narrow range (mean-centered, small std)
+        preds_b = np.full_like(truth, truth.mean()) + rng.normal(0, 0.01, truth.shape).astype(np.float32)
+
+        result_a = compute_all_metrics(truth, preds_a, lr_orig, is_ensemble=False, upsampling_factor=factor)
+        result_b = compute_all_metrics(truth, preds_b, lr_orig, is_ensemble=False, upsampling_factor=factor)
+
+        # Model A (close to truth) should have higher SSIM than Model B (constant)
+        assert result_a["ssim"] > result_b["ssim"], (
+            f"Compressed-output model B (SSIM={result_b['ssim']:.4f}) should not beat "
+            f"accurate model A (SSIM={result_a['ssim']:.4f})"
+        )

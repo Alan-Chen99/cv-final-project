@@ -46,18 +46,12 @@ def radial_psd(
     power_2d = np.abs(f_transform) ** 2
 
     # Radial wavenumber for each pixel (distance from center)
-    cy, cx = h / 2, w / 2
-    y_grid = np.arange(h) - cy
-    x_grid = np.arange(w) - cx
-    yy, xx = np.meshgrid(y_grid, x_grid, indexing="ij")
-    radius = np.sqrt(xx**2 + yy**2)
+    _, radius_int = _wavenumber_grid(h, w)
 
     # Bin into integer wavenumber shells
     k_max = min(h, w) // 2
     k_bins = np.arange(1, k_max + 1, dtype=np.float64)
     power_1d = np.empty(k_max, dtype=np.float64)
-
-    radius_int = np.round(radius).astype(int)
     for i, k in enumerate(k_bins):
         mask = radius_int == int(k)
         if np.any(mask):
@@ -150,8 +144,11 @@ def spectral_coherence(
     Coherence γ²(k) = |<S_xy(k)>|² / (<S_xx(k)> · <S_yy(k)>) where <·> is
     the average over samples AND frequencies within wavenumber bin k.
 
-    For a single sample pair, coherence is trivially 1.0 at every frequency
-    (no averaging to reduce variance). Meaningful estimation requires N >> 1.
+    Note: coherence is NOT trivially 1.0 for a single sample pair, because
+    the complex cross-spectrum is summed over all pixels within each radial
+    bin before the ratio is formed. Phase cancellation within bins means
+    coherence can be substantially below 1.0 even for N=1. Meaningful
+    estimation requires N >> k_max to reduce this within-bin variance.
 
     Args:
         predictions: (N, H, W) batch of predicted 2D fields.

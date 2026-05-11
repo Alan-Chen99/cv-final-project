@@ -524,3 +524,26 @@ Add integration test for `compute_all_metrics` with synthetic data. Fix docstrin
 ### Iteration 17 End
 End commit: `82115f8`
 End time: ~15:52 EDT
+
+## Iteration 18 — 2026-05-11 15:52 EDT
+Start commit: `646dea2`
+Allocation prefix: none (no GPU needed this iteration)
+
+### Concerns Review
+1. **Quality**: SSIM in `compute_all_metrics` used per-pair auto `data_range` (default from structural.py:60-63). This makes SSIM values incomparable across models — deterministic/smoothing models with compressed output ranges get systematically inflated SSIM. The fix is to compute dataset-level data_range from truth once and pass it to all SSIM calls. Confirmed by quality reviewer via dual-path reasoning.
+2. **Quality**: `spectral_coherence` docstring (spectral.py:153-154) claims single-sample coherence is trivially 1.0, but the azimuthal averaging within radial bins means phase cancellation produces coherence well below 1.0 for N=1. Test `test_single_sample_independent_low_coherence` confirms <0.5. Docstring is misleading.
+3. **Quality**: `radial_psd` duplicates the wavenumber grid computation inline (lines 49-53) instead of using the shared `_wavenumber_grid` helper. Divergence risk if either copy is modified.
+
+### Work Done
+- Fixed SSIM data_range: `compute_all_metrics` now computes `truth_data_range = float(truth.max()) - float(truth.min())` once and passes it to all `ssim_metric()` and `ensemble_mean_ssim()` calls. All models compared on same SSIM scale.
+- Fixed spectral coherence docstring to accurately describe azimuthal averaging behavior.
+- Refactored `radial_psd` to use `_wavenumber_grid()` instead of inline duplicate.
+- Added test `test_ssim_uses_consistent_data_range`: verifies compressed-output model doesn't beat accurate model on SSIM.
+- Noted in EVAL_REPORT.md that SSIM table values are stale (from old per-pair computation). Re-evaluation needed next iteration.
+- 107 tests pass (test_metrics + test_baselines), ruff clean, basedpyright 0 errors
+- No dangling processes
+
+### Iteration 18 End
+End commit: TBD
+End time: ~16:00 EDT
+Next: Re-run evaluation on both datasets to get corrected SSIM values, regenerate figures.
