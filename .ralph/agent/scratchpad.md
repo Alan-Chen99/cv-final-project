@@ -322,3 +322,17 @@ Start commit: `3ae9240`
 End commit: `864d881`
 End time: ~14:38 EDT
 Next: Re-run evaluation on both datasets (NorESM needs GPU, ERA5 is CPU-only) to get RALSD values. Update EVAL_REPORT.md with RALSD column.
+
+## Iteration 10 — 2026-05-11 14:39 EDT
+Start commit: `07785b3`
+Allocation prefix: `ipjpj-czlki`
+
+### Concerns Review
+1. **Workflow**: Both JSON result files are stale — computed before RALSD was added. NorESM additionally lacks spectral coherence (added in iteration 7, but NorESM eval last ran in iteration 6). Prior agent correctly identified this but deferred to this iteration.
+2. **Quality**: EVAL_REPORT.md NorESM table has no Coh or RALSD columns. ERA5 table has Coh but no RALSD. Cross-dataset table says "Spectral coherence | Not computed (rerun needed)" for NorESM. Must fix all.
+3. **Quality**: The NorESM results JSON is at `pool/datasets/metrics/comprehensive_results.json` (top-level, from iteration 6) but the code now writes to `pool/datasets/metrics/noresm/`. After re-running, the old file becomes dead. Need to be aware of path discrepancy.
+
+### Plan
+1. Run ERA5 eval (CPU-only, ~2 min)
+2. Allocate GPU, run NorESM eval (~15 min)
+3. Update EVAL_REPORT.md with both complete datasets (RALSD + Coh for both)
