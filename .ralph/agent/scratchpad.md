@@ -384,5 +384,5 @@ Start commit: `f5c1f0c`
 - 80 tests pass, ruff clean, basedpyright clean
 
 ### Iteration 11 End
-End commit: TBD (committing now)
+End commit: `00582c5`
 End time: ~15:07 EDT
