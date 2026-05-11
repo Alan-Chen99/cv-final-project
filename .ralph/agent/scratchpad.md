@@ -256,3 +256,25 @@ Flow models dominate on ALL 7 metrics. RALSD confirms flow models produce best s
 - Fix missing ensemble plots for samples 3-4 (code fixed, needs GPU re-run of make_figures.py)
 
 - **End**: 2026-05-11T20:56:07Z, commit 376e79d
+
+## Iteration 7
+- **Start**: 2026-05-11T20:57:20Z, commit 66896c3
+- **Prefix**: jdxg-xdev
+
+### Concerns (3+)
+
+1. **Workflow: Report shows only 6 of 15 methods** — eval_results_500.json has verified 4-metric data for all 15 ERA5 methods, but the report table only shows 6 cherry-picked rows. The RALSD/SSIM values shown are from unverified stdout transcription (iter5), NOT from any JSON file. No PSNR values in the table at all. The report claims 7 metrics but displays 5 columns for 6 rows. This is misleading.
+
+2. **Workflow: Report missing NorESM section entirely** — noresm_eval_results_500.json has verified 4-metric data for 12 methods, but METRICS_REPORT.md has zero NorESM content. The task requires comprehensive comparison across both datasets.
+
+3. **Quality: NorESM constraint mismatch not analyzed** — NorESM results show constrained methods (+AddCL/+SmCL) perform WORSE on CRPS than unconstrained versions. Flow-wide96 has mass_violation 1.12 on NorESM vs ~1e-6 on ERA5. This constraint-vs-accuracy tradeoff is a key finding that hasn't been discussed.
+
+4. **Workflow: GPU still blocked** — Both normal slots taken by ivy-ash (until ~18:37 EDT, ~1.5h from now). Preemptable queue Priority-blocked. Cancelled dangling salloc from iter6. Cannot run GPU eval this iteration.
+
+### Plan for this iteration
+Rewrite METRICS_REPORT.md with complete, verified data:
+- All 15 ERA5 methods with verified 4-metric data from JSON
+- All 12 NorESM methods with verified 4-metric data from JSON
+- Remove unverified RALSD/SSIM/PSNR data (mark as pending)
+- Add NorESM analysis including constraint tradeoff finding
+- Proper figure inventory from visual inspection
