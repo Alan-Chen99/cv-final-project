@@ -596,6 +596,6 @@ Allocation prefix: iter20-2438
 - No dangling processes (verified: GPU alloc cancelled, no background tasks)
 
 ### Iteration 20 End
-End commit: (pending)
+End commit: `ea3f80c`
 End time: ~16:25 EDT
 Status: NorESM SSIM re-evaluation remains blocked on GPU availability. All other work complete.
