@@ -199,7 +199,7 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 | `flow_vs_baseline.png` | Best flow vs best baseline (3 metrics) | Current |
 | `extended_metrics_panel.png` | 3x3 grid: all 8 metrics (CRPS, MAE, RMSE, SSIM, PSNR, RALSD, EMD, mass_violation) | Current |
 | `ralsd_comparison.png` | Sorted RALSD bar chart (15 methods) | Current |
-| `psd_comparison.png` | Log-log PSD curves: ground truth vs all 15 methods | Current |
+| `psd_comparison.png` | 2-panel PSD: log-log curves (top, key methods highlighted) + PSD ratio in dB (bottom, all methods) | Current |
 | `spectral_bias.png` | Per-frequency spectral bias (dB) for each method | Current |
 | `era5_sample_{0-4}_comparison.png` | Per-sample visual comparison (9 methods) | Current |
 | `era5_sample_{0-4}_errors.png` | Per-sample error maps | Current |
@@ -214,7 +214,7 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 | `flow_vs_baseline.png` | Best flow vs best baseline | Current |
 | `extended_metrics_panel.png` | 3x3 grid: all 8 metrics (12 methods) | Current |
 | `ralsd_comparison.png` | Sorted RALSD bar chart (12 methods) | Current |
-| `psd_comparison.png` | Log-log PSD curves: ground truth vs all 12 methods | Current |
+| `psd_comparison.png` | 2-panel PSD: log-log curves (top, key methods highlighted) + PSD ratio in dB (bottom, all methods) | Current |
 | `spectral_bias.png` | Per-frequency spectral bias (dB) for each method | Current |
 | `noresm_sample_{0-4}_comparison.png` | Per-sample visual comparison | Current |
 | `noresm_sample_{0-4}_errors.png` | Per-sample error maps | Current |
@@ -237,7 +237,7 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 - `spectral.py`: `plot_psd_comparison()`, `plot_spectral_bias()`, `plot_extended_metrics_panel()`, `plot_ralsd_comparison()`
 
 ### Test Coverage
-- 144 non-GPU tests pass (spectral metrics, structural metrics, distribution metrics, batch metrics, plotting)
+- 145 non-GPU tests pass (spectral metrics, structural metrics, distribution metrics, batch metrics, plotting)
 - Lint (ruff), format (ruff), typecheck (basedpyright): all pass
 
 ## Remaining Work

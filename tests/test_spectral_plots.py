@@ -75,6 +75,19 @@ class TestPSDComparison:
 
         plt.close(fig)
 
+    def test_ratio_subplot_with_many_methods(self, freq):
+        """When >5 methods, produces 2-panel layout with PSD ratio subplot."""
+        psd_truth = 1.0 / (freq**2 + 0.01)
+        method_psds = {
+            f"method-{i}": psd_truth * (0.5 + 0.1 * i) for i in range(8)
+        }
+        fig = plot_psd_comparison(freq, psd_truth, method_psds)
+        assert fig is not None
+        assert len(fig.axes) == 2
+        import matplotlib.pyplot as plt
+
+        plt.close(fig)
+
     def test_saves_to_file(self, freq, rng, tmp_path):
         psd_truth = 1.0 / (freq**2 + 0.01)
         method_psds = {"bicubic": psd_truth * 0.5}

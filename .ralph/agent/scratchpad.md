@@ -550,3 +550,18 @@ Update `plot_dual_metrics_panel` to show all 8 metrics. Fix `make_figures.py` de
 - Fix ensemble plots for ERA5 samples 3-4 and NorESM samples 3-4 (needs GPU)
 
 - **End**: 2026-05-11T22:32:38Z, commit 1b7daf2
+
+## Iteration 14
+- **Start**: 2026-05-11T22:33:36Z, commit a7c3e72
+- **Prefix**: ercc-ggac
+
+### Concerns (3+)
+
+1. **Quality: PSD plots are unreadable with 15 methods** — ERA5 PSD comparison has 15 overlapping lines in log-log scale; individual methods indistinguishable except bilinear (gray) diverging at high freq. NorESM PSD is even worse: ALL 12 methods overlap perfectly, conveying zero information. The plots fail the task requirement "Plots make sense and show what they need to show well."
+
+2. **Quality: Ensemble plots for samples 3-4 still missing** — ERA5 and NorESM both lack ensemble plots for samples 3 and 4 (have comparison and error plots). Code fix applied in iter8, but needs GPU re-run. Remaining work item 4.
+
+3. **Quality: NorESM spectral bias noisy at high frequencies** — The NorESM spectral bias plot shows oscillation/noise at frequencies >0.35 cycles/pixel, making high-freq behavior hard to interpret. ERA5 spectral bias is much cleaner.
+
+### Plan for this iteration
+Fix the PSD comparison plot readability. When many methods overlap, add a ratio subplot (PSD_pred/PSD_truth in dB) that reveals small differences invisible in the raw PSD. Highlight a few representative methods in the main PSD panel; dim the rest. Regenerate figures. Single focused change.

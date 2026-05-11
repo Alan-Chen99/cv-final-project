@@ -27,15 +27,33 @@ def _color(name: str) -> str:
     return COLOR_MAP.get(name, "#888888")
 
 
+def _rank_methods_by_spectral_distance(
+    psd_truth: NDArray[np.floating],
+    method_psds: dict[str, NDArray[np.floating]],
+) -> list[str]:
+    """Rank methods by mean absolute log-spectral distance from ground truth."""
+    eps = 1e-30
+    log_truth = np.log10(np.maximum(psd_truth, eps))
+    distances: dict[str, float] = {}
+    for name, psd in method_psds.items():
+        log_pred = np.log10(np.maximum(psd, eps))
+        distances[name] = float(np.mean(np.abs(log_truth - log_pred)))
+    return sorted(distances, key=lambda n: distances[n])
+
+
 def plot_psd_comparison(
     freq: NDArray[np.floating],
     psd_truth: NDArray[np.floating],
     method_psds: dict[str, NDArray[np.floating]],
     output_path: str | Path | None = None,
     title: str = "Radially-Averaged Power Spectral Density",
-    figsize: tuple[float, float] = (8, 6),
+    figsize: tuple[float, float] = (10, 8),
 ) -> plt.Figure:
-    """Log-log PSD curves for ground truth vs multiple methods.
+    """Log-log PSD curves with ratio subplot for readability.
+
+    When >5 methods are present, uses a 2-panel layout:
+    - Top: PSD curves with 3 best + 1 worst highlighted, others dimmed
+    - Bottom: PSD ratio (pred/truth) in dB, clearly showing deviations
 
     Args:
         freq: Frequency bin centers, shape (n_bins,).
@@ -45,25 +63,79 @@ def plot_psd_comparison(
         title: Plot title.
         figsize: Figure size.
     """
-    fig, ax = plt.subplots(figsize=figsize)
+    n_methods = len(method_psds)
+    use_ratio = n_methods > 5
 
-    ax.loglog(freq, psd_truth, "k-", linewidth=2.5, label="Ground Truth", zorder=10)
-
-    for name, psd in method_psds.items():
-        ax.loglog(
-            freq,
-            psd,
-            linewidth=1.5,
-            color=_color(name),
-            label=_display(name),
-            alpha=0.85,
+    if use_ratio:
+        fig, (ax_psd, ax_ratio) = plt.subplots(
+            2, 1, figsize=figsize, height_ratios=[1.2, 1], sharex=True
         )
+    else:
+        fig, ax_psd = plt.subplots(figsize=(figsize[0], figsize[1] * 0.6))
+        ax_ratio = None
 
-    ax.set_xlabel("Spatial Frequency (cycles/pixel)", fontsize=11)
-    ax.set_ylabel("Power Spectral Density", fontsize=11)
-    ax.set_title(title, fontsize=13)
-    ax.legend(fontsize=8, loc="lower left", ncol=2)
-    ax.grid(True, alpha=0.3, which="both")
+    # Identify highlight methods: 3 best + 1 worst by spectral distance
+    ranked = _rank_methods_by_spectral_distance(psd_truth, method_psds)
+    if n_methods > 5:
+        highlight = set(ranked[:3] + ranked[-1:])
+    else:
+        highlight = set(ranked)
+
+    # Top panel: PSD
+    ax_psd.loglog(freq, psd_truth, "k-", linewidth=2.5, label="Ground Truth", zorder=10)
+
+    # Dimmed methods first (behind)
+    for name, psd in method_psds.items():
+        if name not in highlight:
+            ax_psd.loglog(
+                freq, psd, linewidth=0.8, color="#cccccc", alpha=0.5, zorder=1
+            )
+
+    # Highlighted methods on top
+    for name in ranked:
+        if name in highlight:
+            ax_psd.loglog(
+                freq,
+                method_psds[name],
+                linewidth=2.0,
+                color=_color(name),
+                label=_display(name),
+                alpha=0.9,
+                zorder=5,
+            )
+
+    ax_psd.set_ylabel("Power Spectral Density", fontsize=11)
+    ax_psd.set_title(title, fontsize=13)
+    ax_psd.legend(fontsize=8, loc="lower left", ncol=2)
+    ax_psd.grid(True, alpha=0.3, which="both")
+
+    # Bottom panel: PSD ratio in dB
+    if ax_ratio is not None:
+        eps = 1e-30
+        ax_ratio.axhline(0, color="black", linewidth=0.8, linestyle="--")
+
+        for name in ranked:
+            ratio_db = 10.0 * np.log10(
+                np.maximum(method_psds[name], eps) / np.maximum(psd_truth, eps)
+            )
+            lw = 1.8 if name in highlight else 0.7
+            alpha = 0.85 if name in highlight else 0.35
+            color = _color(name) if name in highlight else "#aaaaaa"
+            zorder = 5 if name in highlight else 1
+            label = _display(name) if name in highlight else None
+            ax_ratio.plot(
+                freq, ratio_db, linewidth=lw, color=color, alpha=alpha,
+                zorder=zorder, label=label,
+            )
+
+        ax_ratio.set_xlabel("Spatial Frequency (cycles/pixel)", fontsize=11)
+        ax_ratio.set_ylabel("PSD Ratio (dB)\npred / truth", fontsize=10)
+        ax_ratio.set_xscale("log")
+        ax_ratio.grid(True, alpha=0.3)
+        ax_ratio.legend(fontsize=7, loc="best", ncol=2)
+    else:
+        ax_psd.set_xlabel("Spatial Frequency (cycles/pixel)", fontsize=11)
+
     fig.tight_layout()
 
     if output_path:
