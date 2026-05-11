@@ -1,3 +1,11 @@
+from downscaling.plotting.comprehensive import (
+    generate_all_figures,
+    plot_calibration_panel,
+    plot_metrics_summary,
+    plot_psd_comparison,
+    plot_rank_histograms,
+    plot_spectral_panel,
+)
 from downscaling.plotting.metrics import (
     load_results,
     plot_constraint_impact,
@@ -15,8 +23,10 @@ from downscaling.plotting.samples import (
 )
 
 __all__ = [
+    "generate_all_figures",
     "generate_baseline_predictions",
     "load_results",
+    "plot_calibration_panel",
     "plot_constraint_impact",
     "plot_crps_comparison",
     "plot_dual_crps",
@@ -25,5 +35,9 @@ __all__ = [
     "plot_error_maps",
     "plot_flow_vs_baseline",
     "plot_metrics_panel",
+    "plot_metrics_summary",
+    "plot_psd_comparison",
+    "plot_rank_histograms",
     "plot_sample_comparison",
+    "plot_spectral_panel",
 ]

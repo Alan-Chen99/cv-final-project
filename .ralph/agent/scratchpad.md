@@ -356,3 +356,33 @@ RALSD is more discriminating than PSD-LR for NorESM (CNN-none 0.076 vs 0.007 —
 End commit: `a223e24`
 End time: ~15:00 EDT
 All human directives addressed: RALSD implemented (iter 9), both datasets evaluated with consistent 11-metric set, report updated.
+
+### HUMAN GUIDANCE (2026-05-11 19:00:45 UTC)
+
+This evaluation supersedes everything in /workspace/figures/. Remove all existing files there and regenerate all diagnostic plots in a consistent manner — same metric set, same format, both NorESM and ERA5 datasets, side by side.
+
+## Iteration 11 — 2026-05-11 15:00 EDT
+Start commit: `f5c1f0c`
+
+### Concerns Review
+1. **Quality**: Old figures in `/workspace/figures/` are from a different evaluation pipeline (organize2 branch, May 11 13:03). They use different model names, different metrics (only 4), and different data format. Must be completely replaced, not incrementally updated.
+2. **Quality**: The comprehensive.py evaluation module saves plots to pool/datasets/metrics/ (per-dataset subdirs), not to /workspace/figures/. These are per-dataset separate plots (3 each), not side-by-side. Human directive requires side-by-side format.
+3. **Workflow**: ResFlow-Heun+AddCL is clearly broken (RALSD 14.25, SSR 3.023). Prior iterations noted this but never filtered it from plots. It compresses the scale and makes other models indistinguishable. Must auto-filter broken models.
+
+### Work Done
+- Created `src/downscaling/plotting/comprehensive.py`: standalone plotting module that reads cached JSON results and generates 5 consistent side-by-side figures
+- Cleared all old files from `/workspace/figures/` (17 ERA5 files, 17 NorESM files, 3 top-level files)
+- Generated 5 new plots, all NorESM + ERA5 side-by-side:
+  1. `psd_comparison.png` — PSD curves with RALSD values in legend
+  2. `rank_histograms.png` — 2 NorESM + 4 ERA5 ensemble models
+  3. `metrics_summary.png` — all 10 scalar metrics, best model highlighted green
+  4. `spectral_metrics.png` — PSD-LR, RALSD, Coherence focused panel
+  5. `calibration.png` — SSR with red/green color coding (0.8-1.2 = well-calibrated)
+- Auto-filtered broken ResFlow-Heun+AddCL (RALSD > 10 threshold)
+- Updated `src/downscaling/plotting/__init__.py` with new exports
+- Visually verified all 5 plots — physically reasonable
+- 80 tests pass, ruff clean, basedpyright clean
+
+### Iteration 11 End
+End commit: TBD (committing now)
+End time: ~15:07 EDT
