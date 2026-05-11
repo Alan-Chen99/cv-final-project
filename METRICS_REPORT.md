@@ -1,6 +1,6 @@
 # Evaluation Metrics Report: Climate Downscaling
 
-Comprehensive evaluation across two datasets, 15+ methods, and 7 metrics spanning pixelwise accuracy, spectral fidelity, structural quality, and physical consistency.
+Comprehensive evaluation across two datasets, 15+ methods, and 8 metrics spanning pixelwise accuracy, spectral fidelity, structural quality, distributional fidelity, and physical consistency.
 
 ## Datasets
 
@@ -19,7 +19,27 @@ Comprehensive evaluation across two datasets, 15+ methods, and 7 metrics spannin
 | RALSD (dB) | Spectral | Lower better | Relative Average Log Spectral Distance. Weights errors at all spatial scales equally in log-space. | [Intercomparison (2512.13987)](https://arxiv.org/abs/2512.13987) |
 | SSIM | Structural | Higher better | Structural Similarity Index | Wang et al. 2004 |
 | PSNR (dB) | Structural | Higher better | Peak Signal-to-Noise Ratio | Standard |
+| EMD | Distribution | Lower better | Earth Mover Distance (Wasserstein-1) between pixel intensity distributions. | [Intercomparison (2512.13987)](https://arxiv.org/abs/2512.13987), [STVD (2312.06071)](https://arxiv.org/abs/2312.06071) |
 | Mass violation | Physical | Lower better | Coarse-grain constraint mismatch (avg abs diff after downsampling) | [Harder et al. (2208.05424)](https://arxiv.org/abs/2208.05424) |
+
+### Metric Selection Grounding
+
+The metric suite covers five complementary evaluation axes, grounded in what recent climate downscaling papers use:
+
+| Axis | Metric(s) | Used by |
+|------|-----------|---------|
+| Probabilistic accuracy | CRPS | CorrDiff, GenDiff, WassDiff, STVD, CDSI, intercomparison |
+| Pixelwise accuracy | MAE, RMSE | All papers |
+| Spectral fidelity | RALSD, PSD curves | CorrDiff, GenDiff, conditional diffusion, intercomparison, CDSI |
+| Structural quality | SSIM, PSNR | Harder et al., FNO downscaling, conditional diffusion, SwinIR |
+| Distribution fidelity | EMD | STVD, intercomparison |
+| Physical consistency | Mass violation | Harder et al. |
+
+Additional metrics considered but not included:
+- **LHD** (Logarithmic Histogram Distance): Used by the intercomparison paper alongside RALSD. Omitted because EMD is more general (metric-space distance, not histogram-bin-dependent) and is used by more papers.
+- **CSI** (Critical Success Index): Precipitation-specific threshold metric. Not applicable to TCW or TAS continuous fields.
+- **Spread-Skill Ratio**: Requires per-sample ensemble spread, which our eval pipeline computes for CRPS but not yet exposed as a separate metric. Future work.
+- **LPIPS**: Learned perceptual metric (WassDiff uses it). Requires a pretrained VGG network; adds model dependency for marginal benefit over SSIM on climate fields.
 
 ### RALSD Definition
 
@@ -29,6 +49,10 @@ From the intercomparison paper ([2512.13987](https://arxiv.org/abs/2512.13987)):
 3. RALSD(dB) = sqrt(1/N * sum_i (10*log10(PSD_true_i / PSD_pred_i))^2)
 
 Captures spectral fidelity: whether predictions reproduce correct spatial frequency content across all scales, not just pixel-level accuracy.
+
+### EMD Definition
+
+Earth Mover Distance (Wasserstein-1) measures the minimum "work" to transform one distribution into another. Applied to the flattened pixel distributions of ground truth and predictions across the full test set. Unlike RMSE which averages pixel-level errors, EMD captures whether the overall intensity distribution is reproduced — a model with low RMSE could still systematically over/under-represent extreme values, which EMD would detect.
 
 ## Methods
 
@@ -79,7 +103,7 @@ Methods sorted by CRPS (best first). All values from verified JSON.
 | bilinear+addcl | 0.3991 | 0.3991 | 0.8040 | 1.4e-6 |
 | bilinear | 0.5191 | 0.5191 | 0.9639 | 0.3203 |
 
-> **Pending**: RALSD, SSIM, PSNR columns require GPU re-evaluation with updated pipeline. Preliminary stdout data from a prior interrupted run (iter5) showed RALSD ranging from 0.19 dB (flow-wide96) to 1.09 dB (bilinear). These values are NOT included here because they were not saved to disk and cannot be verified.
+> **Pending**: RALSD, SSIM, PSNR, EMD columns require GPU re-evaluation with updated pipeline. Preliminary stdout data from a prior interrupted run (iter5) showed RALSD ranging from 0.19 dB (flow-wide96) to 1.09 dB (bilinear). These values are NOT included here because they were not saved to disk and cannot be verified.
 
 ### ERA5 Key Findings
 
@@ -173,7 +197,7 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 | `noresm_sample_{3-4}_ensemble.png` | Ensemble spread visualization | **Missing** (code fix applied, pending GPU re-run) |
 
 ### Pending Figures (require GPU eval with updated pipeline)
-- Extended metrics panel (all 7 metrics, 3x3 grid)
+- Extended metrics panel (all 8 metrics, 3x3 grid)
 - Spectral PSD curves (log-log, ground truth vs methods)
 - Spectral bias plot (per-frequency bias for each method)
 - RALSD bar chart (dedicated spectral metric comparison)
@@ -183,6 +207,7 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 ### New Metrics (`src/downscaling/metrics/`)
 - `spectral.py`: `radial_psd()`, `radial_psd_batch()`, `ralsd()`, `spectral_bias()`
 - `structural.py`: `ssim()`, `psnr()`
+- `distribution.py`: `emd()`, `emd_per_sample()`
 
 ### Evaluation Pipeline (`src/downscaling/evaluation/`)
 - `batch_metrics.py`: `compute_batch_metrics()`, `compute_spectral_curves()`
@@ -193,13 +218,13 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 - `spectral.py`: `plot_psd_comparison()`, `plot_spectral_bias()`, `plot_extended_metrics_panel()`, `plot_ralsd_comparison()`
 
 ### Test Coverage
-- 64 non-GPU tests pass (spectral metrics, structural metrics, batch metrics, plotting)
+- 156 non-GPU tests pass (spectral metrics, structural metrics, distribution metrics, batch metrics, plotting)
 - Lint (ruff), format (ruff), typecheck (basedpyright): all pass
 
 ## Remaining Work
 
-1. **GPU eval with 7 metrics** — Re-run `run_eval.py --max-samples 500` and `run_eval_noresm.py --max-samples 500` on GPU to produce verified JSON with RALSD/SSIM/PSNR + spectral .npz files
+1. **GPU eval with 8 metrics** — Re-run `run_eval.py --max-samples 500` and `run_eval_noresm.py --max-samples 500` on GPU to produce verified JSON with RALSD/SSIM/PSNR/EMD + spectral .npz files
 2. **Generate spectral figures** — PSD curves, spectral bias, RALSD bar chart from .npz data
-3. **Generate extended metrics panel** — 7-metric bar chart (3x3 grid)
+3. **Generate extended metrics panel** — 8-metric bar chart (3x3 grid)
 4. **Fix ensemble plots** — Re-run `make_figures.py` on GPU to generate samples 3-4 ensemble plots (code fix already applied)
 5. **NorESM flow constraint analysis** — Evaluate flow-wide96-amp+addcl on NorESM to quantify constraint impact on the best model

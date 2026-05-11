@@ -5,10 +5,10 @@
 #SBATCH -c 16
 #SBATCH --mem=64G
 #SBATCH -t 1:30:00
-#SBATCH -o /home/chenxy/orcd/scratch/logs/eval-7metrics-%j.log
-#SBATCH -e /home/chenxy/orcd/scratch/logs/eval-7metrics-%j.log
+#SBATCH -o /home/chenxy/orcd/scratch/logs/eval-8metrics-%j.log
+#SBATCH -e /home/chenxy/orcd/scratch/logs/eval-8metrics-%j.log
 
-# Runs ERA5 (500 samples) + NorESM (500 samples) evaluation with all 7 metrics.
+# Runs ERA5 (500 samples) + NorESM (500 samples) evaluation with all 8 metrics.
 # Incremental saving: JSON written after each method group.
 # Outputs: eval_results_7metrics.json, eval_results_7metrics_spectral.npz,
 #          noresm_eval_results_7metrics.json, noresm_eval_results_7metrics_spectral.npz

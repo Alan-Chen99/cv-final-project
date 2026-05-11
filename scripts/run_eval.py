@@ -224,6 +224,8 @@ def main():
             parts.append(f"RALSD={r['ralsd']:.2f}dB")
         if "ssim" in r:
             parts.append(f"SSIM={r['ssim']:.4f}")
+        if "emd" in r:
+            parts.append(f"EMD={r['emd']:.4f}")
         print(f"  {'  '.join(parts)}")
 
     def _add_batch_metrics(name: str) -> None:
@@ -444,7 +446,7 @@ def main():
                     print(f"  ERROR {name}: {e}")
 
     # Print comparison table
-    all_metrics = ["crps", "mae", "rmse", "mass_violation", "ralsd", "ssim", "psnr"]
+    all_metrics = ["crps", "mae", "rmse", "mass_violation", "ralsd", "ssim", "psnr", "emd"]
     has_batch = any("ralsd" in r for r in results.values())
     display_metrics = all_metrics if has_batch else ["crps", "mae", "rmse", "mass_violation"]
 
@@ -462,6 +464,8 @@ def main():
             elif m == "ralsd":
                 vals.append(f"{v:>9.2f}dB")
             elif m in ("ssim", "psnr"):
+                vals.append(f"{v:>10.4f}")
+            elif m == "emd":
                 vals.append(f"{v:>10.4f}")
             else:
                 vals.append(f"{v:>10.6f}")

@@ -1,14 +1,16 @@
 """Batch-level metrics that require all predictions collected.
 
 RALSD needs dataset-averaged PSDs before comparison, so it cannot
-be computed per-sample like CRPS/MAE/RMSE. SSIM and PSNR are
-per-sample but included here for a unified interface.
+be computed per-sample like CRPS/MAE/RMSE. EMD compares full
+distributions and benefits from large sample counts. SSIM and PSNR
+are per-sample but included here for a unified interface.
 """
 
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
+from downscaling.metrics.distribution import emd
 from downscaling.metrics.spectral import radial_psd_batch, ralsd, spectral_bias
 from downscaling.metrics.structural import psnr, ssim
 
@@ -22,7 +24,7 @@ def compute_batch_metrics(
     predictions: NDArray[np.floating],
     n_bins: int = 26,
 ) -> dict[str, float]:
-    """Compute RALSD, SSIM, and PSNR from collected predictions.
+    """Compute RALSD, SSIM, PSNR, and EMD from collected predictions.
 
     Args:
         ground_truth: Shape (N, H, W).
@@ -30,12 +32,13 @@ def compute_batch_metrics(
         n_bins: Frequency bins for spectral metrics.
 
     Returns:
-        Dict with ralsd, ssim, psnr keys.
+        Dict with ralsd, ssim, psnr, emd keys.
     """
     return {
         "ralsd": ralsd(ground_truth, predictions, n_bins=n_bins),
         "ssim": ssim(ground_truth, predictions),
         "psnr": psnr(ground_truth, predictions),
+        "emd": emd(ground_truth, predictions),
     }
 
 

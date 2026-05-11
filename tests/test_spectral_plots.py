@@ -26,7 +26,7 @@ def freq():
 
 @pytest.fixture
 def sample_results():
-    """Minimal results dict with all 7 metrics."""
+    """Minimal results dict with all 8 metrics."""
     return {
         "flow-wide96-amp (28M)": {
             "crps": 0.10,
@@ -36,6 +36,7 @@ def sample_results():
             "ralsd": 2.5,
             "ssim": 0.95,
             "psnr": 35.0,
+            "emd": 0.05,
         },
         "bicubic": {
             "crps": 0.39,
@@ -45,6 +46,7 @@ def sample_results():
             "ralsd": 8.1,
             "ssim": 0.72,
             "psnr": 25.0,
+            "emd": 0.25,
         },
         "harder-cnn": {
             "crps": 0.25,
@@ -54,6 +56,7 @@ def sample_results():
             "ralsd": 5.3,
             "ssim": 0.85,
             "psnr": 30.0,
+            "emd": 0.15,
         },
     }
 
@@ -108,12 +111,12 @@ class TestSpectralBias:
 
 
 class TestExtendedMetricsPanel:
-    def test_creates_7_metric_panel(self, sample_results):
+    def test_creates_8_metric_panel(self, sample_results):
         fig = plot_extended_metrics_panel(sample_results)
         assert fig is not None
-        # 3x3 grid, 7 visible + 2 hidden
+        # 3x3 grid, 8 visible + 1 hidden
         visible = [ax for ax in fig.axes if ax.get_visible()]
-        assert len(visible) == 7
+        assert len(visible) == 8
         import matplotlib.pyplot as plt
 
         plt.close(fig)

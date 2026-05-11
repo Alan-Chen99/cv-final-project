@@ -5,7 +5,7 @@ and flow matching models on the NorESM surface temperature dataset.
 Mirrors run_eval.py but for 2x SR (32->64) with NorESM-specific
 checkpoint paths and pretrained weights.
 
-Computes all 7 metrics: CRPS, MAE, RMSE, mass_violation, RALSD, SSIM, PSNR.
+Computes all 8 metrics: CRPS, MAE, RMSE, mass_violation, RALSD, SSIM, PSNR, EMD.
 Also saves spectral curve data (PSD, bias) for plotting.
 
 Usage:
@@ -99,6 +99,8 @@ def _print_result(name: str, r: dict[str, float], elapsed: float | None = None) 
         parts.append(f"RALSD={r['ralsd']:.2f}dB")
     if "ssim" in r:
         parts.append(f"SSIM={r['ssim']:.4f}")
+    if "emd" in r:
+        parts.append(f"EMD={r['emd']:.4f}")
     msg = f"  {'  '.join(parts)}"
     if elapsed is not None:
         msg += f"  ({elapsed:.1f}s)"
@@ -380,7 +382,7 @@ def _save_and_print(
     n_samples: int,
 ) -> None:
     # Print comparison table
-    all_metrics = ["crps", "mae", "rmse", "mass_violation", "ralsd", "ssim", "psnr"]
+    all_metrics = ["crps", "mae", "rmse", "mass_violation", "ralsd", "ssim", "psnr", "emd"]
     has_batch = any("ralsd" in r for r in results.values())
     display_metrics = all_metrics if has_batch else ["crps", "mae", "rmse", "mass_violation"]
 
@@ -398,6 +400,8 @@ def _save_and_print(
             elif m == "ralsd":
                 vals.append(f"{v:>9.2f}dB")
             elif m in ("ssim", "psnr"):
+                vals.append(f"{v:>10.4f}")
+            elif m == "emd":
                 vals.append(f"{v:>10.4f}")
             else:
                 vals.append(f"{v:>10.6f}")

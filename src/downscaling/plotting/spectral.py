@@ -1,7 +1,7 @@
 """Spectral power and extended metric visualization.
 
 PSD comparison plots, spectral bias charts, and updated metric panels
-that include RALSD, SSIM, and PSNR alongside the original four metrics.
+that include RALSD, SSIM, PSNR, and EMD alongside the original four metrics.
 """
 
 from __future__ import annotations
@@ -123,12 +123,12 @@ def plot_extended_metrics_panel(
     title: str = "ERA5 TCW 4x Downscaling — Full Metric Comparison",
     figsize: tuple[float, float] = (18, 14),
 ) -> plt.Figure:
-    """3-row x 3-col panel: all 7 metrics + RALSD highlight.
+    """3-row x 3-col panel: all 8 metrics.
 
     Layout:
         Row 1: CRPS, MAE, RMSE
         Row 2: SSIM, PSNR, RALSD
-        Row 3: Mass Violation, (empty), (empty)
+        Row 3: EMD, Mass Violation, (empty)
     """
     sorted_methods = sorted(results.keys(), key=lambda m: results[m].get("crps", float("inf")))
     labels = [DISPLAY_NAMES.get(n, n) for n in sorted_methods]
@@ -142,6 +142,7 @@ def plot_extended_metrics_panel(
         ("ssim", "SSIM", False, "higher"),
         ("psnr", "PSNR (dB)", False, "higher"),
         ("ralsd", "RALSD (dB)", False, "lower"),
+        ("emd", "EMD", False, "lower"),
         ("mass_violation", "Mass Violation", True, "lower"),
     ]
 
@@ -166,6 +167,8 @@ def plot_extended_metrics_panel(
                 text = f"{val:.2f}"
             elif key == "psnr":
                 text = f"{val:.1f}"
+            elif key == "emd":
+                text = f"{val:.4f}"
             ax.text(
                 bar.get_x() + bar.get_width() / 2,
                 bar.get_height(),

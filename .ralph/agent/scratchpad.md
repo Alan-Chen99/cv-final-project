@@ -349,3 +349,45 @@ Since GPU is blocked: review all code for correctness, run tests, fix the sbatch
 
 
 - **End**: 2026-05-11T21:15:58Z, commit ed48782
+
+## Iteration 9
+- **Start**: 2026-05-11T21:17:37Z, commit 4ca593f
+- **Prefix**: otut-fveo
+
+### Concerns (3+)
+
+1. **Workflow: 8 iterations, zero GPU results on disk** — Still the most persistent blocker. GPU allocation fails with Priority on both normal and preemptable partitions. Ivy-ash holds 1 normal slot (was 2, now 1). sbatch job 13764285 queued on preemptable.
+
+2. **Quality: Missing distribution metric** — The task says "find more" metrics. Iter1 identified LHD (Logarithmic Histogram Distance) as a gap but it was never implemented. Literature survey shows EMD (Earth Mover Distance) is used by the intercomparison paper AND STVD — more widely adopted than LHD.
+
+3. **Quality: Metric selection not grounded in literature** — The report lists 7 metrics with brief references but doesn't justify WHY these metrics were chosen or what alternatives were considered. The task explicitly requires "Ground in papers: what metric matters? what others used?"
+
+### Plan for this iteration
+Add EMD (Earth Mover Distance) as the 8th metric — addresses the distribution metric gap identified in iter1. Ground all metric selections in literature with a survey of what papers use. Wire EMD into the full pipeline (metrics, batch_metrics, eval scripts, plots, tests, report).
+
+### Work done
+- **Literature survey**: Reviewed all 12 climate downscaling papers for evaluation metrics. Found EMD used by intercomparison paper (2512.13987) and STVD (2312.06071). Also cataloged LPIPS (WassDiff), SSR (CDSI), CSI (WassDiff), LHD (intercomparison).
+- **Implemented `src/downscaling/metrics/distribution.py`**: `emd()` (batch) and `emd_per_sample()` using scipy.stats.wasserstein_distance
+- **Updated `src/downscaling/metrics/__init__.py`**: Added emd, emd_per_sample exports
+- **Updated `src/downscaling/evaluation/batch_metrics.py`**: Added EMD to compute_batch_metrics()
+- **Updated `scripts/run_eval.py`**: Added EMD to display table and _print_metrics
+- **Updated `scripts/run_eval_noresm.py`**: Same as run_eval.py
+- **Updated `src/downscaling/plotting/spectral.py`**: Added EMD to extended metrics panel (now 8-panel grid)
+- **Created `tests/test_distribution.py`**: 12 tests covering EMD properties, per-sample, batch integration
+- **Updated `tests/test_spectral.py`**: batch_metrics key assertion now includes 'emd'
+- **Updated `tests/test_spectral_plots.py`**: sample_results fixture includes EMD, panel test expects 8 visible
+- **Updated `METRICS_REPORT.md`**:
+  - Added EMD to metrics table with references
+  - Added "Metric Selection Grounding" section: 6-axis table showing which papers use which metrics
+  - Added "Additional metrics considered but not included" (LHD, CSI, SSR, LPIPS) with justification
+  - Added EMD definition section
+  - Updated all "7 metrics" references to "8 metrics"
+  - Updated pending notice to include EMD
+- **Updated sbatch script**: Cancelled old job 13763198, resubmitted as 13764285 with updated code
+- 144/144 tests pass, lint pass, format pass, typecheck 0 errors (2 pre-existing warnings)
+
+### Next iteration work
+- Monitor sbatch job 13764285 for GPU eval completion
+- When results arrive: update report with RALSD/SSIM/PSNR/EMD data
+- Generate spectral figures from .npz data
+- Regenerate ensemble plots for samples 3-4

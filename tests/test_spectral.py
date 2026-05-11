@@ -156,11 +156,11 @@ class TestBatchMetrics:
     """Tests for the batch metrics computation module."""
 
     def test_returns_all_keys(self, rng):
-        """compute_batch_metrics returns ralsd, ssim, psnr keys."""
+        """compute_batch_metrics returns ralsd, ssim, psnr, emd keys."""
         gt = rng.standard_normal((10, 64, 64))
         pred = gt + rng.standard_normal(gt.shape) * 0.1
         result = compute_batch_metrics(gt, pred)
-        assert set(result.keys()) == {"ralsd", "ssim", "psnr"}
+        assert set(result.keys()) == {"ralsd", "ssim", "psnr", "emd"}
 
     def test_identical_fields(self, rng):
         """Identical predictions should give perfect scores."""
