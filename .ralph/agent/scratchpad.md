@@ -336,3 +336,23 @@ Allocation prefix: `ipjpj-czlki`
 1. Run ERA5 eval (CPU-only, ~2 min)
 2. Allocate GPU, run NorESM eval (~15 min)
 3. Update EVAL_REPORT.md with both complete datasets (RALSD + Coh for both)
+
+### Work Done
+- Re-ran ERA5 evaluation (CPU-only, ~6 min on head node) — now includes RALSD and spectral coherence
+- Allocated GPU (node3202, mit_normal_gpu), ran NorESM evaluation (~7 min) — now includes RALSD and spectral coherence
+- Released GPU allocation
+- Visually verified all 6 diagnostic plots (3 per dataset): PSD, rank histograms, metrics summary
+- Updated EVAL_REPORT.md: added RALSD column to both tables, added Coh column to NorESM table, updated findings and cross-dataset comparison
+- Both JSON result files confirmed to have all 11 metrics for all models
+- ruff clean, basedpyright clean (0 errors)
+- Committed: `a223e24`
+
+### Key New RALSD Values
+**NorESM**: CNN(none) 0.076 (best), constrained models ~0.31, GAN 0.48 (worst working)
+**ERA5**: ResFlow-20s+AddCL 0.350 (best), Flow/ResFlow ~0.39, Heun 14.25 (broken)
+RALSD is more discriminating than PSD-LR for NorESM (CNN-none 0.076 vs 0.007 — same ranking but 4x dynamic range improvement with RALSD)
+
+### Iteration 10 End
+End commit: `a223e24`
+End time: ~15:00 EDT
+All human directives addressed: RALSD implemented (iter 9), both datasets evaluated with consistent 11-metric set, report updated.
