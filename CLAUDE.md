@@ -147,6 +147,7 @@ IMPORTANT: prior agent notes MUST be taken as CONTEXT ONLY. Verify all claims be
 | 2026-05-07 | Research5: Pretrained Image SR for Climate Downscaling (research5 branch report) | [experiments/pretrained-sr-downscaling/2026-05-07-research5-pretrained-sr-report.md](experiments/pretrained-sr-downscaling/2026-05-07-research5-pretrained-sr-report.md) |
 | 2026-05-08 | Organize2: Project Structure & Evaluation Report | [notes/2026-05-08-organize2-report.md](notes/2026-05-08-organize2-report.md) |
 | 2026-05-09 | Spatial-4x-30min Diagnosis: Skills Stripped, Paper/Finetune Failures | [notes/2026-05-09-spatial-4x-30min-diagnosis.md](notes/2026-05-09-spatial-4x-30min-diagnosis.md) |
+| 2026-05-11 | Artifact Provenance: Plot-Generating Artifacts | [notes/2026-05-11-artifact-provenance.md](notes/2026-05-11-artifact-provenance.md) |
 
 # Papers
 
