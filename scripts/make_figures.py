@@ -54,6 +54,12 @@ from downscaling.plotting.samples import (
     plot_error_maps,
     plot_sample_comparison,
 )
+from downscaling.plotting.spectral import (
+    plot_extended_metrics_panel,
+    plot_psd_comparison,
+    plot_ralsd_comparison,
+    plot_spectral_bias,
+)
 from downscaling.sampling.ode import midpoint_sample
 
 POOL = Path("/home/chenxy/orcd/pool/datasets")
@@ -149,6 +155,56 @@ def make_metrics_figures(
     if flow_methods:
         plot_flow_vs_baseline(results, output_dir / "flow_vs_baseline.png")
         print(f"  Saved {output_dir / 'flow_vs_baseline.png'}")
+
+    # Extended metrics panel (7 metrics) — only if RALSD data available
+    has_ralsd = any("ralsd" in r for r in results.values())
+    if has_ralsd:
+        plot_extended_metrics_panel(
+            results,
+            output_path=str(output_dir / "extended_metrics_panel.png"),
+            title=f"{dataset_label} \u2014 All Metrics",
+        )
+        print(f"  Saved {output_dir / 'extended_metrics_panel.png'}")
+
+        plot_ralsd_comparison(
+            results,
+            output_path=str(output_dir / "ralsd_comparison.png"),
+            title=f"RALSD \u2014 {dataset_label}",
+        )
+        print(f"  Saved {output_dir / 'ralsd_comparison.png'}")
+
+    # Spectral PSD/bias plots — only if .npz file exists
+    spectral_path = results_path.with_name(results_path.stem + "_spectral.npz")
+    if spectral_path.exists():
+        data = np.load(spectral_path)
+        freq = data["freq"]
+        psd_truth = data["psd_truth"]
+        method_psds: dict[str, np.ndarray] = {}
+        method_biases: dict[str, np.ndarray] = {}
+        for key in data.files:
+            if key.startswith("psd_") and key != "psd_truth":
+                method_name = key[4:]  # strip "psd_"
+                method_psds[method_name] = data[key]
+                bias_key = f"bias_{method_name}"
+                if bias_key in data.files:
+                    method_biases[method_name] = data[bias_key]
+        if method_psds:
+            plot_psd_comparison(
+                freq=freq,
+                psd_truth=psd_truth,
+                method_psds=method_psds,
+                output_path=str(output_dir / "psd_comparison.png"),
+                title=f"Power Spectral Density \u2014 {dataset_label}",
+            )
+            print(f"  Saved {output_dir / 'psd_comparison.png'}")
+
+            plot_spectral_bias(
+                freq=freq,
+                method_biases=method_biases,
+                output_path=str(output_dir / "spectral_bias.png"),
+                title=f"Spectral Bias \u2014 {dataset_label}",
+            )
+            print(f"  Saved {output_dir / 'spectral_bias.png'}")
 
     plt.close("all")
     return results
@@ -455,7 +511,7 @@ def _save_sample_figures(
         )
 
     if flow_ensemble is not None:
-        for idx in range(min(3, n_vis_samples)):
+        for idx in range(n_vis_samples):
             plot_ensemble_spread(
                 hr=hr[:n_vis_samples],
                 ensemble_preds=flow_ensemble,

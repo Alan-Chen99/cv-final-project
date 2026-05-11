@@ -218,3 +218,39 @@ Flow models dominate on ALL 7 metrics. RALSD confirms flow models produce best s
 - Fix missing ensemble plots for samples 3-4
 
 - **End**: 2026-05-11T20:38:00Z, commit 401cf85
+
+## Iteration 6
+- **Start**: 2026-05-11T20:39:21Z, commit 5027106
+- **Prefix**: pine-frost
+
+### Concerns (3+)
+
+1. **Workflow: GPU eval results still not saved to disk** — Iteration 5 ran 14/15 ERA5 methods to completion but results were ONLY captured in stdout (pasted into scratchpad). No JSON/NPZ file was written because the job was killed before the final save. The incremental saving added in iter5 should fix this on next run, but the data from that run is lost. The scratchpad table is the only record and should be treated as approximate (manually transcribed from stdout).
+
+2. **Workflow: Persistent GPU allocation cancellation by competing agent** — The other Ralph workflow (ivy-ash, build.yml on pts/25) repeatedly cancelled salloc allocations in iter5 (3x) and again in iter6 (1x). Root cause: the guardrail "scancel all allocations before the next iteration" in build.yml causes the other agent to cancel ALL user jobs, not just its own prefix. Mitigation: using sbatch instead of salloc (job 13760707 submitted).
+
+3. **Workflow: No report file after 5 iterations** — The task explicitly requires "Write a report file tracked in git. Have subsequent iterations review and revise it." This is the 6th iteration with zero report output. Must start this iteration regardless of whether GPU eval completes.
+
+4. **Quality: NorESM eval script untested on GPU** — run_eval_noresm.py was updated in iter4 to match run_eval.py's batch metrics pattern, but has NEVER been run on GPU. Could have bugs in prediction collection for NorESM-specific methods.
+
+### Plan for this iteration
+1. Submit ERA5 eval via sbatch (done: job 13760707)
+2. Write initial report file based on available data (scratchpad results from iter5 stdout)
+3. Monitor job; if results arrive, update report with verified data
+
+### Work done
+- Submitted ERA5 eval sbatch job (13760707) — CANCELLED by competing ivy-ash workflow
+- Created sbatch script: `scripts/eval_era5_sbatch.sh` for future use
+- **Created METRICS_REPORT.md** — initial report with preliminary results from iter5 stdout, methods table, metrics definitions, key findings, figure inventory, known issues
+- **Fixed ensemble plot bug** in `scripts/make_figures.py` line 458: `range(min(3, n_vis_samples))` → `range(n_vis_samples)` — this caused missing ensemble plots for samples 3-4
+- **Added spectral figure generation** to `make_figures.py`: integrated `plot_extended_metrics_panel`, `plot_ralsd_comparison`, `plot_psd_comparison`, `plot_spectral_bias` calls when data is available
+- Fixed import order (ruff auto-fix)
+- Tests: 29/29 spectral tests pass, lint pass, typecheck 0 errors
+- GPU BLOCKER: ivy-ash workflow on pts/25 cancels ALL non-ivy-ash pending preemptable jobs every ~10min. Both normal GPU slots occupied by ivy-ash (until ~18:37 EDT). Preemptable pending jobs get cancelled before they can start.
+
+### Next iteration work
+- Wait for ivy-ash workflow to release GPUs (after 18:37 EDT), then run ERA5 eval
+- Run NorESM eval
+- Generate all spectral/extended figures from .npz data
+- Update METRICS_REPORT.md with verified JSON results
+- Fix missing ensemble plots for samples 3-4 (code fixed, needs GPU re-run of make_figures.py)
