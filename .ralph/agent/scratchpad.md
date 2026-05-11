@@ -482,3 +482,42 @@ Submit GPU eval, fix code quality issues, update report with 8-metric verified d
 
 
 - **End**: 2026-05-11T22:19:43Z, commit 8dfec76
+
+## Iteration 12
+- **Start**: 2026-05-11T22:20:40Z, commit 08f08f4
+- **Prefix**: rmiv-vbkt
+
+### Concerns (3+)
+
+1. **Bug: NPZ method names don't match COLOR_MAP** — `run_eval.py` line 509 sanitizes names (`flow-wide96-amp (28M)` → `flow-wide96-amp_28M`) for NPZ keys, but plotting code's COLOR_MAP/DISPLAY_NAMES expects canonical names with parentheses. Flow models would get fallback gray colors (#888888) and raw names in legends. Root cause: unnecessary sanitization (numpy savez handles parens fine).
+
+2. **Workflow: No spectral figures generated despite .npz data existing** — Iter11 completed GPU eval producing spectral .npz files but did not generate figures from them. The `make_figures.py` script had the code but was never run with `--metrics-only` flag pointing to the 8-metric results.
+
+3. **Quality: `make_figures.py` defaults point to old JSON** — Default `--era5-results` is `eval_results_500.json` (old 4-metric) not `eval_results_8metrics.json`. Would silently use stale data if run without explicit flags.
+
+### Plan for this iteration
+Fix the NPZ name mapping bug. Generate all spectral/extended metric figures from .npz data (no GPU needed). Visually inspect all generated figures. Update report.
+
+### Work done
+- **Fixed NPZ name mapping bug** in `make_figures.py`: added reverse mapping from sanitized NPZ keys to canonical method names using the JSON results dict. Flow models now get correct colors and display names.
+- **Removed unnecessary sanitization** in `run_eval.py` and `run_eval_noresm.py`: numpy savez handles parentheses fine, sanitization was creating the name mismatch.
+- **Generated 10 new figures** via `make_figures.py --metrics-only`:
+  - ERA5: `extended_metrics_panel.png`, `ralsd_comparison.png`, `psd_comparison.png`, `spectral_bias.png`
+  - NorESM: `extended_metrics_panel.png`, `ralsd_comparison.png`, `psd_comparison.png`, `spectral_bias.png`
+  - Cross-dataset: `dual_crps.png`, `dual_metrics_panel.png` (regenerated)
+- **Visually inspected all 10 new figures** — all correct:
+  - PSD: clear frequency-dependent separation, flow models closest to ground truth
+  - Spectral bias: bilinear worst (~2 dB ERA5), flow models near 0
+  - RALSD bars: Wide96 best (0.19 dB ERA5), clear ranking
+  - Extended panels: all 8 metrics displayed with correct colors and values
+  - NorESM PSD: methods overlap closely (2x SR easier), spectral bias smaller
+- **Updated METRICS_REPORT.md**: 
+  - Added 8 new figure entries to ERA5 and NorESM inventories
+  - Removed "Pending Figures" section (all generated)
+  - Updated remaining work items 2 and 3 as DONE
+- 144/144 tests pass, lint clean, ruff format clean
+
+### Next iteration work
+- Fix ensemble plots for ERA5 samples 3-4 and NorESM samples 3-4 (needs GPU)
+- Update dual metrics panel to show all 8 metrics (currently 4)
+- Consider updating `make_figures.py` defaults to point to 8-metric results

@@ -179,15 +179,24 @@ def make_metrics_figures(
         data = np.load(spectral_path)
         freq = data["freq"]
         psd_truth = data["psd_truth"]
+
+        # NPZ keys use sanitized names (spaces->_, parens removed).
+        # Build reverse mapping from the canonical results dict.
+        def _sanitize(n: str) -> str:
+            return n.replace(" ", "_").replace("(", "").replace(")", "")
+
+        sanitized_to_canonical = {_sanitize(name): name for name in results}
+
         method_psds: dict[str, np.ndarray] = {}
         method_biases: dict[str, np.ndarray] = {}
         for key in data.files:
             if key.startswith("psd_") and key != "psd_truth":
-                method_name = key[4:]  # strip "psd_"
-                method_psds[method_name] = data[key]
-                bias_key = f"bias_{method_name}"
+                sanitized_name = key[4:]  # strip "psd_"
+                canonical = sanitized_to_canonical.get(sanitized_name, sanitized_name)
+                method_psds[canonical] = data[key]
+                bias_key = f"bias_{sanitized_name}"
                 if bias_key in data.files:
-                    method_biases[method_name] = data[bias_key]
+                    method_biases[canonical] = data[bias_key]
         if method_psds:
             plot_psd_comparison(
                 freq=freq,

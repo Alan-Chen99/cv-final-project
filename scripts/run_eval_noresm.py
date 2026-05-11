@@ -441,9 +441,8 @@ def _save_and_print(
         flat["freq"] = first_method["freq"]
         flat["psd_truth"] = first_method["psd_truth"]
         for name, curves in spectral_data.items():
-            safe_name = name.replace(" ", "_").replace("(", "").replace(")", "")
-            flat[f"psd_{safe_name}"] = curves["psd_pred"]
-            flat[f"bias_{safe_name}"] = curves["bias"]
+            flat[f"psd_{name}"] = curves["psd_pred"]
+            flat[f"bias_{name}"] = curves["bias"]
         np.savez(spectral_path, **flat)
         print(f"Spectral data saved to {spectral_path}")
 

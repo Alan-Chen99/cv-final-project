@@ -194,9 +194,13 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 ### ERA5 Figures (`figures/era5/`)
 | File | Description | Status |
 |------|-------------|--------|
-| `metrics_panel.png` | 2x2 bar chart: CRPS, MAE, RMSE, mass_violation (all 15 methods) | Current (4 metrics) |
+| `metrics_panel.png` | 2x2 bar chart: CRPS, MAE, RMSE, mass_violation (all 15 methods) | Current |
 | `crps_comparison.png` | Sorted CRPS bar chart | Current |
 | `flow_vs_baseline.png` | Best flow vs best baseline (3 metrics) | Current |
+| `extended_metrics_panel.png` | 3x3 grid: all 8 metrics (CRPS, MAE, RMSE, SSIM, PSNR, RALSD, EMD, mass_violation) | Current |
+| `ralsd_comparison.png` | Sorted RALSD bar chart (15 methods) | Current |
+| `psd_comparison.png` | Log-log PSD curves: ground truth vs all 15 methods | Current |
+| `spectral_bias.png` | Per-frequency spectral bias (dB) for each method | Current |
 | `era5_sample_{0-4}_comparison.png` | Per-sample visual comparison (9 methods) | Current |
 | `era5_sample_{0-4}_errors.png` | Per-sample error maps | Current |
 | `era5_sample_{0-2}_ensemble.png` | Ensemble spread visualization | Current |
@@ -205,19 +209,17 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 ### NorESM Figures (`figures/noresm/`)
 | File | Description | Status |
 |------|-------------|--------|
-| `metrics_panel.png` | 2x2 bar chart: CRPS, MAE, RMSE, mass_violation (12 methods) | Current (4 metrics) |
+| `metrics_panel.png` | 2x2 bar chart: CRPS, MAE, RMSE, mass_violation (12 methods) | Current |
 | `crps_comparison.png` | Sorted CRPS bar chart | Current |
 | `flow_vs_baseline.png` | Best flow vs best baseline | Current |
+| `extended_metrics_panel.png` | 3x3 grid: all 8 metrics (12 methods) | Current |
+| `ralsd_comparison.png` | Sorted RALSD bar chart (12 methods) | Current |
+| `psd_comparison.png` | Log-log PSD curves: ground truth vs all 12 methods | Current |
+| `spectral_bias.png` | Per-frequency spectral bias (dB) for each method | Current |
 | `noresm_sample_{0-4}_comparison.png` | Per-sample visual comparison | Current |
 | `noresm_sample_{0-4}_errors.png` | Per-sample error maps | Current |
 | `noresm_sample_{0-2}_ensemble.png` | Ensemble spread visualization | Current |
 | `noresm_sample_{3-4}_ensemble.png` | Ensemble spread visualization | **Missing** (code fix applied, pending GPU re-run) |
-
-### Pending Figures (spectral .npz data now available, need figure generation script run)
-- Extended metrics panel (all 8 metrics, 3x3 grid) — data: `eval_results_8metrics.json`
-- Spectral PSD curves (log-log, ground truth vs methods) — data: `*_spectral.npz`
-- Spectral bias plot (per-frequency bias for each method) — data: `*_spectral.npz`
-- RALSD bar chart (dedicated spectral metric comparison) — data: `eval_results_8metrics.json`
 
 ## Implementation
 
@@ -240,8 +242,8 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 
 ## Remaining Work
 
-1. ~~**GPU eval with 8 metrics**~~ — **DONE** (iter11). All 15 ERA5 + 12 NorESM methods evaluated with 8 metrics. Results: `eval_results_8metrics.json`, `noresm_eval_results_8metrics.json`, `*_spectral.npz`.
-2. **Generate spectral figures** — PSD curves, spectral bias, RALSD bar chart from .npz data (data ready, needs `make_figures.py` update to read from .npz)
-3. **Generate extended metrics panel** — 8-metric bar chart (3x3 grid, data ready in JSON)
-4. **Fix ensemble plots** — Re-run `make_figures.py` on GPU to generate samples 3-4 ensemble plots (code fix already applied)
+1. ~~**GPU eval with 8 metrics**~~ — **DONE** (iter11).
+2. ~~**Generate spectral figures**~~ — **DONE** (iter12). PSD curves, spectral bias, RALSD bars, extended metrics panels for both datasets.
+3. ~~**Generate extended metrics panel**~~ — **DONE** (iter12). 8-metric 3x3 grid for ERA5 and NorESM.
+4. **Fix ensemble plots** — Re-run `make_figures.py` on GPU to generate ERA5 samples 3-4 and NorESM samples 3-4 ensemble plots (code fix already applied)
 5. **Update dual metrics panel** — Current cross-dataset figures show 4 metrics; should show all 8
