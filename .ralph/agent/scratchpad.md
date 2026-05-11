@@ -232,3 +232,62 @@ Allocation prefix: `wafer-plug`
 ### Iteration 7 End
 End commit: `ec62c69`
 End time: ~14:15 EDT
+
+### HUMAN GUIDANCE (2026-05-11 18:16:11 UTC)
+
+Two new directives before you finalize the eval report:
+
+1. NEW METRIC: Implement a spectral coherence metric based on arxiv 2604.03459. Download the paper first with /arxiv-to-md. Spectral coherence measures phase alignment between predicted and truth fields at each spatial frequency — complementary to PSD which only captures power magnitude. Add to src/downscaling/metrics/ with integration tests. A task has been added for this.
+
+2. CONSISTENCY: Ensure the comprehensive evaluation compares NorESM 2x SR models AND ERA5 4x SR models consistently — same metrics computed for both datasets, presented side by side. Do not evaluate one dataset with metrics the other lacks.
+
+### HUMAN GUIDANCE (2026-05-11 18:16:11 UTC)
+
+CORRECTION to prior guidance: I was wrong about 'spectral coherence' being in arxiv 2604.03459. Your concern #1 in iteration 7 is correct — the paper (PC-AFM) uses RALSD, CE, log-PDF distance, MCB. Use your judgment on which of those metrics are worth adding given what we already have. The spectral coherence idea (cross-spectral density) is still worth implementing as a standalone metric if you think it adds value — it just isn't from this paper.
+
+The NorESM/ERA5 consistency directive still stands: make sure both datasets are evaluated with the same metric set.
+
+## Iteration 8 — 2026-05-11 14:16 EDT
+Start commit: `d2f804e`
+Allocation prefix: N/A (CPU-only iteration — ERA5 predictions are cached)
+
+### Concerns Review
+1. **Quality**: `compute_all_metrics()` does NOT include spectral coherence despite it being implemented in iteration 7. The metric exists in spectral.py but was never wired into the evaluation pipeline.
+2. **Workflow**: Comprehensive evaluation is NorESM-only. Human directive explicitly requires ERA5 evaluation with the same metric set. ERA5 predictions are cached (5 flow models × 10K samples × 10 members), so no GPU inference is needed.
+3. **Quality**: `compute_all_metrics()` hardcodes `UPSAMPLING_FACTOR = 2` (NorESM). ERA5 uses 4x. Must parameterize.
+
+### Plan
+Single deliverable: Add ERA5 evaluation to comprehensive.py with same metrics.
+- Parameterize `compute_all_metrics` (upsampling_factor, add spectral coherence)
+- Add `run_era5_eval()` that loads cached predictions + truth
+- Run evaluation (CPU-only)
+- Update report with both datasets side-by-side
+
+### Work Done
+- Added `spectral_coherence` (mean_spectral_coherence) to `compute_all_metrics()` — was missing since iteration 7
+- Parameterized `upsampling_factor` in `compute_all_metrics()` (was hardcoded to 2)
+- Added `run_era5_eval()` loading cached ERA5 predictions (5 flow models)
+- Added CLI `--dataset noresm|era5|both` flag
+- Ran ERA5 evaluation on 2000 test samples (CPU-only, ~2 min)
+- Visually verified all 3 diagnostic plots (PSD, rank histograms, metrics summary)
+- Updated EVAL_REPORT.md with both datasets side-by-side + cross-dataset analysis
+- All 71 tests pass, ruff clean, basedpyright clean
+
+### Key ERA5 Results
+| Model | CRPS | SSR | Coh |
+|---|---|---|---|
+| ResFlow-20s+AddCL | **0.212** | **1.013** | 0.915 |
+| FlowV2+AddCL | 0.217 | 1.196 | 0.915 |
+| Flow(none) | 0.219 | 0.936 | 0.916 |
+| ResFlow-Heun+AddCL | 1.631 | 3.023 | 0.398 | ← broken
+
+### Anomalies
+1. Flow(none) mass_violation=1e-6 despite "no constraint" — predictions likely generated with AddCL (filename mismatch)
+2. ResFlow-Heun+AddCL clearly diverged — excluded from analysis
+
+### Cross-Dataset Insight
+ERA5 ensembles well-calibrated (SSR ~1.0) vs NorESM severely underdispersive (SSR ~0.05). Same flow matching framework. Difference: ERA5 LR/HR from same reanalysis (consistent physics), NorESM LR/HR from different sims.
+
+### Iteration 8 End
+End commit: (pending)
+End time: (pending)

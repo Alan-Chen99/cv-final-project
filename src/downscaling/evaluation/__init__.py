@@ -6,7 +6,7 @@ from downscaling.evaluation.baselines import (
     upsample_bilinear,
 )
 from downscaling.evaluation.checkpoints import load_checkpoint, load_norm_stats
-from downscaling.evaluation.comprehensive import run_comprehensive_eval
+from downscaling.evaluation.comprehensive import run_comprehensive_eval, run_era5_eval
 from downscaling.evaluation.evaluate import evaluate_ensemble, evaluate_flow_model
 from downscaling.evaluation.harder import (
     evaluate_harder_cnn,
@@ -36,6 +36,7 @@ __all__ = [
     "load_harder_model",
     "load_norm_stats",
     "run_comprehensive_eval",
+    "run_era5_eval",
     "upsample_bicubic",
     "upsample_bilinear",
 ]

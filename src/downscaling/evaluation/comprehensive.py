@@ -1,10 +1,10 @@
-"""Comprehensive evaluation of all NorESM 2x SR models.
+"""Comprehensive evaluation of all trained models.
 
 Computes all metrics (CRPS, MAE, RMSE, mass violation, SSIM, KL divergence,
-PSD log-ratio, rank histogram, SSR) for all trained models and baselines.
-Generates diagnostic plots and saves results as JSON.
+PSD log-ratio, spectral coherence, rank histogram, SSR) for NorESM 2x SR and
+ERA5 4x SR models. ERA5 uses cached ensemble predictions; NorESM runs inference.
 
-Run: python -m downscaling.evaluation.comprehensive [--max-samples N]
+Run: python -m downscaling.evaluation.comprehensive [--max-samples N] [--dataset noresm|era5|both]
 """
 
 from __future__ import annotations
@@ -37,6 +37,7 @@ from downscaling.metrics import (
     ensemble_mean_psd,
     ensemble_mean_ssim,
     histogram_kl_divergence,
+    mean_spectral_coherence,
     psd_log_ratio,
     radial_psd,
     rank_histogram,
@@ -195,11 +196,13 @@ def compute_all_metrics(
     lr_orig: torch.Tensor,
     is_ensemble: bool,
     *,
+    upsampling_factor: int = 2,
     psd_samples: int = 500,
+    coherence_samples: int = 500,
 ) -> dict[str, object]:
     """Compute all metrics. truth: (N,H,W), preds: (N,H,W) or (N,M,H,W)."""
     n = truth.shape[0]
-    pool = nn.AvgPool2d(kernel_size=UPSAMPLING_FACTOR)
+    pool = nn.AvgPool2d(kernel_size=upsampling_factor)
 
     crps_v: list[float] = []
     mae_v: list[float] = []
@@ -250,6 +253,15 @@ def compute_all_metrics(
     mean_pred_psd = np.mean(pred_p, axis=0)
     psd_ratio = psd_log_ratio(k, mean_pred_psd, k, mean_truth_psd)
 
+    # Spectral coherence (batch metric — needs (N, H, W) pairs)
+    n_coh = min(n, coherence_samples)
+    if is_ensemble:
+        # Use ensemble mean for coherence
+        ens_means = preds[:n_coh].mean(axis=1)  # (N, H, W)
+    else:
+        ens_means = preds[:n_coh]
+    coh = mean_spectral_coherence(ens_means, truth[:n_coh])
+
     result: dict[str, object] = {
         "crps": float(np.mean(crps_v)),
         "mae": float(np.mean(mae_v)),
@@ -258,6 +270,7 @@ def compute_all_metrics(
         "ssim": float(np.mean(ssim_v)),
         "kl_divergence": float(np.mean(kl_v)),
         "psd_log_ratio": psd_ratio,
+        "spectral_coherence": coh,
         "psd_k": k.tolist(),
         "psd_power": mean_pred_psd.tolist(),
         "psd_truth_power": mean_truth_psd.tolist(),
@@ -284,11 +297,12 @@ def compute_all_metrics(
 def plot_psd_comparison(
     results: dict[str, dict[str, object]],
     output_dir: Path,
+    *,
+    title_suffix: str = "",
 ) -> None:
     """Plot PSD curves for all models vs truth on a single log-log plot."""
     fig, ax = plt.subplots(1, 1, figsize=(10, 7))
 
-    # Truth PSD (from any model's result — they all share the same truth)
     first = next(iter(results.values()))
     k = np.array(first["psd_k"])
     truth_power = np.array(first["psd_truth_power"])
@@ -302,7 +316,7 @@ def plot_psd_comparison(
 
     ax.set_xlabel("Wavenumber k")
     ax.set_ylabel("Power")
-    ax.set_title("Radially Averaged Power Spectral Density — NorESM TAS 2x SR")
+    ax.set_title(f"Radially Averaged Power Spectral Density{title_suffix}")
     ax.legend(fontsize=9)
     ax.grid(True, alpha=0.3)
     fig.tight_layout()
@@ -345,9 +359,11 @@ def plot_rank_histograms(
 def plot_metrics_summary(
     results: dict[str, dict[str, object]],
     output_dir: Path,
+    *,
+    title_suffix: str = "",
 ) -> None:
     """Plot bar chart comparing scalar metrics across models."""
-    metrics_to_plot = ["crps", "mae", "rmse", "mass_violation", "ssim", "kl_divergence", "psd_log_ratio"]
+    metrics_to_plot = ["crps", "mae", "rmse", "mass_violation", "ssim", "kl_divergence", "psd_log_ratio", "spectral_coherence"]
     # ssim: higher is better; everything else: lower is better
     names = list(results.keys())
     n_metrics = len(metrics_to_plot)
@@ -371,7 +387,7 @@ def plot_metrics_summary(
         for idx in range(n_metrics, len(axes)):
             axes[idx].set_visible(False)
 
-    fig.suptitle("Comprehensive Metric Comparison — NorESM TAS 2x SR", fontsize=13)
+    fig.suptitle(f"Comprehensive Metric Comparison{title_suffix}", fontsize=13)
     fig.tight_layout()
     fig.savefig(output_dir / "metrics_summary.png", dpi=150)
     plt.close(fig)
@@ -423,7 +439,7 @@ def run_comprehensive_eval(
     print(f"  Inference: {flow_time:.1f}s")
 
     print("  Computing metrics...")
-    results["Flow+AddCL"] = compute_all_metrics(truth, flow_preds, lr_orig, is_ensemble=True)
+    results["Flow+AddCL"] = compute_all_metrics(truth, flow_preds, lr_orig, is_ensemble=True, upsampling_factor=UPSAMPLING_FACTOR)
     results["Flow+AddCL"]["inference_time_s"] = flow_time
     results["Flow+AddCL"]["is_ensemble"] = True
     results["Flow+AddCL"]["n_ensemble"] = n_ensemble
@@ -449,7 +465,7 @@ def run_comprehensive_eval(
     cnn_time = time.time() - t0
     print(f"  Inference: {cnn_time:.1f}s")
     print("  Computing metrics...")
-    results["CNN(none)"] = compute_all_metrics(truth, cnn_preds, lr_orig, is_ensemble=False)
+    results["CNN(none)"] = compute_all_metrics(truth, cnn_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
     results["CNN(none)"]["inference_time_s"] = cnn_time
     results["CNN(none)"]["is_ensemble"] = False
     print(f"  CRPS={results['CNN(none)']['crps']:.4f}  MAE={results['CNN(none)']['mae']:.4f}  "
@@ -469,7 +485,7 @@ def run_comprehensive_eval(
     cnn_sm_time = time.time() - t0
     print(f"  Inference: {cnn_sm_time:.1f}s")
     print("  Computing metrics...")
-    results["CNN(softmax)"] = compute_all_metrics(truth, cnn_sm_preds, lr_orig, is_ensemble=False)
+    results["CNN(softmax)"] = compute_all_metrics(truth, cnn_sm_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
     results["CNN(softmax)"]["inference_time_s"] = cnn_sm_time
     results["CNN(softmax)"]["is_ensemble"] = False
     print(f"  CRPS={results['CNN(softmax)']['crps']:.4f}  MAE={results['CNN(softmax)']['mae']:.4f}  "
@@ -491,7 +507,7 @@ def run_comprehensive_eval(
     gan_time = time.time() - t0
     print(f"  Inference: {gan_time:.1f}s")
     print("  Computing metrics...")
-    results["GAN(softmax)"] = compute_all_metrics(truth, gan_preds, lr_orig, is_ensemble=True)
+    results["GAN(softmax)"] = compute_all_metrics(truth, gan_preds, lr_orig, is_ensemble=True, upsampling_factor=UPSAMPLING_FACTOR)
     results["GAN(softmax)"]["inference_time_s"] = gan_time
     results["GAN(softmax)"]["is_ensemble"] = True
     results["GAN(softmax)"]["n_ensemble"] = n_ensemble
@@ -510,7 +526,7 @@ def run_comprehensive_eval(
     swinir_time = time.time() - t0
     print(f"  Inference: {swinir_time:.1f}s")
     print("  Computing metrics...")
-    results["SwinIR+AddCL"] = compute_all_metrics(truth, swinir_preds, lr_orig, is_ensemble=False)
+    results["SwinIR+AddCL"] = compute_all_metrics(truth, swinir_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
     results["SwinIR+AddCL"]["inference_time_s"] = swinir_time
     results["SwinIR+AddCL"]["is_ensemble"] = False
     print(f"  CRPS={results['SwinIR+AddCL']['crps']:.4f}  MAE={results['SwinIR+AddCL']['mae']:.4f}  "
@@ -519,7 +535,7 @@ def run_comprehensive_eval(
     # --- Baselines ---
     print("\n--- Bicubic baseline ---")
     bicubic_preds = upsample_bicubic(lr_orig, UPSAMPLING_FACTOR)[:, 0].numpy()
-    results["Bicubic"] = compute_all_metrics(truth, bicubic_preds, lr_orig, is_ensemble=False)
+    results["Bicubic"] = compute_all_metrics(truth, bicubic_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
     results["Bicubic"]["is_ensemble"] = False
     results["Bicubic"]["inference_time_s"] = 0.0
     print(f"  CRPS={results['Bicubic']['crps']:.4f}  MAE={results['Bicubic']['mae']:.4f}  "
@@ -527,7 +543,7 @@ def run_comprehensive_eval(
 
     print("\n--- Bilinear baseline ---")
     bilinear_preds = upsample_bilinear(lr_orig, UPSAMPLING_FACTOR)[:, 0].numpy()
-    results["Bilinear"] = compute_all_metrics(truth, bilinear_preds, lr_orig, is_ensemble=False)
+    results["Bilinear"] = compute_all_metrics(truth, bilinear_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
     results["Bilinear"]["is_ensemble"] = False
     results["Bilinear"]["inference_time_s"] = 0.0
     print(f"  CRPS={results['Bilinear']['crps']:.4f}  MAE={results['Bilinear']['mae']:.4f}  "
@@ -542,35 +558,196 @@ def run_comprehensive_eval(
 
     # --- Plots ---
     print("\n--- Generating plots ---")
-    plot_psd_comparison(results, output_dir)
+    title_suffix = " — NorESM TAS 2x SR"
+    plot_psd_comparison(results, output_dir, title_suffix=title_suffix)
     plot_rank_histograms(results, output_dir)
-    plot_metrics_summary(results, output_dir)
+    plot_metrics_summary(results, output_dir, title_suffix=title_suffix)
 
     # --- Summary table ---
     print("\n" + "=" * 100)
     print("COMPREHENSIVE EVALUATION RESULTS — NorESM TAS 2x SR")
     print(f"Samples: {n}, Ensemble size: {n_ensemble}, ODE steps: {ode_steps}")
     print("=" * 100)
-    header = f"{'Model':<18} {'CRPS':>8} {'MAE':>8} {'RMSE':>8} {'MassViol':>8} {'SSIM':>8} {'KL':>8} {'PSD-LR':>8} {'SSR':>8}"
+    header = f"{'Model':<18} {'CRPS':>8} {'MAE':>8} {'RMSE':>8} {'MassViol':>8} {'SSIM':>8} {'KL':>8} {'PSD-LR':>8} {'Coh':>8} {'SSR':>8}"
     print(header)
     print("-" * len(header))
     for name, r in results.items():
         ssr_str = f"{r['ssr']:.3f}" if "ssr" in r else "  —"
+        coh_str = f"{r['spectral_coherence']:.3f}" if "spectral_coherence" in r else "  —"
         print(
             f"{name:<18} {r['crps']:8.4f} {r['mae']:8.4f} {r['rmse']:8.4f} "
             f"{r['mass_violation']:8.4f} {r['ssim']:8.4f} {r['kl_divergence']:8.4f} "
-            f"{r['psd_log_ratio']:8.4f} {ssr_str:>8}"
+            f"{r['psd_log_ratio']:8.4f} {coh_str:>8} {ssr_str:>8}"
         )
     print("=" * 100)
 
     return results
 
 
+ERA5_UPSAMPLING_FACTOR = 4
+
+# Mapping from prediction filename to display name
+ERA5_PREDICTION_NAMES: dict[str, str] = {
+    "flow_flow_none_test_ensemble.pt": "Flow(none)",
+    "flow_flow_residual_none_test_ensemble.pt": "ResFlow(none)",
+    "flow_flow_v2_addcl_test_ensemble.pt": "FlowV2+AddCL",
+    "flow_flow_res_20step_addcl_test_ensemble.pt": "ResFlow-20s+AddCL",
+    "flow_flow_res_heun_addcl_test_ensemble.pt": "ResFlow-Heun+AddCL",
+}
+
+
+def run_era5_eval(
+    output_dir: Path,
+    max_samples: int = 2000,
+) -> dict[str, dict[str, object]]:
+    """Run comprehensive evaluation on ERA5 4x SR cached predictions.
+
+    All predictions are pre-computed .pt files — no GPU inference needed.
+    """
+    output_dir.mkdir(parents=True, exist_ok=True)
+    from downscaling.data import load_era5_tcw
+
+    print("Loading ERA5 test data...")
+    lr_up, _residual, hr, lr_orig = load_era5_tcw(str(POOL), "test")
+    n = min(hr.shape[0], max_samples)
+    lr_up, hr, lr_orig = lr_up[:n], hr[:n], lr_orig[:n]
+    truth = hr[:, 0].numpy()  # (N, 128, 128)
+    print(f"  {n} samples, HR shape: {hr.shape}, LR shape: {lr_orig.shape}")
+
+    results: dict[str, dict[str, object]] = {}
+    pred_dir = POOL / "era5_sr_data" / "prediction"
+
+    # --- Cached ensemble predictions ---
+    for filename, display_name in ERA5_PREDICTION_NAMES.items():
+        pred_path = pred_dir / filename
+        if not pred_path.exists():
+            print(f"  Skipping {display_name}: {pred_path} not found")
+            continue
+
+        print(f"\n--- {display_name} ---")
+        t0 = time.time()
+        raw = torch.load(str(pred_path), map_location="cpu", weights_only=True)
+        # Shape: (N, M, 1, 1, 128, 128) → (N, M, 128, 128)
+        preds_all = raw[:n].squeeze(2).squeeze(2).numpy()
+        n_ens = preds_all.shape[1]
+        load_time = time.time() - t0
+        print(f"  Loaded {preds_all.shape}, {n_ens} members, {load_time:.1f}s")
+
+        print("  Computing metrics...")
+        results[display_name] = compute_all_metrics(
+            truth, preds_all, lr_orig, is_ensemble=True,
+            upsampling_factor=ERA5_UPSAMPLING_FACTOR,
+        )
+        results[display_name]["is_ensemble"] = True
+        results[display_name]["n_ensemble"] = n_ens
+        results[display_name]["inference_time_s"] = 0.0  # pre-computed
+        r = results[display_name]
+        print(f"  CRPS={r['crps']:.4f}  MAE={r['mae']:.4f}  "
+              f"RMSE={r['rmse']:.4f}  SSIM={r['ssim']:.4f}  "
+              f"SSR={r.get('ssr', '?')}  Coh={r.get('spectral_coherence', '?')}")
+
+    # --- Baselines ---
+    print("\n--- Bicubic baseline ---")
+    bicubic_preds = upsample_bicubic(lr_orig, ERA5_UPSAMPLING_FACTOR)[:, 0].numpy()
+    results["Bicubic"] = compute_all_metrics(
+        truth, bicubic_preds, lr_orig, is_ensemble=False,
+        upsampling_factor=ERA5_UPSAMPLING_FACTOR,
+    )
+    results["Bicubic"]["is_ensemble"] = False
+    results["Bicubic"]["inference_time_s"] = 0.0
+    print(f"  CRPS={results['Bicubic']['crps']:.4f}  MAE={results['Bicubic']['mae']:.4f}")
+
+    print("\n--- Bilinear baseline ---")
+    bilinear_preds = upsample_bilinear(lr_orig, ERA5_UPSAMPLING_FACTOR)[:, 0].numpy()
+    results["Bilinear"] = compute_all_metrics(
+        truth, bilinear_preds, lr_orig, is_ensemble=False,
+        upsampling_factor=ERA5_UPSAMPLING_FACTOR,
+    )
+    results["Bilinear"]["is_ensemble"] = False
+    results["Bilinear"]["inference_time_s"] = 0.0
+    print(f"  CRPS={results['Bilinear']['crps']:.4f}  MAE={results['Bilinear']['mae']:.4f}")
+
+    # --- Save results ---
+    print("\n--- Saving results ---")
+    results_path = output_dir / "era5_comprehensive_results.json"
+    with open(results_path, "w") as f:
+        json.dump(results, f, indent=2)
+    print(f"  Saved {results_path}")
+
+    # --- Plots ---
+    print("\n--- Generating plots ---")
+    title_suffix = " — ERA5 TCW 4x SR"
+    plot_psd_comparison(results, output_dir, title_suffix=title_suffix)
+    plot_rank_histograms(results, output_dir)
+    plot_metrics_summary(results, output_dir, title_suffix=title_suffix)
+
+    # --- Summary table ---
+    print("\n" + "=" * 110)
+    print("COMPREHENSIVE EVALUATION RESULTS — ERA5 TCW 4x SR")
+    print(f"Samples: {n}")
+    print("=" * 110)
+    header = f"{'Model':<22} {'CRPS':>8} {'MAE':>8} {'RMSE':>8} {'MassViol':>8} {'SSIM':>8} {'KL':>8} {'PSD-LR':>8} {'Coh':>8} {'SSR':>8}"
+    print(header)
+    print("-" * len(header))
+    for name, r in results.items():
+        ssr_str = f"{r['ssr']:.3f}" if "ssr" in r else "  —"
+        coh_str = f"{r['spectral_coherence']:.3f}" if "spectral_coherence" in r else "  —"
+        print(
+            f"{name:<22} {r['crps']:8.4f} {r['mae']:8.4f} {r['rmse']:8.4f} "
+            f"{r['mass_violation']:8.4f} {r['ssim']:8.4f} {r['kl_divergence']:8.4f} "
+            f"{r['psd_log_ratio']:8.4f} {coh_str:>8} {ssr_str:>8}"
+        )
+    print("=" * 110)
+
+    return results
+
+
+def print_summary_table(
+    label: str,
+    results: dict[str, dict[str, object]],
+    n: int,
+) -> None:
+    """Print a formatted results table."""
+    print(f"\n{'=' * 110}")
+    print(f"EVALUATION RESULTS — {label}")
+    print(f"Samples: {n}")
+    print("=" * 110)
+    header = f"{'Model':<22} {'CRPS':>8} {'MAE':>8} {'RMSE':>8} {'MassViol':>8} {'SSIM':>8} {'KL':>8} {'PSD-LR':>8} {'Coh':>8} {'SSR':>8}"
+    print(header)
+    print("-" * len(header))
+    for name, r in results.items():
+        ssr_str = f"{r['ssr']:.3f}" if "ssr" in r else "  —"
+        coh_str = f"{r['spectral_coherence']:.3f}" if "spectral_coherence" in r else "  —"
+        print(
+            f"{name:<22} {r['crps']:8.4f} {r['mae']:8.4f} {r['rmse']:8.4f} "
+            f"{r['mass_violation']:8.4f} {r['ssim']:8.4f} {r['kl_divergence']:8.4f} "
+            f"{r['psd_log_ratio']:8.4f} {coh_str:>8} {ssr_str:>8}"
+        )
+    print("=" * 110)
+
+
 if __name__ == "__main__":
     max_samples = 2000
-    if len(sys.argv) > 1 and sys.argv[1] == "--max-samples":
-        max_samples = int(sys.argv[2])
+    dataset = "both"
+
+    args = sys.argv[1:]
+    i = 0
+    while i < len(args):
+        if args[i] == "--max-samples":
+            max_samples = int(args[i + 1])
+            i += 2
+        elif args[i] == "--dataset":
+            dataset = args[i + 1]
+            i += 2
+        else:
+            i += 1
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    output = POOL / "metrics"
-    run_comprehensive_eval(output, device=device, max_samples=max_samples)
+
+    if dataset in ("noresm", "both"):
+        noresm_output = POOL / "metrics" / "noresm"
+        run_comprehensive_eval(noresm_output, device=device, max_samples=max_samples)
+
+    if dataset in ("era5", "both"):
+        era5_output = POOL / "metrics" / "era5"
+        run_era5_eval(era5_output, max_samples=max_samples)
