@@ -430,3 +430,53 @@ Diagnose and fix the eval execution path. The sbatch script (singularity) is the
 - Regenerate ensemble plots for samples 3-4
 
 - **End**: 2026-05-11T21:50:33Z, commit (pending)
+
+## Iteration 11
+- **Start**: 2026-05-11T21:52:27Z, commit 7e7bf25
+- **Prefix**: rqdn-5230 (reused from iter10, same chain)
+
+### Concerns (3+)
+
+1. **Fact: Report test count was wrong (156 vs actual 144)** — Iteration 9 claimed 156 tests in the report but only 144 exist. Fixed.
+
+2. **Quality: Report figure inventory missed 3 cross-dataset figures** — `dual_metrics_panel.png`, `dual_crps.png`, `constraint_impact.png` existed in `figures/` but were not in the report's figure inventory. Fixed.
+
+3. **Quality: Lint errors in 2 legacy scripts** — `scripts/eval_crps.py` (import order + unused import) and `scripts/flow_downscale.py` (unused loop variable). Fixed.
+
+4. **Workflow: GPU finally became available after 10 blocked iterations** — ivy-ash workflow released. Submitted sbatch on both mit_preemptable (Priority-blocked, cancelled) and mit_normal_gpu (started on node3205 L40S). Job 13766068 completed successfully in 19 minutes.
+
+### Plan for this iteration
+Submit GPU eval, fix code quality issues, update report with 8-metric verified data.
+
+### Work done
+- **GPU eval completed**: Job 13766068 on node3205 (L40S), ~19 min total
+  - ERA5: 15/15 methods, all 8 metrics, spectral .npz saved
+  - NorESM: 12/12 methods, all 8 metrics, spectral .npz saved
+  - Output files: eval_results_8metrics.json, eval_results_8metrics_spectral.npz, noresm_eval_results_8metrics.json, noresm_eval_results_8metrics_spectral.npz
+- **Verified iter5 RALSD claims**: flow-wide96 RALSD=0.19dB (actual 0.186), bilinear RALSD=1.09dB — iter5 stdout claims confirmed accurate
+- **Updated METRICS_REPORT.md**:
+  - ERA5 table: full 8 metrics for all 15 methods (was 4 metrics)
+  - NorESM table: full 8 metrics for all 12 methods (was 4 metrics)
+  - Added 2 new ERA5 findings (spectral + distribution insights)
+  - Added 2 new NorESM findings (spectral + EMD bimodal cluster)
+  - Added cross-dataset spectral comparison rows
+  - Added cross-dataset figure inventory (was missing 3 figures)
+  - Updated remaining work section
+  - Fixed test count (156 -> 144)
+- **Fixed lint**: eval_crps.py imports, flow_downscale.py unused variable
+- All 144 tests pass, lint clean
+
+### Key ERA5 results (verified from JSON)
+| Method | CRPS | RALSD | SSIM | EMD |
+|--------|------|-------|------|-----|
+| flow-wide96 | 0.172 | 0.19dB | 0.993 | 0.003 |
+| flow-uniform | 0.176 | 0.22dB | 0.992 | 0.004 |
+| swinir-ft+addcl | 0.263 | 0.34dB | 0.991 | 0.006 |
+| bilinear | 0.519 | 1.09dB | 0.976 | 0.087 |
+
+### Next iteration work
+- Generate spectral figures from .npz data (PSD curves, bias plots, RALSD bars)
+- Generate extended 8-metric bar charts
+- Regenerate ensemble plots for samples 3-4 (code fix from iter6)
+- Update dual metrics panel with 8 metrics
+

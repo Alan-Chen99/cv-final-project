@@ -13,14 +13,14 @@ Inference: Euler ODE from t=0 to t=1 with N steps.
 import argparse
 import math
 import time
+from pathlib import Path
+
 import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from torch.utils.data import DataLoader, TensorDataset
-from pathlib import Path
 from scipy.optimize import linear_sum_assignment
-
+from torch.utils.data import DataLoader, TensorDataset
 
 # ── OT coupling ──────────────────────────────────────────────────────────────
 
@@ -670,7 +670,7 @@ def generate_ensemble(model, lr_input, n_members, n_steps, device,
     dt = 1.0 / n_steps
 
     all_members = []
-    for m in range(n_members):
+    for _m in range(n_members):
         if lr_anchor:
             x = cond + noise_std * torch.randn(B, 1, 128, 128, device=device)
         else:

@@ -81,29 +81,27 @@ Earth Mover Distance (Wasserstein-1) measures the minimum "work" to transform on
 
 ## ERA5 TCW 4x Results
 
-**Source**: `eval_results_500.json` (verified, 500 test samples)
+**Source**: `eval_results_8metrics.json` (verified, 500 test samples, all 8 metrics)
 
 Methods sorted by CRPS (best first). All values from verified JSON.
 
-| Method | CRPS | MAE | RMSE | Mass Viol. |
-|--------|------|-----|------|------------|
-| flow-wide96-amp (28M) | **0.1721** | **0.2513** | **0.4571** | 1.0e-6 |
-| flow-uniform-amp (13M) | 0.1753 | 0.2559 | 0.4662 | 1.0e-6 |
-| flow-v2-zscore (13M) | 0.1754 | 0.2559 | 0.4673 | 1.0e-6 |
-| flow-logitnorm-ema (13M) | 0.1815 | 0.2658 | 0.5003 | 1.0e-6 |
-| swinir-finetuned+addcl | 0.2632 | 0.2632 | 0.5094 | 1.4e-6 |
-| swinir-finetuned | 0.2649 | 0.2649 | 0.5108 | 0.0247 |
-| harder-gan+smcl | 0.2835 | 0.2866 | 0.5540 | 1.1e-6 |
-| harder-cnn+smcl | 0.2951 | 0.2951 | 0.5817 | 1.6e-6 |
-| swinir-zeroshot+addcl | 0.3106 | 0.3106 | 0.6844 | 1.4e-6 |
-| harder-cnn | 0.3129 | 0.3129 | 0.6277 | 0.0362 |
-| swinir-zeroshot | 0.3257 | 0.3257 | 0.7025 | 0.0835 |
-| bicubic+addcl | 0.3626 | 0.3626 | 0.7408 | 1.4e-6 |
-| bicubic | 0.3939 | 0.3939 | 0.7849 | 0.1492 |
-| bilinear+addcl | 0.3991 | 0.3991 | 0.8040 | 1.4e-6 |
-| bilinear | 0.5191 | 0.5191 | 0.9639 | 0.3203 |
-
-> **Pending**: RALSD, SSIM, PSNR, EMD columns require GPU re-evaluation with updated pipeline. Preliminary stdout data from a prior interrupted run (iter5) showed RALSD ranging from 0.19 dB (flow-wide96) to 1.09 dB (bilinear). These values are NOT included here because they were not saved to disk and cannot be verified.
+| Method | CRPS | MAE | RMSE | RALSD (dB) | SSIM | PSNR (dB) | EMD | Mass Viol. |
+|--------|------|-----|------|------------|------|-----------|-----|------------|
+| flow-wide96-amp (28M) | **0.1718** | **0.2509** | **0.4561** | **0.19** | **0.9925** | **51.6** | **0.0032** | 1.0e-6 |
+| flow-uniform-amp (13M) | 0.1755 | 0.2564 | 0.4672 | 0.22 | 0.9921 | 51.4 | 0.0038 | 1.0e-6 |
+| flow-v2-zscore (13M) | 0.1755 | 0.2562 | 0.4678 | 0.21 | 0.9921 | 51.4 | 0.0037 | 1.0e-6 |
+| flow-logitnorm-ema (13M) | 0.1812 | 0.2653 | 0.4990 | 0.29 | 0.9914 | 51.1 | 0.0046 | 1.0e-6 |
+| swinir-finetuned+addcl | 0.2632 | 0.2632 | 0.5094 | 0.34 | 0.9910 | 51.2 | 0.0055 | 1.4e-6 |
+| swinir-finetuned | 0.2649 | 0.2649 | 0.5108 | 0.35 | 0.9910 | 51.2 | 0.0209 | 0.0247 |
+| harder-gan+smcl | 0.2835 | 0.2866 | 0.5540 | 0.46 | 0.9896 | 50.3 | 0.0068 | 1.1e-6 |
+| harder-cnn+smcl | 0.2951 | 0.2951 | 0.5817 | 0.49 | 0.9887 | 50.0 | 0.0081 | 1.6e-6 |
+| swinir-zeroshot+addcl | 0.3106 | 0.3106 | 0.6844 | 0.28 | 0.9873 | 49.4 | 0.0068 | 1.4e-6 |
+| harder-cnn | 0.3129 | 0.3129 | 0.6277 | 0.57 | 0.9876 | 49.5 | 0.0129 | 0.0362 |
+| swinir-zeroshot | 0.3257 | 0.3257 | 0.7025 | 0.25 | 0.9869 | 49.0 | 0.0129 | 0.0835 |
+| bicubic+addcl | 0.3626 | 0.3626 | 0.7408 | 0.70 | 0.9843 | 48.0 | 0.0138 | 1.4e-6 |
+| bicubic | 0.3939 | 0.3939 | 0.7849 | 0.90 | 0.9825 | 47.4 | 0.0322 | 0.1492 |
+| bilinear+addcl | 0.3991 | 0.3991 | 0.8040 | 0.62 | 0.9815 | 47.0 | 0.0217 | 0.0014 |
+| bilinear | 0.5191 | 0.5191 | 0.9639 | 1.09 | 0.9758 | 45.1 | 0.0867 | 0.3203 |
 
 ### ERA5 Key Findings
 
@@ -119,28 +117,32 @@ Methods sorted by CRPS (best first). All values from verified JSON.
 
 6. **CRPS = MAE for deterministic methods**: Baselines, SwinIR, and Harder-CNN variants show identical CRPS and MAE. Only GAN and flow methods differ (CRPS < MAE), confirming correct probabilistic evaluation.
 
+7. **Spectral fidelity confirms flow dominance**: flow-wide96-amp achieves RALSD 0.19 dB (best), while bilinear scores 1.09 dB (worst). SwinIR zero-shot has surprisingly good RALSD (0.25 dB) despite mediocre CRPS — its pretrained weights preserve frequency content even without climate-specific training.
+
+8. **EMD reveals distribution shift in unconstrained methods**: Bilinear without constraint has EMD 0.087 (largest), while flow-wide96 has 0.003 (smallest). AddCL improves EMD for baselines (bilinear: 0.087 -> 0.022) by correcting systematic distributional bias.
+
 ---
 
 ## NorESM TAS 2x Results
 
-**Source**: `noresm_eval_results_500.json` (verified, 500 test samples)
+**Source**: `noresm_eval_results_8metrics.json` (verified, 500 test samples, all 8 metrics)
 
 Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not trained on NorESM).
 
-| Method | CRPS | MAE | RMSE | Mass Viol. |
-|--------|------|-----|------|------------|
-| flow-wide96-amp (28M) | **0.6486** | 0.9669 | 1.5130 | 1.119 |
-| swinir-finetuned | 0.9880 | 0.9880 | 1.5337 | 1.065 |
-| harder-cnn | 1.1315 | 1.1315 | 1.6945 | 0.943 |
-| harder-cnn+smcl | 1.4535 | 1.4535 | 2.2767 | 4.5e-6 |
-| swinir-finetuned+addcl | 1.4550 | 1.4550 | 2.2790 | 6.9e-6 |
-| bilinear | 1.4725 | 1.4725 | 2.3071 | 0.162 |
-| swinir-zeroshot | 1.4753 | 1.4753 | 2.3239 | 0.067 |
-| bicubic | 1.4766 | 1.4766 | 2.3187 | 0.061 |
-| bilinear+addcl | 1.4779 | 1.4779 | 2.3232 | 7.2e-6 |
-| swinir-zeroshot+addcl | 1.4784 | 1.4784 | 2.3244 | 7.1e-6 |
-| bicubic+addcl | 1.4794 | 1.4794 | 2.3253 | 7.3e-6 |
-| harder-gan+smcl | 1.4809 | 1.5035 | 2.3449 | 1.2e-5 |
+| Method | CRPS | MAE | RMSE | RALSD (dB) | SSIM | PSNR (dB) | EMD | Mass Viol. |
+|--------|------|-----|------|------------|------|-----------|-----|------------|
+| flow-wide96-amp (28M) | **0.6492** | **0.9669** | **1.5130** | **0.03** | **0.9891** | **39.0** | **0.1740** | 1.119 |
+| swinir-finetuned | 0.9880 | 0.9880 | 1.5337 | 0.04 | 0.9864 | 38.7 | 0.2954 | 1.065 |
+| harder-cnn | 1.1315 | 1.1315 | 1.6945 | 0.08 | 0.9782 | 37.4 | 0.2842 | 0.943 |
+| harder-cnn+smcl | 1.4535 | 1.4535 | 2.2767 | 0.32 | 0.9676 | 35.3 | 0.4993 | 4.5e-6 |
+| swinir-finetuned+addcl | 1.4550 | 1.4550 | 2.2790 | 0.32 | 0.9670 | 35.3 | 0.4992 | 6.9e-6 |
+| bilinear | 1.4725 | 1.4725 | 2.3071 | 0.34 | 0.9617 | 35.0 | 0.4897 | 0.162 |
+| swinir-zeroshot | 1.4753 | 1.4753 | 2.3239 | 0.30 | 0.9617 | 35.0 | 0.4874 | 0.067 |
+| bicubic | 1.4766 | 1.4766 | 2.3187 | 0.32 | 0.9625 | 35.0 | 0.5004 | 0.061 |
+| bilinear+addcl | 1.4779 | 1.4779 | 2.3232 | 0.31 | 0.9621 | 35.0 | 0.4995 | 7.2e-6 |
+| swinir-zeroshot+addcl | 1.4784 | 1.4784 | 2.3244 | 0.31 | 0.9625 | 35.0 | 0.4993 | 7.1e-6 |
+| bicubic+addcl | 1.4794 | 1.4794 | 2.3253 | 0.32 | 0.9621 | 35.0 | 0.5004 | 7.3e-6 |
+| harder-gan+smcl | 1.4809 | 1.5035 | 2.3451 | 0.38 | 0.9564 | 34.7 | 0.4979 | 1.2e-5 |
 
 ### NorESM Key Findings
 
@@ -159,6 +161,10 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 
 5. **Harder-GAN fails on NorESM**: harder-gan+smcl (CRPS 1.481) is the worst method. The GAN adversarial loss, which helped on ERA5, appears to hurt on NorESM — possibly due to smaller dataset or different data characteristics.
 
+6. **Spectral: all methods similar in RALSD range 0.03-0.38 dB**: NorESM RALSD range is much narrower than ERA5 (0.19-1.09 dB). The top 3 methods (flow 0.03, swinir-ft 0.04, harder-cnn 0.08) have near-perfect spectral fidelity. Constrained methods cluster at 0.30-0.38 dB — constraint enforcement corrupts spectral content.
+
+7. **EMD confirms bimodal distribution**: The bottom 9 methods (CRPS >1.45) all have EMD ~0.49-0.50, essentially indistinguishable. Only the top 3 methods separate from this cluster: flow (0.17), harder-cnn (0.28), swinir-ft (0.30).
+
 ---
 
 ## Cross-Dataset Comparison
@@ -167,12 +173,23 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 |---------|-------------|---------------|
 | Best method | flow-wide96-amp | flow-wide96-amp |
 | Best CRPS | 0.172 | 0.649 |
-| Flow vs next-best (%) | -35% | -34% |
+| Best RALSD | 0.19 dB (flow-wide96) | 0.03 dB (flow-wide96) |
+| Best EMD | 0.003 (flow-wide96) | 0.174 (flow-wide96) |
+| Flow vs next-best CRPS (%) | -35% | -34% |
 | Constraint effect | Consistently helps | Consistently hurts |
 | GAN benefit | Yes (harder-gan beats harder-cnn) | No (harder-gan worst overall) |
 | SwinIR finetuning gap | 0.326 -> 0.265 (-19%) | 1.475 -> 0.988 (-33%) |
+| RALSD range | 0.19 - 1.09 dB | 0.03 - 0.38 dB |
+| SSIM range | 0.976 - 0.993 | 0.956 - 0.989 |
 
 ## Figures
+
+### Cross-Dataset Summary (`figures/`)
+| File | Description | Status |
+|------|-------------|--------|
+| `dual_metrics_panel.png` | ERA5 vs NorESM side-by-side, 4x4 grid (CRPS, MAE, RMSE, mass violation) | Current |
+| `dual_crps.png` | Cross-dataset CRPS comparison (sorted bars, ERA5 left, NorESM right) | Current |
+| `constraint_impact.png` | Delta CRPS (constrained - unconstrained) for 4 method pairs, both datasets | Current |
 
 ### ERA5 Figures (`figures/era5/`)
 | File | Description | Status |
@@ -196,11 +213,11 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 | `noresm_sample_{0-2}_ensemble.png` | Ensemble spread visualization | Current |
 | `noresm_sample_{3-4}_ensemble.png` | Ensemble spread visualization | **Missing** (code fix applied, pending GPU re-run) |
 
-### Pending Figures (require GPU eval with updated pipeline)
-- Extended metrics panel (all 8 metrics, 3x3 grid)
-- Spectral PSD curves (log-log, ground truth vs methods)
-- Spectral bias plot (per-frequency bias for each method)
-- RALSD bar chart (dedicated spectral metric comparison)
+### Pending Figures (spectral .npz data now available, need figure generation script run)
+- Extended metrics panel (all 8 metrics, 3x3 grid) — data: `eval_results_8metrics.json`
+- Spectral PSD curves (log-log, ground truth vs methods) — data: `*_spectral.npz`
+- Spectral bias plot (per-frequency bias for each method) — data: `*_spectral.npz`
+- RALSD bar chart (dedicated spectral metric comparison) — data: `eval_results_8metrics.json`
 
 ## Implementation
 
@@ -218,13 +235,13 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 - `spectral.py`: `plot_psd_comparison()`, `plot_spectral_bias()`, `plot_extended_metrics_panel()`, `plot_ralsd_comparison()`
 
 ### Test Coverage
-- 156 non-GPU tests pass (spectral metrics, structural metrics, distribution metrics, batch metrics, plotting)
+- 144 non-GPU tests pass (spectral metrics, structural metrics, distribution metrics, batch metrics, plotting)
 - Lint (ruff), format (ruff), typecheck (basedpyright): all pass
 
 ## Remaining Work
 
-1. **GPU eval with 8 metrics** — Re-run `run_eval.py --max-samples 500` and `run_eval_noresm.py --max-samples 500` on GPU to produce verified JSON with RALSD/SSIM/PSNR/EMD + spectral .npz files
-2. **Generate spectral figures** — PSD curves, spectral bias, RALSD bar chart from .npz data
-3. **Generate extended metrics panel** — 8-metric bar chart (3x3 grid)
+1. ~~**GPU eval with 8 metrics**~~ — **DONE** (iter11). All 15 ERA5 + 12 NorESM methods evaluated with 8 metrics. Results: `eval_results_8metrics.json`, `noresm_eval_results_8metrics.json`, `*_spectral.npz`.
+2. **Generate spectral figures** — PSD curves, spectral bias, RALSD bar chart from .npz data (data ready, needs `make_figures.py` update to read from .npz)
+3. **Generate extended metrics panel** — 8-metric bar chart (3x3 grid, data ready in JSON)
 4. **Fix ensemble plots** — Re-run `make_figures.py` on GPU to generate samples 3-4 ensemble plots (code fix already applied)
-5. **NorESM flow constraint analysis** — Evaluate flow-wide96-amp+addcl on NorESM to quantify constraint impact on the best model
+5. **Update dual metrics panel** — Current cross-dataset figures show 4 metrics; should show all 8

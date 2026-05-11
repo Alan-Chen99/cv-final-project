@@ -8,9 +8,9 @@ fc.shape[-1]**2 (=128²) instead of fc.shape[0]**2 (=M²).
 This script provides a correct implementation.
 """
 import argparse
+
 import numpy as np
 import torch
-from pathlib import Path
 
 
 def crps_ensemble(obs: np.ndarray, forecasts: np.ndarray) -> float:
