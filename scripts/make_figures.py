@@ -536,8 +536,10 @@ def _save_sample_figures(
 def main() -> None:
     parser = argparse.ArgumentParser(description="Generate visualization figures")
     parser.add_argument("--pool-dir", type=Path, default=POOL)
-    parser.add_argument("--era5-results", type=Path, default=Path("eval_results_500.json"))
-    parser.add_argument("--noresm-results", type=Path, default=Path("noresm_eval_results_500.json"))
+    parser.add_argument("--era5-results", type=Path, default=Path("eval_results_8metrics.json"))
+    parser.add_argument(
+        "--noresm-results", type=Path, default=Path("noresm_eval_results_8metrics.json")
+    )
     parser.add_argument("--output-dir", type=Path, default=Path("figures"))
     parser.add_argument("--metrics-only", action="store_true")
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")

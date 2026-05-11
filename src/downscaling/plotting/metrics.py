@@ -313,28 +313,48 @@ def plot_dual_metrics_panel(
     label_a: str = "ERA5 TCW (4x)",
     label_b: str = "NorESM TAS (2x)",
     output_path: str | Path | None = None,
-    figsize: tuple[float, float] = (18, 14),
+    figsize: tuple[float, float] = (18, 24),
 ) -> plt.Figure:
-    """4-row x 2-col panel: CRPS/MAE/RMSE/MassViolation for two datasets."""
+    """8-row x 2-col panel: all 8 metrics for two datasets side-by-side."""
     shared = sorted(set(results_a) & set(results_b))
-    metrics = [
-        ("crps", "CRPS", False),
-        ("mae", "MAE", False),
-        ("rmse", "RMSE", False),
-        ("mass_violation", "Mass Violation", True),
+
+    # All 8 metrics: (key, ylabel, use_log, direction)
+    metrics: list[tuple[str, str, bool, str]] = [
+        ("crps", "CRPS", False, "lower"),
+        ("mae", "MAE", False, "lower"),
+        ("rmse", "RMSE", False, "lower"),
+        ("ssim", "SSIM", False, "higher"),
+        ("psnr", "PSNR (dB)", False, "higher"),
+        ("ralsd", "RALSD (dB)", False, "lower"),
+        ("emd", "EMD", False, "lower"),
+        ("mass_violation", "Mass Violation", True, "lower"),
     ]
 
-    fig, axes = plt.subplots(4, 2, figsize=figsize)
-    for row, (key, ylabel, use_log) in enumerate(metrics):
+    # Filter to metrics that exist in the data
+    available_metrics = [
+        (key, ylabel, use_log, direction)
+        for key, ylabel, use_log, direction in metrics
+        if any(key in results_a.get(m, {}) for m in shared)
+        or any(key in results_b.get(m, {}) for m in shared)
+    ]
+
+    n_rows = len(available_metrics)
+    fig, axes = plt.subplots(n_rows, 2, figsize=(figsize[0], 3 * n_rows))
+    if n_rows == 1:
+        axes = axes[np.newaxis, :]
+
+    for row, (key, ylabel, use_log, direction) in enumerate(available_metrics):
+        better = "lower" if direction == "lower" else "higher"
+        label_with_dir = f"{ylabel} ({better} is better)"
         for col, (results, label) in enumerate([(results_a, label_a), (results_b, label_b)]):
             methods = sorted(shared, key=lambda m, r=results: r[m]["crps"])
-            vals = [results[m][key] for m in methods]
+            vals = [results[m].get(key, 0.0) for m in methods]
             ax = axes[row, col]
-            _bar_panel(ax, methods, vals, ylabel=ylabel, use_log=use_log)
+            _bar_panel(ax, methods, vals, ylabel=label_with_dir, use_log=use_log)
             if row == 0:
                 ax.set_title(label, fontsize=12)
 
-    fig.suptitle("Method Comparison \u2014 ERA5 vs NorESM", fontsize=14, y=1.01)
+    fig.suptitle("Method Comparison \u2014 ERA5 vs NorESM (All Metrics)", fontsize=14, y=1.01)
     fig.tight_layout()
     if output_path:
         fig.savefig(output_path, dpi=150, bbox_inches="tight")

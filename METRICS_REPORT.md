@@ -187,7 +187,7 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 ### Cross-Dataset Summary (`figures/`)
 | File | Description | Status |
 |------|-------------|--------|
-| `dual_metrics_panel.png` | ERA5 vs NorESM side-by-side, 4x4 grid (CRPS, MAE, RMSE, mass violation) | Current |
+| `dual_metrics_panel.png` | ERA5 vs NorESM side-by-side, 8-row x 2-col grid (all 8 metrics) | Current |
 | `dual_crps.png` | Cross-dataset CRPS comparison (sorted bars, ERA5 left, NorESM right) | Current |
 | `constraint_impact.png` | Delta CRPS (constrained - unconstrained) for 4 method pairs, both datasets | Current |
 
@@ -246,4 +246,4 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 2. ~~**Generate spectral figures**~~ — **DONE** (iter12). PSD curves, spectral bias, RALSD bars, extended metrics panels for both datasets.
 3. ~~**Generate extended metrics panel**~~ — **DONE** (iter12). 8-metric 3x3 grid for ERA5 and NorESM.
 4. **Fix ensemble plots** — Re-run `make_figures.py` on GPU to generate ERA5 samples 3-4 and NorESM samples 3-4 ensemble plots (code fix already applied)
-5. **Update dual metrics panel** — Current cross-dataset figures show 4 metrics; should show all 8
+5. ~~**Update dual metrics panel**~~ — **DONE** (iter13). Now shows all 8 metrics side-by-side.

@@ -523,3 +523,28 @@ Fix the NPZ name mapping bug. Generate all spectral/extended metric figures from
 - Consider updating `make_figures.py` defaults to point to 8-metric results
 
 - **End**: 2026-05-11T22:26:49Z, commit c920344
+
+## Iteration 13
+- **Start**: 2026-05-11T22:27:45Z, commit 27d45f1
+- **Prefix**: zwdk-jndi
+
+### Concerns (3+)
+
+1. **Quality: `plot_dual_metrics_panel` only shows 4 of 8 metrics** — The cross-dataset comparison figure (`dual_metrics_panel.png`) only showed CRPS, MAE, RMSE, Mass Violation. Missing SSIM, PSNR, RALSD, EMD — inconsistent with the per-dataset `extended_metrics_panel.png` which shows all 8. Listed as remaining work item 5 in the report.
+
+2. **Quality: `make_figures.py` defaults point to stale JSON** — Default `--era5-results` is `eval_results_500.json` (old 4-metric) not `eval_results_8metrics.json`. Running without flags silently produces figures from outdated data.
+
+3. **Workflow: GPU job birch-amber-base on node4106 is not from this chain** — Job 13766528 (salloc, 24min runtime, 2hr limit) using one of my normal GPU slots. Not my prefix (zwdk-jndi or any prior chain prefix). Must not touch it per guardrail 1012.
+
+### Plan for this iteration
+Update `plot_dual_metrics_panel` to show all 8 metrics. Fix `make_figures.py` defaults. Regenerate figure. Single focused change.
+
+### Work done
+- **Updated `plot_dual_metrics_panel`** in `src/downscaling/plotting/metrics.py`: expanded from 4-row to 8-row layout showing all 8 metrics (CRPS, MAE, RMSE, SSIM, PSNR, RALSD, EMD, Mass Violation). Each row now includes direction indicator ("lower/higher is better") in y-axis label. Dynamic filtering: only shows metrics present in data.
+- **Fixed `make_figures.py` defaults**: changed `--era5-results` from `eval_results_500.json` to `eval_results_8metrics.json` and `--noresm-results` from `noresm_eval_results_500.json` to `noresm_eval_results_8metrics.json`.
+- **Regenerated `figures/dual_metrics_panel.png`**: 8-row x 2-col panel, visually inspected — all 8 metrics correct.
+- **Updated METRICS_REPORT.md**: figure description updated, remaining work item 5 marked DONE.
+- 19/19 relevant tests pass (test_spectral_plots + test_metrics), lint clean, typecheck 0 errors.
+
+### Next iteration work
+- Fix ensemble plots for ERA5 samples 3-4 and NorESM samples 3-4 (needs GPU)
