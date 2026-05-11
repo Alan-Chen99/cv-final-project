@@ -84,3 +84,25 @@ Wire new metrics into the evaluation pipeline:
 - Review and fix figure inconsistencies (missing ensemble plots for samples 3-4)
 
 - **End**: 2026-05-11T19:49:57Z, commit 744f22e
+
+## Iteration 3
+- **Start**: 2026-05-11T19:50:59Z, commit b40c642
+- **Prefix**: gamma-delta (reusing)
+
+### Concerns (3+)
+
+1. **Workflow: No spectral visualization code** — `compute_spectral_curves()` exists in batch_metrics.py but there are ZERO plotting functions for spectral data. PSD curves, spectral bias plots, RALSD bar charts — none exist. Without these, the spectral analysis is invisible even after a GPU eval run. This is the highest-priority gap.
+
+2. **Quality: metrics_panel only shows 4 of 7 metrics** — `plot_metrics_panel()` shows CRPS/MAE/RMSE/mass_violation in a 2x2 grid. The new RALSD/SSIM/PSNR metrics are not visualized anywhere. The panel needs updating or a new supplementary panel is needed.
+
+3. **Workflow: Existing eval JSONs lack new metrics** — `eval_results_500.json` and `noresm_eval_results_500.json` only have 4 metrics per method. No RALSD/SSIM/PSNR. All figures will need regenerating after a new GPU eval run.
+
+4. **Quality: Missing ensemble plots for samples 3-4** — Both ERA5 and NorESM have ensemble plots for samples 0-2 but not 3-4. Inconsistent visualization.
+
+### Plan for this iteration
+Add spectral and extended metric plotting functions to `src/downscaling/plotting/spectral.py`:
+- `plot_psd_comparison()`: Multi-method PSD curves on log-log axes vs ground truth
+- `plot_spectral_bias()`: Per-frequency bias for each method
+- `plot_extended_metrics_panel()`: Updated panel showing all 7 metrics
+Update `src/downscaling/plotting/__init__.py` with new exports.
+Run lint/typecheck/tests.
