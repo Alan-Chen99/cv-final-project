@@ -217,4 +217,4 @@ Flow models dominate on ALL 7 metrics. RALSD confirms flow models produce best s
 - Write report file
 - Fix missing ensemble plots for samples 3-4
 
-- **End**: 2026-05-11T20:37:00Z, commit TBD
+- **End**: 2026-05-11T20:38:00Z, commit 401cf85
