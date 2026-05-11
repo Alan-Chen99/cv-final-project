@@ -734,3 +734,32 @@ Fix flow model COLOR_MAP to use distinct colors (blue, orange, purple, green). R
 - 146/146 tests pass, lint clean
 
 - **End**: 2026-05-11T23:25:00Z, commit af66c6c
+
+## Iteration 20
+- **Start**: 2026-05-11T23:27:31Z, commit 1e4f14e
+- **Prefix**: (final review, no changes)
+
+### Concerns (3+)
+
+1. **Quality: dual_metrics_panel.png is cramped** — 8 rows × 2 cols with 15 methods per subplot. Value annotations overlap at small viewing sizes. Raised in iters 15, 18, 19. Per-dataset extended_metrics_panel.png is the primary detailed view; dual panel is a supplementary comparison. Aesthetic issue only.
+
+2. **Quality: No bootstrap confidence intervals** — All metrics are point estimates over 500 samples. Noted as limitation in report. Adding CIs would be a significant new feature, not a fix.
+
+3. **Quality: NorESM constraint hypothesis untested** — Report states AddCL hurts on NorESM TAS due to "systematic bias between LR input and HR target." This is labeled as a hypothesis, which is appropriate. Testing it would require additional experiments beyond the scope of this evaluation task.
+
+### Assessment: FIXED POINT
+
+Full verification performed:
+- **Tests**: 146/146 pass (92s)
+- **Lint**: ruff check clean
+- **Format**: ruff format clean
+- **Typecheck**: basedpyright 0 errors, 2 warnings (pre-existing)
+- **Git**: clean (only .ralph/ runtime files untracked)
+- **JSON data verification**: ERA5 flow-wide96-amp values match report table (CRPS 0.1718, MAE 0.2509, RMSE 0.4561, SSIM 0.9925, PSNR 51.6, EMD 0.0032 — all match to claimed precision)
+- **Figure count**: 47 files (3 cross-dataset + 22 ERA5 + 22 NorESM) — matches report
+- **Visual inspection**: extended_metrics_panel, psd_comparison, spectral_bias, dual_metrics_panel — all correct, colors distinguishable, axes properly scaled
+- **Dangling processes**: none
+
+All remaining concerns are aesthetic or future-work items explicitly documented in the report's Limitations section. No code changes, no report changes, no figure changes needed.
+
+- **End**: 2026-05-11T23:35:00Z, commit 1e4f14e (no changes)
