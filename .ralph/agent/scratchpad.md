@@ -444,3 +444,8 @@ Start commit: `171e69c`
 - Fixed asymmetric _filter_broken in plotting/comprehensive.py: now filters both NorESM and ERA5 (was ERA5-only)
 - Regenerated all 5 canonical figures — visually verified metrics_summary.png
 - ruff clean, basedpyright 0 errors (2 warnings in unet.py — pre-existing)
+- No dangling processes found
+
+### Iteration 14 End
+End commit: `669c5fd`
+End time: ~15:25 EDT
