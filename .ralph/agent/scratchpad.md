@@ -291,3 +291,29 @@ ERA5 ensembles well-calibrated (SSR ~1.0) vs NorESM severely underdispersive (SS
 ### Iteration 8 End
 End commit: `170befc`
 End time: ~14:25 EDT
+
+### HUMAN GUIDANCE (2026-05-11 18:35:41 UTC)
+
+MANDATORY: Implement RALSD (Relative Average Log Spectral Distance) from arxiv 2604.03459 (PC-AFM). This metric is required — not optional. Formula: RALSD = sqrt(mean((10*log10(S_ref/S_pred))^2)). This is distinct from the existing psd_log_ratio (which uses mean|log10|) — RALSD uses RMS of dB-scale ratio. Add it to the metrics suite and include it in both NorESM and ERA5 evaluations.
+
+## Iteration 9 — 2026-05-11 14:35 EDT
+Start commit: `3ae9240`
+
+### Concerns Review
+1. **Quality**: RALSD not yet implemented despite mandatory human directive. Prior iteration 8 did not address it (focused on ERA5 eval). Must implement now.
+2. **Quality**: Summary tables and plots in comprehensive.py need to include RALSD column/bar. Without this, even after implementing the metric function, it won't appear in evaluation output.
+3. **Workflow**: After implementing RALSD, evaluation results JSON files are stale (computed without RALSD). Need to re-run evaluation on both datasets to include RALSD values.
+
+### Work Done
+- Implemented `ralsd()` in `src/downscaling/metrics/spectral.py`:
+  - Formula: `sqrt(mean((10*log10(S_ref/S_pred))^2))` — RMS of dB-scale spectral ratio
+  - Handles zero-power bins (returns inf), validates wavenumber grid match
+- Added 9 integration tests in `tests/test_metrics.py`:
+  - Identical → 0, non-negative, analytical value (ratio=10 → 10 dB), larger mismatch → higher
+  - Distinct from psd_log_ratio, zero-power → inf, mismatched grids → ValueError
+  - Symmetric in dB (squared removes sign), works on real radial_psd output
+- Wired RALSD into `compute_all_metrics()` in comprehensive.py
+- Updated summary table headers and plot metric list to include RALSD
+- Updated `__init__.py` exports
+- All 80 tests pass (71 prior + 9 RALSD), ruff clean, basedpyright clean
+- Did NOT re-run evaluation (needs next iteration — GPU for NorESM, CPU for ERA5)

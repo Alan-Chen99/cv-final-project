@@ -209,6 +209,41 @@ def spectral_coherence(
     return k_bins, coherence
 
 
+def ralsd(
+    wavenumbers_pred: NDArray[np.floating],
+    power_pred: NDArray[np.floating],
+    wavenumbers_truth: NDArray[np.floating],
+    power_truth: NDArray[np.floating],
+) -> float:
+    """Relative Average Log Spectral Distance (RALSD) from PC-AFM (2604.03459).
+
+    Formula: sqrt(mean((10 * log10(S_ref / S_pred))^2))
+
+    RMS of the dB-scale spectral ratio. Distinct from psd_log_ratio which uses
+    mean |log10(ratio)|. RALSD penalizes large deviations more due to squaring.
+
+    A value of 0 means perfect spectral match. Higher means worse.
+
+    Args:
+        wavenumbers_pred: Wavenumber array for predictions.
+        power_pred: Power array for predictions.
+        wavenumbers_truth: Wavenumber array for ground truth.
+        power_truth: Power array for ground truth.
+
+    Returns:
+        RALSD (scalar, in dB units).
+    """
+    if not np.array_equal(wavenumbers_pred, wavenumbers_truth):
+        raise ValueError("Wavenumber grids must match")
+
+    valid = (power_pred > 0) & (power_truth > 0)
+    if not np.any(valid):
+        return float("inf")
+
+    db_ratio = 10.0 * np.log10(power_truth[valid] / power_pred[valid])
+    return float(np.sqrt(np.mean(db_ratio**2)))
+
+
 def mean_spectral_coherence(
     predictions: NDArray[np.floating],
     truths: NDArray[np.floating],

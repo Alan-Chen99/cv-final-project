@@ -40,6 +40,7 @@ from downscaling.metrics import (
     mean_spectral_coherence,
     psd_log_ratio,
     radial_psd,
+    ralsd,
     rank_histogram,
     spread_skill_ratio,
 )
@@ -252,6 +253,7 @@ def compute_all_metrics(
     mean_truth_psd = np.mean(truth_p, axis=0)
     mean_pred_psd = np.mean(pred_p, axis=0)
     psd_ratio = psd_log_ratio(k, mean_pred_psd, k, mean_truth_psd)
+    ralsd_val = ralsd(k, mean_pred_psd, k, mean_truth_psd)
 
     # Spectral coherence (batch metric — needs (N, H, W) pairs)
     n_coh = min(n, coherence_samples)
@@ -270,6 +272,7 @@ def compute_all_metrics(
         "ssim": float(np.mean(ssim_v)),
         "kl_divergence": float(np.mean(kl_v)),
         "psd_log_ratio": psd_ratio,
+        "ralsd": ralsd_val,
         "spectral_coherence": coh,
         "psd_k": k.tolist(),
         "psd_power": mean_pred_psd.tolist(),
@@ -363,13 +366,13 @@ def plot_metrics_summary(
     title_suffix: str = "",
 ) -> None:
     """Plot bar chart comparing scalar metrics across models."""
-    metrics_to_plot = ["crps", "mae", "rmse", "mass_violation", "ssim", "kl_divergence", "psd_log_ratio", "spectral_coherence"]
+    metrics_to_plot = ["crps", "mae", "rmse", "mass_violation", "ssim", "kl_divergence", "psd_log_ratio", "ralsd", "spectral_coherence"]
     # ssim: higher is better; everything else: lower is better
     names = list(results.keys())
     n_metrics = len(metrics_to_plot)
     n_models = len(names)
 
-    fig, axes = plt.subplots(2, 4, figsize=(18, 8))
+    fig, axes = plt.subplots(3, 3, figsize=(18, 10))
     axes = axes.ravel()
 
     for idx, metric in enumerate(metrics_to_plot):
@@ -568,7 +571,7 @@ def run_comprehensive_eval(
     print("COMPREHENSIVE EVALUATION RESULTS — NorESM TAS 2x SR")
     print(f"Samples: {n}, Ensemble size: {n_ensemble}, ODE steps: {ode_steps}")
     print("=" * 100)
-    header = f"{'Model':<18} {'CRPS':>8} {'MAE':>8} {'RMSE':>8} {'MassViol':>8} {'SSIM':>8} {'KL':>8} {'PSD-LR':>8} {'Coh':>8} {'SSR':>8}"
+    header = f"{'Model':<18} {'CRPS':>8} {'MAE':>8} {'RMSE':>8} {'MassViol':>8} {'SSIM':>8} {'KL':>8} {'PSD-LR':>8} {'RALSD':>8} {'Coh':>8} {'SSR':>8}"
     print(header)
     print("-" * len(header))
     for name, r in results.items():
@@ -577,7 +580,7 @@ def run_comprehensive_eval(
         print(
             f"{name:<18} {r['crps']:8.4f} {r['mae']:8.4f} {r['rmse']:8.4f} "
             f"{r['mass_violation']:8.4f} {r['ssim']:8.4f} {r['kl_divergence']:8.4f} "
-            f"{r['psd_log_ratio']:8.4f} {coh_str:>8} {ssr_str:>8}"
+            f"{r['psd_log_ratio']:8.4f} {r['ralsd']:8.4f} {coh_str:>8} {ssr_str:>8}"
         )
     print("=" * 100)
 
@@ -686,7 +689,7 @@ def run_era5_eval(
     print("COMPREHENSIVE EVALUATION RESULTS — ERA5 TCW 4x SR")
     print(f"Samples: {n}")
     print("=" * 110)
-    header = f"{'Model':<22} {'CRPS':>8} {'MAE':>8} {'RMSE':>8} {'MassViol':>8} {'SSIM':>8} {'KL':>8} {'PSD-LR':>8} {'Coh':>8} {'SSR':>8}"
+    header = f"{'Model':<22} {'CRPS':>8} {'MAE':>8} {'RMSE':>8} {'MassViol':>8} {'SSIM':>8} {'KL':>8} {'PSD-LR':>8} {'RALSD':>8} {'Coh':>8} {'SSR':>8}"
     print(header)
     print("-" * len(header))
     for name, r in results.items():
@@ -695,7 +698,7 @@ def run_era5_eval(
         print(
             f"{name:<22} {r['crps']:8.4f} {r['mae']:8.4f} {r['rmse']:8.4f} "
             f"{r['mass_violation']:8.4f} {r['ssim']:8.4f} {r['kl_divergence']:8.4f} "
-            f"{r['psd_log_ratio']:8.4f} {coh_str:>8} {ssr_str:>8}"
+            f"{r['psd_log_ratio']:8.4f} {r['ralsd']:8.4f} {coh_str:>8} {ssr_str:>8}"
         )
     print("=" * 110)
 
@@ -712,7 +715,7 @@ def print_summary_table(
     print(f"EVALUATION RESULTS — {label}")
     print(f"Samples: {n}")
     print("=" * 110)
-    header = f"{'Model':<22} {'CRPS':>8} {'MAE':>8} {'RMSE':>8} {'MassViol':>8} {'SSIM':>8} {'KL':>8} {'PSD-LR':>8} {'Coh':>8} {'SSR':>8}"
+    header = f"{'Model':<22} {'CRPS':>8} {'MAE':>8} {'RMSE':>8} {'MassViol':>8} {'SSIM':>8} {'KL':>8} {'PSD-LR':>8} {'RALSD':>8} {'Coh':>8} {'SSR':>8}"
     print(header)
     print("-" * len(header))
     for name, r in results.items():
@@ -721,7 +724,7 @@ def print_summary_table(
         print(
             f"{name:<22} {r['crps']:8.4f} {r['mae']:8.4f} {r['rmse']:8.4f} "
             f"{r['mass_violation']:8.4f} {r['ssim']:8.4f} {r['kl_divergence']:8.4f} "
-            f"{r['psd_log_ratio']:8.4f} {coh_str:>8} {ssr_str:>8}"
+            f"{r['psd_log_ratio']:8.4f} {r['ralsd']:8.4f} {coh_str:>8} {ssr_str:>8}"
         )
     print("=" * 110)
 

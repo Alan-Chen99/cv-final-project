@@ -18,6 +18,7 @@ from downscaling.metrics.spectral import (
     mean_spectral_coherence,
     psd_log_ratio,
     radial_psd,
+    ralsd,
     spectral_coherence,
 )
 from downscaling.metrics.structural import ensemble_mean_ssim, ssim
@@ -756,3 +757,85 @@ class TestSpectralCoherence:
         low_k_coh = np.mean(coh[:quarter])
         high_k_coh = np.mean(coh[-quarter:])
         assert low_k_coh > high_k_coh
+
+
+class TestRALSD:
+    """Tests for RALSD (Relative Average Log Spectral Distance)."""
+
+    def test_identical_spectra_zero(self):
+        """Identical spectra → RALSD = 0."""
+        k = np.arange(1, 17, dtype=np.float64)
+        power = np.ones(16, dtype=np.float64) * 100.0
+        assert ralsd(k, power, k, power) == pytest.approx(0.0)
+
+    def test_non_negative(self):
+        """RALSD is always >= 0."""
+        rng = np.random.default_rng(42)
+        k = np.arange(1, 17, dtype=np.float64)
+        p1 = rng.uniform(1.0, 100.0, 16)
+        p2 = rng.uniform(1.0, 100.0, 16)
+        assert ralsd(k, p1, k, p2) >= 0.0
+
+    def test_analytical_value(self):
+        """Known ratio → known RALSD. S_ref/S_pred = 10 → 10*log10(10) = 10 dB → RALSD = 10."""
+        k = np.arange(1, 17, dtype=np.float64)
+        pred = np.ones(16, dtype=np.float64)
+        truth = np.ones(16, dtype=np.float64) * 10.0
+        assert ralsd(k, pred, k, truth) == pytest.approx(10.0)
+
+    def test_larger_mismatch_higher_ralsd(self):
+        """Larger spectral mismatch → higher RALSD."""
+        k = np.arange(1, 17, dtype=np.float64)
+        truth = np.ones(16, dtype=np.float64) * 50.0
+        close = truth * 1.2  # 20% off
+        far = truth * 5.0  # 5x off
+        assert ralsd(k, close, k, truth) < ralsd(k, far, k, truth)
+
+    def test_distinct_from_psd_log_ratio(self):
+        """RALSD and psd_log_ratio differ on the same input (different formulas)."""
+        k = np.arange(1, 17, dtype=np.float64)
+        rng = np.random.default_rng(99)
+        truth = rng.uniform(10.0, 100.0, 16)
+        pred = rng.uniform(10.0, 100.0, 16)
+        r = ralsd(k, pred, k, truth)
+        plr = psd_log_ratio(k, pred, k, truth)
+        # RALSD uses 10*log10 and RMS; psd_log_ratio uses log10 and mean|·|
+        # They should NOT be equal for arbitrary input
+        assert r != pytest.approx(plr)
+
+    def test_zero_power_returns_inf(self):
+        """All-zero spectra → inf."""
+        k = np.arange(1, 5, dtype=np.float64)
+        zero = np.zeros(4, dtype=np.float64)
+        nonzero = np.ones(4, dtype=np.float64)
+        assert ralsd(k, zero, k, nonzero) == float("inf")
+
+    def test_mismatched_grids_raises(self):
+        """Different wavenumber grids raise ValueError."""
+        k1 = np.arange(1, 9, dtype=np.float64)
+        k2 = np.arange(1, 17, dtype=np.float64)
+        with pytest.raises(ValueError, match="Wavenumber grids must match"):
+            ralsd(k1, np.ones(8), k2, np.ones(16))
+
+    def test_symmetric_in_db(self):
+        """RALSD(pred, truth) == RALSD(truth, pred) because (10*log10(a/b))^2 == (10*log10(b/a))^2."""
+        k = np.arange(1, 17, dtype=np.float64)
+        rng = np.random.default_rng(77)
+        p1 = rng.uniform(1.0, 100.0, 16)
+        p2 = rng.uniform(1.0, 100.0, 16)
+        # Note: ralsd(pred, truth) swaps arguments vs ralsd(truth, pred)
+        # but the square makes it symmetric: (10*log10(a/b))^2 == (10*log10(b/a))^2
+        r_forward = ralsd(k, p1, k, p2)
+        r_reverse = ralsd(k, p2, k, p1)
+        assert r_forward == pytest.approx(r_reverse)
+
+    def test_on_real_psd(self):
+        """RALSD works on actual PSD output from radial_psd."""
+        rng = np.random.default_rng(42)
+        field_a = rng.standard_normal((64, 64))
+        field_b = field_a + rng.normal(0, 0.1, (64, 64))
+        k_a, p_a = radial_psd(field_a)
+        k_b, p_b = radial_psd(field_b)
+        r = ralsd(k_a, p_a, k_b, p_b)
+        assert r >= 0.0
+        assert np.isfinite(r)

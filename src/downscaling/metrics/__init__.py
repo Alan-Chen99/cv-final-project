@@ -9,6 +9,7 @@ from downscaling.metrics.spectral import (
     mean_spectral_coherence,
     psd_log_ratio,
     radial_psd,
+    ralsd,
     spectral_coherence,
 )
 from downscaling.metrics.structural import ensemble_mean_ssim, ssim
@@ -23,6 +24,7 @@ __all__ = [
     "mean_spectral_coherence",
     "psd_log_ratio",
     "radial_psd",
+    "ralsd",
     "spectral_coherence",
     "rank_histogram",
     "spread_skill_ratio",
