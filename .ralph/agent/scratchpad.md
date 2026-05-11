@@ -140,3 +140,25 @@ Fix both eval scripts to save spectral curve data, and bring `run_eval_noresm.py
 Specifically:
 - Add `compute_spectral_curves()` calls to `run_eval.py` — save spectral data as .npz alongside JSON
 - Update `run_eval_noresm.py` to collect predictions, compute batch metrics (RALSD/SSIM/PSNR), compute spectral curves, and save everything
+
+### Work done
+- Updated `scripts/run_eval.py`: added `compute_spectral_curves()` import, spectral curve computation for all methods with predictions, saves as `{output_stem}_spectral.npz`
+- Rewrote `scripts/run_eval_noresm.py` to fully mirror `run_eval.py` batch metrics pattern:
+  - Added predictions dict to collect (N, H, W) arrays from all methods
+  - Baselines: generate predictions via F.interpolate + apply_addcl for batch metrics
+  - SwinIR/Harder/Flow: use `return_predictions=True` to collect ensemble-mean predictions
+  - Compute RALSD/SSIM/PSNR via `compute_batch_metrics()` for all methods
+  - Updated `_save_and_print()` to accept predictions/gt, compute spectral curves, save .npz
+  - Updated display table to show all 7 metrics when batch data available
+- Fixed TC002 lint in `batch_metrics.py`: moved `numpy` import into TYPE_CHECKING block
+- 39/39 tests pass, lint pass, format pass, typecheck 0 errors
+
+### Next iteration work
+- Run GPU eval for ERA5 (`run_eval.py --max-samples 500`) — ~20min
+- Run GPU eval for NorESM (`run_eval_noresm.py --max-samples 500`) — ~10min
+- Generate spectral plots from .npz data
+- Generate updated metrics panels
+- Fix missing ensemble plots for samples 3-4
+- Start report file
+
+- **End**: 2026-05-11T20:05:00Z, commit 4fa881a
