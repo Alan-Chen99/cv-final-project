@@ -449,3 +449,25 @@ Start commit: `171e69c`
 ### Iteration 14 End
 End commit: `669c5fd`
 End time: ~15:25 EDT
+
+## Iteration 15 — 2026-05-11 15:25 EDT
+Start commit: `82d8fb2`
+
+### Concerns Review
+1. **Workflow**: Coverage was never verified in any prior iteration. Ran it: 98% (225 stmts, 5 miss). Uncovered lines are all defensive guards for degenerate edge cases (empty wavenumber bins, constant+non-allclose fields). Acceptable per testing policy.
+2. **Quality**: `_filter_broken()` in plotting/comprehensive.py silently removes models with missing RALSD key (`"ralsd" in r` fails → model excluded from ALL plots). This violates error propagation rules — if RALSD computation fails for a model, the model disappears from plots with no warning. Should raise on missing key, filter only on value > threshold.
+3. **Quality**: EVAL_REPORT.md NorESM table shows CRPS = MAE for all deterministic models (CNN-none 1.2976, CNN-softmax 1.7232, SwinIR 1.7252). This is mathematically correct (CRPS with M=1 = MAE) but readers will think it's a copy-paste error. Should add a footnote.
+
+### Plan
+Fix concern #2: harden `_filter_broken` to raise on missing RALSD. Add footnote for concern #3.
+
+### Work Done
+- Hardened `_filter_broken()` in plotting/comprehensive.py: now raises KeyError if any model is missing RALSD, instead of silently filtering it out. Value-based filtering (RALSD > 10) unchanged.
+- Added footnote to EVAL_REPORT.md explaining CRPS = MAE equivalence for M=1 deterministic models
+- Verified: 80 tests pass, ruff clean, basedpyright clean, all 5 plots regenerate correctly
+- Coverage verified: 98% (225 stmts, 5 miss — all defensive guards)
+- No dangling processes
+
+### Iteration 15 End
+End commit: `8df07b1`
+End time: ~15:30 EDT
