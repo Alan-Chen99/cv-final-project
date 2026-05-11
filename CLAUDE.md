@@ -99,6 +99,7 @@ Located on `/home/chenxy/orcd/pool/datasets/` (pool disk). Data MUST go here, ne
 pool/datasets/
   era5_sr_data/        # 4 GB  — shared, read-only to agents
   era5_sr_temporal/    # 12 GB — shared, read-only to agents
+  noresm-dataset/      # 2.3 GB — NorESM TAS 2x SR data + models
   gendiff/             # shared, read-only to agents
   wassdiff/            # shared, read-only to agents
   corrdiff/            # shared, read-only to agents
@@ -124,6 +125,9 @@ pool/datasets/
 | `gendiff/weights/unet.pt` | 372 MB | GenDiff UNet checkpoint (from Git LFS) |
 | `wassdiff/weights/wassdiff.pth` | 938 MB | WassDiff NCSN++ checkpoint (from HuggingFace YuhaoL/WassDiff) |
 | `wassdiff/data/mini_dataset/` | 21 GB | CPC precipitation (1990-1999) + ERA5 single/pressure level vars (from HuggingFace) |
+| `noresm-dataset/noresm/` | 968 MB | NorESM2 TAS 2x SR dataset (24K/12K/12K, 32x32->64x64). Source: [Google Drive](https://drive.google.com/file/d/1D5tLE7cGcvh3dap-P3VOLEOK_7FqdChF) |
+| `noresm-dataset/models/` | 529 MB | Trained NorESM checkpoints: flow-wide96-amp, harder (cnn/gan), swinir_ft |
+| `noresm-dataset/pretrained_weights/` | 48 MB | SwinIR x2 pretrained weights (DF2K) |
 
 # Notes
 

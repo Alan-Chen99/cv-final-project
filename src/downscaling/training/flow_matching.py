@@ -7,7 +7,9 @@ on residuals for proper noise-to-signal ratio matching.
 
 import os
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 
 import torch
 import torch.nn as nn
@@ -15,14 +17,26 @@ import torch.nn.functional as F
 from torch.utils.data import DataLoader, TensorDataset
 
 from downscaling.data.era5 import load_era5_tcw
+from downscaling.data.noresm import load_noresm_tas
 from downscaling.sampling.timesteps import sample_timesteps_logit_normal, sample_timesteps_uniform
 from downscaling.training.ema import EMA
+
+# (data_dir, split) -> (lr_up, residual, hr, lr_orig)
+DataLoadFn = Callable[
+    [str | Path, str], tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]
+]
+
+DATASET_LOADERS: dict[str, DataLoadFn] = {
+    "era5": load_era5_tcw,
+    "noresm": load_noresm_tas,
+}
 
 
 @dataclass
 class TrainConfig:
     data_dir: str = ""
     save_dir: str = "models/flow"
+    dataset: str = "era5"
     batch_size: int = 64
     epochs: int = 40
     lr: float = 1e-4
@@ -70,11 +84,17 @@ class FlowMatchingTrainer:
         lr_up_train: torch.Tensor,
         res_train: torch.Tensor,
     ) -> dict[str, float]:
+        res_std = res_train.std().item()
+        lr_std = lr_up_train.std().item()
+        if res_std == 0:
+            raise ValueError("Training residuals have zero std — check dataset")
+        if lr_std == 0:
+            raise ValueError("Training LR fields have zero std — check dataset")
         stats = {
             "res_mean": res_train.mean().item(),
-            "res_std": res_train.std().item(),
+            "res_std": res_std,
             "lr_mean": lr_up_train.mean().item(),
-            "lr_std": lr_up_train.std().item(),
+            "lr_std": lr_std,
         }
         os.makedirs(self.config.save_dir, exist_ok=True)
         torch.save(stats, os.path.join(self.config.save_dir, "norm_stats.pt"))
@@ -84,8 +104,11 @@ class FlowMatchingTrainer:
         """Run full training loop. Returns best validation loss."""
         cfg = self.config
 
-        lr_up_train, res_train, _, _ = load_era5_tcw(cfg.data_dir, "train")
-        lr_up_val, res_val, _, _ = load_era5_tcw(cfg.data_dir, "val")
+        if cfg.dataset not in DATASET_LOADERS:
+            raise ValueError(f"Unknown dataset {cfg.dataset!r}, valid: {list(DATASET_LOADERS)}")
+        load_fn = DATASET_LOADERS[cfg.dataset]
+        lr_up_train, res_train, _, _ = load_fn(cfg.data_dir, "train")
+        lr_up_val, res_val, _, _ = load_fn(cfg.data_dir, "val")
 
         stats = self._compute_normalization(lr_up_train, res_train)
 

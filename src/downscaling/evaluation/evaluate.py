@@ -81,10 +81,10 @@ def evaluate_flow_model(
 
     Args:
         model: Trained velocity network (in eval mode).
-        lr_up_norm: Normalized upsampled LR, shape (N, 1, 128, 128).
-        hr: Ground truth HR, shape (N, 1, 128, 128).
-        lr_up: Unnormalized upsampled LR, shape (N, 1, 128, 128).
-        lr_orig: Original LR, shape (N, 1, 32, 32).
+        lr_up_norm: Normalized upsampled LR, shape (N, 1, H, W).
+        hr: Ground truth HR, shape (N, 1, H, W).
+        lr_up: Unnormalized upsampled LR, shape (N, 1, H, W).
+        lr_orig: Original LR, shape (N, 1, H/f, W/f) where f = upsampling_factor.
         norm_stats: Dict with res_mean, res_std, lr_mean, lr_std.
         n_ensemble: Number of ensemble members.
         ode_steps: ODE integration steps.
@@ -130,7 +130,7 @@ def evaluate_flow_model(
 
                 ensemble_preds.append(pred_hr.numpy())
 
-        ensemble_np = np.stack(ensemble_preds, axis=1)  # (bs, M, 1, 128, 128)
+        ensemble_np = np.stack(ensemble_preds, axis=1)  # (bs, M, 1, H, W)
 
         for i in range(bs):
             gt = batch_hr[i, 0, ...].numpy()

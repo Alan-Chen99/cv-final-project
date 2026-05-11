@@ -27,7 +27,7 @@ from downscaling.evaluation.baselines import eval_bicubic, eval_bilinear
 from downscaling.evaluation.checkpoints import load_checkpoint, load_norm_stats
 from downscaling.evaluation.evaluate import evaluate_flow_model
 from downscaling.evaluation.harder import (
-    _compute_minmax_stats,
+    compute_minmax_stats,
     evaluate_harder_cnn,
     evaluate_harder_gan,
     load_harder_model,
@@ -288,7 +288,7 @@ def main():
     # Harder et al. trained models
     if not args.baselines_only:
         print("\n=== Harder et al. Baselines ===")
-        min_val, max_val = _compute_minmax_stats(args.pool_dir)
+        min_val, max_val = compute_minmax_stats(args.pool_dir)
         print(f"  Min-max normalization: min={min_val:.4f}, max={max_val:.4f}")
 
         for name, config in HARDER_REGISTRY.items():
