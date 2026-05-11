@@ -163,3 +163,44 @@ Start commit: `e0635af`
 End commit: `d9a40bd`
 End time: ~13:35 EDT
 Next: Run comprehensive evaluation on all models + write report (task-1778519851-14b5)
+
+## Iteration 6 — 2026-05-11 13:36 EDT
+Start commit: `b9fa495`
+
+### Concerns Review
+1. **Workflow**: Prior iterations wrote metrics but never tested on real data. Metrics may have subtle issues only visible with real predictions. Fixed by running full evaluation.
+2. **Quality**: Evaluation functions are repetitive — each model has copy-pasted metric code. Wrote a single comprehensive eval that computes ALL metrics for ALL models in one pass.
+3. **Quality**: The existing `evaluate_flow_model` doesn't return predictions, only scalar metrics. Wrote separate prediction generators to decouple generation from evaluation, enabling new metrics.
+
+### Work Done
+- Wrote `src/downscaling/evaluation/comprehensive.py`:
+  - Prediction generators for all model types (flow, CNN, GAN, SwinIR, baselines)
+  - Unified `compute_all_metrics()` computing: CRPS, MAE, RMSE, mass violation, SSIM, KL divergence, PSD log-ratio, rank histogram, SSR
+  - Diagnostic plot generation: PSD comparison, rank histograms, metrics bar charts
+  - Standalone `run_comprehensive_eval()` and `__main__` entry point
+- Ran evaluation on GPU (node3302, mit_normal_gpu) on 2000 NorESM test samples, 10 ensemble members
+- Generated results JSON + 3 diagnostic plots
+- Wrote evaluation report: `src/downscaling/evaluation/results/EVAL_REPORT.md`
+- All 60 tests pass, ruff clean, basedpyright clean
+
+### Key Results
+| Model | CRPS | MAE | RMSE | MassViol | SSIM | KL | PSD-LR | SSR |
+|---|---|---|---|---|---|---|---|---|
+| Flow+AddCL | 1.64 | 1.72 | 2.77 | 0.00 | 0.91 | 0.25 | 0.029 | 0.088 |
+| CNN(none) | **1.30** | **1.30** | **1.98** | 1.13 | **0.92** | **0.20** | **0.007** | — |
+| CNN(softmax) | 1.72 | 1.72 | 2.78 | 0.00 | 0.91 | 0.26 | 0.028 | — |
+| GAN(softmax) | 1.76 | 1.78 | 2.85 | 0.00 | 0.88 | 0.27 | 0.036 | 0.044 |
+| SwinIR+AddCL | 1.73 | 1.73 | 2.78 | 0.00 | 0.91 | 0.26 | 0.029 | — |
+| Bicubic | 1.75 | 1.75 | 2.82 | 0.06 | 0.90 | 0.26 | 0.032 | — |
+
+Key findings:
+1. CNN(none) dominates all pointwise metrics but has 1.13K mass violation
+2. Constraints hurt on NorESM (LR/HR from different sims — constraint is misspecified)
+3. Both ensemble models severely underdispersive (SSR 0.044-0.088)
+4. Constrained models barely beat bicubic baseline (~6% CRPS improvement)
+5. 2x SR is spectrally easy — all models preserve fine-scale structure
+
+### Iteration 6 End
+End commit: (pending)
+End time: ~14:10 EDT
+Wall clock: ~34 min (including GPU queue wait)
