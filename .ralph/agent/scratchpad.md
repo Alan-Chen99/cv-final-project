@@ -504,3 +504,23 @@ Start commit: `d1f2ad4`
 
 ### Plan
 Add integration test for `compute_all_metrics` with synthetic data. Fix docstring. One coherent deliverable.
+
+### Work Done
+- Fixed stale docstring in evaluation/comprehensive.py: added RALSD to metric list (was missing since iteration 9)
+- Added 9 integration tests for `compute_all_metrics` in test_baselines.py:
+  - `test_deterministic_returns_expected_keys` — verifies non-ensemble output structure (12 keys, no SSR/rank_histogram)
+  - `test_ensemble_returns_expected_keys` — verifies ensemble output structure (14 keys with SSR/rank_histogram)
+  - `test_all_values_finite` — all scalar metrics finite on well-behaved data
+  - `test_crps_equals_mae_for_identical_members` — M=2 identical members → CRPS = MAE (spread=0)
+  - `test_perfect_prediction_zero_error` — perfect prediction → MAE=0, RMSE=0
+  - `test_psd_arrays_consistent_length` — psd_k, psd_power, psd_truth_power same length
+  - `test_rank_histogram_length_matches_ensemble` — M+1 bins for M members
+  - `test_ssim_bounded` — SSIM in [-1, 1]
+  - `test_coherence_bounded` — spectral coherence in [0, 1]
+- Initial M=1 ensemble test caught a genuine edge case: `spread_skill_ratio` rejects M<2. Fixed to use M=2 identical members (tests the same CRPS=MAE property without triggering the valid SSR guard).
+- All 128 CPU-safe tests pass (119 prior + 9 new), ruff clean, basedpyright 0 errors
+- No dangling processes
+
+### Iteration 17 End
+End commit: `82115f8`
+End time: ~15:52 EDT
