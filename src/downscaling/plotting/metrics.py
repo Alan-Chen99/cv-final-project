@@ -47,9 +47,9 @@ DISPLAY_NAMES: dict[str, str] = {
 
 COLOR_MAP: dict[str, str] = {
     "flow-wide96-amp (28M)": "#1f77b4",
-    "flow-uniform-amp (13M)": "#4393c3",
-    "flow-logitnorm-ema (13M)": "#92c5de",
-    "flow-v2-zscore (13M)": "#6baed6",
+    "flow-uniform-amp (13M)": "#e67e22",
+    "flow-logitnorm-ema (13M)": "#8e44ad",
+    "flow-v2-zscore (13M)": "#27ae60",
     "bicubic+addcl": "#ff7f0e",
     "bilinear+addcl": "#ffbb78",
     "bicubic": "#aec7e8",
