@@ -599,3 +599,18 @@ Fix the PSD comparison plot readability. When many methods overlap, add a ratio 
 
 ### Plan for this iteration
 Fix the y-axis zoom issue for narrow-range metrics (SSIM, PSNR) in both plotting functions. Regenerate affected figures. Single focused change.
+
+### Work done
+- **Fixed narrow-range y-axis in both plotting functions**:
+  - `src/downscaling/plotting/metrics.py` `_bar_panel()`: auto-detect narrow ranges (min/max > 0.8) and zoom y-axis to data range
+  - `src/downscaling/plotting/spectral.py` `plot_extended_metrics_panel()`: same fix
+  - Before: SSIM bars (0.976-0.993) all looked identical on 0-1 axis. PSNR (45-52) similarly flat.
+  - After: SSIM ranges ~0.955-0.995, PSNR ~33-40 (NorESM) / ~44-52 (ERA5), clear visual differentiation
+- **Regenerated 3 affected figures**: `extended_metrics_panel.png` (ERA5, NorESM), `dual_metrics_panel.png`
+- **Visually verified** all 3 regenerated figures: SSIM and PSNR now show clear method ranking
+- 145/145 tests pass, lint clean, typecheck 0 errors
+
+### Next iteration work
+- Fix ensemble plots for ERA5 samples 3-4 and NorESM samples 3-4 (needs GPU, squeue empty)
+
+- **End**: 2026-05-11T22:50:00Z, commit 0112cb1
