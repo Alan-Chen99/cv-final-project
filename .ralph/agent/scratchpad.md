@@ -584,3 +584,18 @@ Fix the PSD comparison plot readability. When many methods overlap, add a ratio 
 - Fix ensemble plots for ERA5 samples 3-4 and NorESM samples 3-4 (needs GPU)
 
 - **End**: 2026-05-11T22:44:00Z, commit 3b7e9a0
+
+## Iteration 15
+- **Start**: 2026-05-11T22:43:56Z, commit 3007ebb
+- **Prefix**: 2213-5585
+
+### Concerns (3+)
+
+1. **Quality: SSIM/PSNR bars visually uninformative in metrics panels** — Both `extended_metrics_panel.png` and `dual_metrics_panel.png` set y-axis to start at 0 (`set_ylim(0, max*1.2)`). SSIM values range 0.976-0.993 on a 0-1 axis — all bars look identical. PSNR ranges 45-52 dB on 0-52 axis — same problem. The value annotations save interpretation but the visual representation fails to show method differences. Both `_bar_panel()` (metrics.py:275) and `plot_extended_metrics_panel()` (spectral.py:261) share this bug.
+
+2. **Missing: Ensemble plots for samples 3-4** — ERA5 and NorESM both lack ensemble plots for samples 3 and 4. Code fix applied in iter8 (range(min(3, n_vis_samples)) → range(n_vis_samples)). Needs GPU re-run of `make_figures.py` without `--metrics-only`. No GPU queue contention (squeue empty).
+
+3. **Quality: Spectral bias plot has 15 overlapping lines** — `spectral_bias.png` shows all 15 ERA5 methods in one panel. While identifiable by color, the mid-frequency region (0.1-0.3 cycles/pixel) is crowded. The PSD comparison was already fixed (iter14) with a similar highlighting approach, but spectral_bias was not.
+
+### Plan for this iteration
+Fix the y-axis zoom issue for narrow-range metrics (SSIM, PSNR) in both plotting functions. Regenerate affected figures. Single focused change.

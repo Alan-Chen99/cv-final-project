@@ -272,7 +272,14 @@ def _bar_panel(
     if use_log:
         ax.set_yscale("log")
     elif values:
-        ax.set_ylim(0, max(values) * 1.2)
+        vmin, vmax = min(values), max(values)
+        # Narrow-range metrics (e.g. SSIM ~0.97-0.99, PSNR ~45-52):
+        # zoom y-axis to data range so differences are visible
+        if vmin > 0 and vmin / vmax > 0.8:
+            margin = max((vmax - vmin) * 0.3, vmax * 0.005)
+            ax.set_ylim(vmin - margin, vmax + margin)
+        else:
+            ax.set_ylim(0, vmax * 1.2)
     ax.grid(axis="y", alpha=0.3)
 
 
