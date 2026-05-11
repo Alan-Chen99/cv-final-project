@@ -9,12 +9,11 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-import numpy as np
-
 from downscaling.metrics.spectral import radial_psd_batch, ralsd, spectral_bias
 from downscaling.metrics.structural import psnr, ssim
 
 if TYPE_CHECKING:
+    import numpy as np
     from numpy.typing import NDArray
 
 

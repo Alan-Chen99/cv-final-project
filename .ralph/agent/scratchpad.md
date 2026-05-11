@@ -121,3 +121,22 @@ Add spectral and extended metric plotting functions to `src/downscaling/plotting
 - Start report file
 
 - **End**: 2026-05-11T19:55:00Z, commit 41605ce
+
+## Iteration 4
+- **Start**: 2026-05-11T19:59:35Z, commit 95f1e76
+- **Prefix**: gamma-delta (reusing)
+
+### Concerns (3+)
+
+1. **Workflow: run_eval_noresm.py NOT updated with batch metrics** — `run_eval.py` (ERA5) was fully updated in iter2 to collect predictions and compute RALSD/SSIM/PSNR. But `run_eval_noresm.py` was NOT touched. It still only computes 4 metrics, doesn't collect predictions, doesn't call `compute_batch_metrics()`. The NorESM eval will be incomplete if run as-is.
+
+2. **Workflow: Spectral curve data not saved anywhere** — `run_eval.py` calls `compute_batch_metrics()` for scalar RALSD/SSIM/PSNR but does NOT call `compute_spectral_curves()`. Even after a GPU eval run, there will be no PSD/bias arrays to feed to `plot_psd_comparison()` and `plot_spectral_bias()`. The spectral plotting code is dead without this.
+
+3. **Workflow: No GPU eval has been run in 3 iterations** — All iterations so far added code. Zero GPU eval runs. The existing `eval_results_500.json` only has 4 metrics. No RALSD, SSIM, PSNR data exists. The scratchpad keeps deferring GPU work.
+
+### Plan for this iteration
+Fix both eval scripts to save spectral curve data, and bring `run_eval_noresm.py` to parity with `run_eval.py`'s batch metrics pattern. This is prerequisite for the GPU eval run (next iteration).
+
+Specifically:
+- Add `compute_spectral_curves()` calls to `run_eval.py` — save spectral data as .npz alongside JSON
+- Update `run_eval_noresm.py` to collect predictions, compute batch metrics (RALSD/SSIM/PSNR), compute spectral curves, and save everything

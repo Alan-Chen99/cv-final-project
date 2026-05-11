@@ -31,7 +31,7 @@ from downscaling.evaluation.baselines import (
     upsample_bicubic,
     upsample_bilinear,
 )
-from downscaling.evaluation.batch_metrics import compute_batch_metrics
+from downscaling.evaluation.batch_metrics import compute_batch_metrics, compute_spectral_curves
 from downscaling.evaluation.checkpoints import load_checkpoint, load_norm_stats
 from downscaling.evaluation.evaluate import evaluate_flow_model
 from downscaling.evaluation.harder import (
@@ -445,6 +445,15 @@ def main():
         print(f"{name:<40}{''.join(vals)}")
     print(sep)
 
+    # Compute spectral curves for plotting
+    spectral_data: dict[str, dict[str, np.ndarray]] = {}
+    if predictions:
+        print("\nComputing spectral curves for all methods...")
+        for name, preds in predictions.items():
+            curves = compute_spectral_curves(gt, preds)
+            spectral_data[name] = curves
+        print(f"  Spectral curves computed for {len(spectral_data)} methods")
+
     # Save results
     output_path = args.output or Path("eval_results.json")
     with open(output_path, "w") as f:
@@ -462,6 +471,21 @@ def main():
             indent=2,
         )
     print(f"\nResults saved to {output_path}")
+
+    # Save spectral curves as .npz (numpy arrays can't go in JSON)
+    if spectral_data:
+        spectral_path = output_path.with_name(output_path.stem + "_spectral.npz")
+        flat: dict[str, np.ndarray] = {}
+        # Use first method's freq (all share same bins)
+        first_method = next(iter(spectral_data.values()))
+        flat["freq"] = first_method["freq"]
+        flat["psd_truth"] = first_method["psd_truth"]
+        for name, curves in spectral_data.items():
+            safe_name = name.replace(" ", "_").replace("(", "").replace(")", "")
+            flat[f"psd_{safe_name}"] = curves["psd_pred"]
+            flat[f"bias_{safe_name}"] = curves["bias"]
+        np.savez(spectral_path, **flat)
+        print(f"Spectral data saved to {spectral_path}")
 
 
 if __name__ == "__main__":
