@@ -254,3 +254,5 @@ Flow models dominate on ALL 7 metrics. RALSD confirms flow models produce best s
 - Generate all spectral/extended figures from .npz data
 - Update METRICS_REPORT.md with verified JSON results
 - Fix missing ensemble plots for samples 3-4 (code fixed, needs GPU re-run of make_figures.py)
+
+- **End**: 2026-05-11T20:56:07Z, commit 376e79d
