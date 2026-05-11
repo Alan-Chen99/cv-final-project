@@ -204,3 +204,31 @@ Key findings:
 End commit: `eead769`
 End time: ~14:07 EDT
 Wall clock: ~31 min (including GPU queue wait)
+
+## Iteration 7 — 2026-05-11 14:07 EDT
+Start commit: `36cfc8e`
+Allocation prefix: `wafer-plug`
+
+### Concerns Review
+1. **Fact**: Task references arxiv 2604.03459 for "spectral coherence" but the paper (PC-AFM) does NOT contain this metric. It uses RALSD, CE, log-PDF distance, MCB, CRPS. The spectral coherence concept is a standard signal processing metric (cross-spectral density normalized by auto-spectra) — no paper attribution needed.
+2. **Quality**: Spectral coherence for a SINGLE field pair is trivially 1.0 at every frequency (|X*conj(Y)|^2 / (|X|^2 * |Y|^2) = 1). Meaningful estimation requires averaging cross-spectra across multiple samples before computing coherence. The API must take batches of (N, H, W) pairs.
+3. **Quality**: The paper 2604.03459 introduces RALSD = sqrt(mean((10*log10(S_ref/S_pred))^2)) which is a slightly different formulation from our psd_log_ratio (mean |log10|). Worth noting but not blocking — our formulation is comparable.
+
+### Work Done
+- Downloaded paper 2604.03459 (PC-AFM) — confirmed it does NOT contain "spectral coherence" metric. Uses RALSD, CE, log-PDF, MCB instead. Spectral coherence is a standard signal processing concept.
+- Implemented spectral coherence in `src/downscaling/metrics/spectral.py`:
+  - `spectral_coherence(preds, truths)`: batch (N,H,W) → (wavenumbers, γ²(k)) via azimuthally-averaged cross-spectral density
+  - `mean_spectral_coherence(preds, truths)`: scalar summary (mean coherence across wavenumbers)
+  - `_wavenumber_grid()`: shared helper for radial wavenumber computation
+- Added 11 integration tests in `tests/test_metrics.py`:
+  - Identical → 1.0, independent → near 0, single sample independent → <0.5
+  - Bounded [0,1], noisy copy ordering, output shape, shape mismatch, rejects 2D
+  - Scalar summary, ordering, frequency-dependent coherence (low-k > high-k with high-freq noise)
+- All 71 tests pass, ruff clean, basedpyright clean
+- Updated `__init__.py` with re-exports
+- Updated CLAUDE.md with new paper entry
+- Key insight: single-sample coherence is NOT trivially 1.0 for independent fields — azimuthal averaging within wavenumber bins causes phase cancellation. This is correct behavior.
+
+### Iteration 7 End
+End commit: (pending)
+End time: ~14:15 EDT

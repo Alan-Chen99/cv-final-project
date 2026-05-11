@@ -1,11 +1,15 @@
-"""Radially averaged power spectral density (PSD) for 2D fields.
+"""Spectral metrics for 2D fields: PSD and spectral coherence.
 
-Standard diagnostic for climate downscaling: shows whether models preserve
-fine-scale structure vs over-smoothing. Used in CorrDiff, CDSI, IPSL-AID,
-R2D2, and other papers for evaluating spatial-frequency fidelity.
+PSD (radially averaged power spectral density) shows whether models preserve
+fine-scale structure vs over-smoothing.
 
-The 2D power spectrum is computed via FFT and then azimuthally averaged
-into 1D curves indexed by isotropic wavenumber.
+Spectral coherence measures phase alignment between prediction and truth at
+each spatial frequency — complementary to PSD which only captures power
+magnitude. A model can match the truth PSD perfectly while having zero
+coherence (right amount of texture, wrong spatial placement).
+
+Both metrics use 2D FFT with azimuthal averaging into 1D curves indexed
+by isotropic wavenumber.
 """
 
 from __future__ import annotations
@@ -126,3 +130,99 @@ def psd_log_ratio(
 
     log_ratio = np.abs(np.log10(power_pred[valid]) - np.log10(power_truth[valid]))
     return float(np.mean(log_ratio))
+
+
+def _wavenumber_grid(h: int, w: int) -> tuple[NDArray[np.floating], NDArray[np.signedinteger]]:
+    """Shared helper: radial wavenumber map and integer bin assignments."""
+    cy, cx = h / 2, w / 2
+    yy, xx = np.meshgrid(np.arange(h) - cy, np.arange(w) - cx, indexing="ij")
+    radius = np.sqrt(xx**2 + yy**2)
+    radius_int = np.round(radius).astype(int)
+    return radius, radius_int
+
+
+def spectral_coherence(
+    predictions: NDArray[np.floating],
+    truths: NDArray[np.floating],
+) -> tuple[NDArray[np.floating], NDArray[np.floating]]:
+    """Radially averaged spectral coherence between prediction and truth fields.
+
+    Coherence γ²(k) = |<S_xy(k)>|² / (<S_xx(k)> · <S_yy(k)>) where <·> is
+    the average over samples AND frequencies within wavenumber bin k.
+
+    For a single sample pair, coherence is trivially 1.0 at every frequency
+    (no averaging to reduce variance). Meaningful estimation requires N >> 1.
+
+    Args:
+        predictions: (N, H, W) batch of predicted 2D fields.
+        truths: (N, H, W) batch of ground-truth 2D fields.
+
+    Returns:
+        Tuple of (wavenumbers, coherence) where:
+        - wavenumbers: 1D array [1, 2, ..., k_max], k_max = min(H, W) // 2.
+        - coherence: 1D array in [0, 1] at each wavenumber bin.
+    """
+    if predictions.ndim != 3 or truths.ndim != 3:
+        raise ValueError(
+            f"Expected 3D arrays (N, H, W), got {predictions.shape} and {truths.shape}"
+        )
+    if predictions.shape != truths.shape:
+        raise ValueError(f"Shape mismatch: {predictions.shape} vs {truths.shape}")
+    n, h, w = predictions.shape
+    if n < 1:
+        raise ValueError("Need at least 1 sample")
+
+    _, radius_int = _wavenumber_grid(h, w)
+    k_max = min(h, w) // 2
+    k_bins = np.arange(1, k_max + 1, dtype=np.float64)
+
+    # Accumulate cross-spectrum and auto-spectra per wavenumber bin
+    sxy_accum = np.zeros(k_max, dtype=np.complex128)
+    sxx_accum = np.zeros(k_max, dtype=np.float64)
+    syy_accum = np.zeros(k_max, dtype=np.float64)
+    counts = np.zeros(k_max, dtype=np.int64)
+
+    for i in range(n):
+        fx = np.fft.fftshift(np.fft.fft2(predictions[i]))
+        fy = np.fft.fftshift(np.fft.fft2(truths[i]))
+        cross = fx * np.conj(fy)
+        pxx = np.abs(fx) ** 2
+        pyy = np.abs(fy) ** 2
+
+        for j in range(k_max):
+            k = int(k_bins[j])
+            mask = radius_int == k
+            if np.any(mask):
+                sxy_accum[j] += np.sum(cross[mask])
+                sxx_accum[j] += np.sum(pxx[mask])
+                syy_accum[j] += np.sum(pyy[mask])
+                counts[j] += int(np.sum(mask))
+
+    # γ²(k) = |mean(S_xy)|² / (mean(S_xx) · mean(S_yy))
+    coherence = np.zeros(k_max, dtype=np.float64)
+    valid = (sxx_accum > 0) & (syy_accum > 0) & (counts > 0)
+    mean_sxy = np.where(counts > 0, sxy_accum / counts, 0)
+    mean_sxx = np.where(counts > 0, sxx_accum / counts, 0)
+    mean_syy = np.where(counts > 0, syy_accum / counts, 0)
+    coherence[valid] = np.abs(mean_sxy[valid]) ** 2 / (mean_sxx[valid] * mean_syy[valid])
+
+    return k_bins, coherence
+
+
+def mean_spectral_coherence(
+    predictions: NDArray[np.floating],
+    truths: NDArray[np.floating],
+) -> float:
+    """Scalar summary: mean coherence across all wavenumber bins.
+
+    Values in [0, 1]. Higher is better (1 = perfect phase alignment).
+
+    Args:
+        predictions: (N, H, W) batch of predicted 2D fields.
+        truths: (N, H, W) batch of ground-truth 2D fields.
+
+    Returns:
+        Mean spectral coherence (scalar).
+    """
+    _, coherence = spectral_coherence(predictions, truths)
+    return float(np.mean(coherence))

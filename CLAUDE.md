@@ -201,6 +201,7 @@ This is a starting catalog, not a boundary. When exploring research directions, 
 | 2026-02-13 | High-Resolution Climate Projections Using Diffusion-Based Downscaling | [2602.13416](https://arxiv.org/abs/2602.13416) | [papers/2026-02-13 High-Resolution Climate Projections Using Diffusion-Based Downscaling of a Lightweight Climate Emulator.md](papers/2026-02-13%20High-Resolution%20Climate%20Projections%20Using%20Diffusion-Based%20Downscaling%20of%20a%20Lightweight%20Climate%20Emulator.md) |
 | 2024-10-02 | Dynamical-Generative Downscaling of Climate Model Ensembles | [2410.01776](https://arxiv.org/abs/2410.01776) | [papers/2024-10-02 Dynamical-generative downscaling of climate model ensembles.md](papers/2024-10-02%20Dynamical-generative%20downscaling%20of%20climate%20model%20ensembles.md) |
 | 2026-03-23 | IPSL-AID: Generative Diffusion Models for Climate Downscaling | [2604.03275](https://arxiv.org/abs/2604.03275) | [papers/2026-03-23 IPSL-AID Generative Diffusion Models for Climate Downscaling from Global to Regional Scales.md](papers/2026-03-23%20IPSL-AID%20Generative%20Diffusion%20Models%20for%20Climate%20Downscaling%20from%20Global%20to%20Regional%20Scales.md) |
+| 2026-04-03 | PC-AFM: Physics-Constrained Adaptive Flow Matching for Climate Downscaling | [2604.03459](https://arxiv.org/abs/2604.03459) | [papers/2026-04-03 Physics-Constrained Adaptive Flow Matching for Climate Downscaling.md](papers/2026-04-03%20Physics-Constrained%20Adaptive%20Flow%20Matching%20for%20Climate%20Downscaling.md) |
 
 ## Climate Foundation Models
 

@@ -15,8 +15,10 @@ from downscaling.metrics.distributional import (
 )
 from downscaling.metrics.spectral import (
     ensemble_mean_psd,
+    mean_spectral_coherence,
     psd_log_ratio,
     radial_psd,
+    spectral_coherence,
 )
 from downscaling.metrics.structural import ensemble_mean_ssim, ssim
 
@@ -640,3 +642,117 @@ class TestEnsembleMeanKLDivergence:
         """Should raise on 1D ensemble."""
         with pytest.raises(ValueError, match="2D"):
             ensemble_mean_kl_divergence(np.zeros(8), np.zeros(8))
+
+
+# ── Spectral coherence ────────────────────────────────────────────────────
+
+
+class TestSpectralCoherence:
+    """Test spectral coherence metric."""
+
+    def test_identical_fields_perfect_coherence(self):
+        """Identical prediction and truth → coherence 1.0 everywhere."""
+        rng = np.random.default_rng(42)
+        fields = rng.standard_normal((20, 32, 32))
+        k, coh = spectral_coherence(fields, fields)
+        np.testing.assert_allclose(coh, 1.0, atol=1e-10)
+
+    def test_independent_fields_low_coherence(self):
+        """Independent random fields → coherence near 0 with enough samples."""
+        rng = np.random.default_rng(42)
+        preds = rng.standard_normal((200, 32, 32))
+        truths = rng.standard_normal((200, 32, 32))
+        k, coh = spectral_coherence(preds, truths)
+        # With 200 independent samples, coherence should be near 0
+        assert np.mean(coh) < 0.1
+
+    def test_single_sample_independent_low_coherence(self):
+        """Single sample of independent fields: coherence < 1 due to azimuthal averaging."""
+        rng = np.random.default_rng(42)
+        pred = rng.standard_normal((1, 32, 32))
+        truth = rng.standard_normal((1, 32, 32))
+        k, coh = spectral_coherence(pred, truth)
+        # Phase cancellation within wavenumber bins → coherence well below 1
+        assert np.mean(coh) < 0.5
+        # Still bounded [0, 1]
+        assert np.all(coh >= -1e-10)
+        assert np.all(coh <= 1.0 + 1e-10)
+
+    def test_coherence_bounded_zero_one(self):
+        """Coherence values should be in [0, 1]."""
+        rng = np.random.default_rng(42)
+        preds = rng.standard_normal((50, 32, 32))
+        truths = preds + rng.normal(0, 0.5, (50, 32, 32))
+        k, coh = spectral_coherence(preds, truths)
+        assert np.all(coh >= -1e-10)
+        assert np.all(coh <= 1.0 + 1e-10)
+
+    def test_noisy_copy_intermediate_coherence(self):
+        """Truth + noise → coherence between 0 and 1, decreasing with noise."""
+        rng = np.random.default_rng(42)
+        truths = rng.standard_normal((100, 32, 32))
+        low_noise = truths + rng.normal(0, 0.3, truths.shape)
+        high_noise = truths + rng.normal(0, 3.0, truths.shape)
+        _, coh_low = spectral_coherence(low_noise, truths)
+        _, coh_high = spectral_coherence(high_noise, truths)
+        # Low noise → higher mean coherence
+        assert np.mean(coh_low) > np.mean(coh_high)
+
+    def test_output_shape(self):
+        """Output wavenumber and coherence arrays have matching shapes."""
+        rng = np.random.default_rng(42)
+        preds = rng.standard_normal((10, 32, 48))
+        truths = rng.standard_normal((10, 32, 48))
+        k, coh = spectral_coherence(preds, truths)
+        assert k.shape == coh.shape
+        assert len(k) == 16  # min(32, 48) // 2
+
+    def test_shape_mismatch_raises(self):
+        """Different shapes for predictions and truths → ValueError."""
+        with pytest.raises(ValueError, match="Shape mismatch"):
+            spectral_coherence(np.zeros((5, 32, 32)), np.zeros((5, 32, 64)))
+
+    def test_rejects_2d_input(self):
+        """2D arrays (missing batch dim) → ValueError."""
+        with pytest.raises(ValueError, match="3D"):
+            spectral_coherence(np.zeros((32, 32)), np.zeros((32, 32)))
+
+    def test_mean_spectral_coherence_scalar(self):
+        """mean_spectral_coherence returns a float scalar."""
+        rng = np.random.default_rng(42)
+        fields = rng.standard_normal((20, 32, 32))
+        msc = mean_spectral_coherence(fields, fields)
+        assert isinstance(msc, float)
+        assert msc == pytest.approx(1.0, abs=1e-10)
+
+    def test_mean_coherence_ordering(self):
+        """Better predictions → higher mean coherence."""
+        rng = np.random.default_rng(42)
+        truths = rng.standard_normal((100, 32, 32))
+        good = truths + rng.normal(0, 0.2, truths.shape)
+        bad = rng.standard_normal((100, 32, 32))
+        msc_good = mean_spectral_coherence(good, truths)
+        msc_bad = mean_spectral_coherence(bad, truths)
+        assert msc_good > msc_bad
+
+    def test_frequency_dependent_coherence(self):
+        """Low-freq signal + high-freq noise: coherence high at low-k, low at high-k."""
+        rng = np.random.default_rng(42)
+        n = 100
+        h, w = 64, 64
+        # Smooth signal (low frequency content)
+        from scipy.ndimage import gaussian_filter
+
+        base = rng.standard_normal((n, h, w))
+        smooth = np.array([gaussian_filter(b, sigma=5) for b in base])
+        # Prediction = smooth signal + high-freq noise
+        noise = rng.normal(0, 0.3, (n, h, w))
+        preds = smooth + noise
+        # Both share the same smooth component → high coherence at low freq
+        k, coh = spectral_coherence(preds, smooth)
+        # Low wavenumbers (first quarter) should have higher coherence
+        # than high wavenumbers (last quarter)
+        quarter = len(k) // 4
+        low_k_coh = np.mean(coh[:quarter])
+        high_k_coh = np.mean(coh[-quarter:])
+        assert low_k_coh > high_k_coh
