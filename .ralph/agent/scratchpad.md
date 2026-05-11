@@ -471,3 +471,25 @@ Fix concern #2: harden `_filter_broken` to raise on missing RALSD. Add footnote 
 ### Iteration 15 End
 End commit: `8df07b1`
 End time: ~15:30 EDT
+
+## Iteration 16 — 2026-05-11 15:30 EDT
+Start commit: `8471ac1`
+
+### Concerns Review
+1. **Quality**: `assert k is not None` in evaluation/comprehensive.py:248 — assertions disabled by `-O` flag, should be explicit raise. Real control-flow bug if assertions are stripped.
+2. **Quality**: RALSD threshold `10` is a magic number in plotting/comprehensive.py:53. Should be named constant with comment.
+3. **Quality**: `next(iter(results.values()))` in `plot_psd_comparison` crashes with `StopIteration` if both datasets are empty after broken-model filtering.
+
+Scratchpad also incorrectly stated "80 tests pass" in iterations 9-15, but only test_metrics.py has 80 tests — the full suite has 173 (across 6 test files). Not a code bug, just a scratchpad accuracy issue.
+
+### Work Done
+- Replaced `assert k is not None` with explicit `raise ValueError` in evaluation/comprehensive.py
+- Defined `BROKEN_MODEL_RALSD_THRESHOLD = 10.0` constant with comment in plotting/comprehensive.py
+- Added empty-dict guard in `plot_psd_comparison` — shows "No models" text instead of crashing
+- Regenerated all 5 figures — verified identical output (no broken models in NorESM, Heun filtered from ERA5)
+- Verified: 173 tests pass (80 metrics + 93 other), ruff clean, basedpyright 0 errors, 2 pre-existing warnings
+- No dangling processes
+
+### Iteration 16 End
+End commit: (pending)
+End time: ~15:41 EDT

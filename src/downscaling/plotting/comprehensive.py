@@ -23,6 +23,9 @@ POOL = Path("/home/chenxy/orcd/pool/datasets")
 NORESM_RESULTS = POOL / "metrics" / "noresm" / "comprehensive_results.json"
 ERA5_RESULTS = POOL / "metrics" / "era5" / "era5_comprehensive_results.json"
 
+# Models with RALSD above this threshold are considered diverged and excluded from plots
+BROKEN_MODEL_RALSD_THRESHOLD = 10.0
+
 # Metrics displayed in summary. (key, display_name, higher_is_better)
 SCALAR_METRICS: list[tuple[str, str, bool]] = [
     ("crps", "CRPS", False),
@@ -43,14 +46,14 @@ def _load(path: Path) -> dict[str, dict[str, object]]:
 
 
 def _filter_broken(results: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
-    """Remove models with clearly diverged metrics (e.g. RALSD > 10)."""
+    """Remove models with clearly diverged metrics (RALSD > threshold)."""
     for name, r in results.items():
         if "ralsd" not in r:
             raise KeyError(f"Model '{name}' is missing 'ralsd' metric — results may be stale")
     return {
         name: r
         for name, r in results.items()
-        if float(r["ralsd"]) < 10  # type: ignore[arg-type]
+        if float(r["ralsd"]) < BROKEN_MODEL_RALSD_THRESHOLD  # type: ignore[arg-type]
     }
 
 
@@ -70,6 +73,10 @@ def plot_psd_comparison(
         (ax_n, noresm, "NorESM TAS 2x SR"),
         (ax_e, era5, "ERA5 TCW 4x SR"),
     ]:
+        if not results:
+            ax.text(0.5, 0.5, "No models", ha="center", va="center", transform=ax.transAxes)
+            ax.set_title(title)
+            continue
         first = next(iter(results.values()))
         k = np.array(first["psd_k"])
         truth_power = np.array(first["psd_truth_power"])

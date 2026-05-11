@@ -245,7 +245,8 @@ def compute_all_metrics(
         pred_p.append(p_m)
         k = k_t
 
-    assert k is not None
+    if k is None:
+        raise ValueError("psd_samples must be > 0 (got 0 after min(n, psd_samples))")
     mean_truth_psd = np.mean(truth_p, axis=0)
     mean_pred_psd = np.mean(pred_p, axis=0)
     psd_ratio = psd_log_ratio(k, mean_pred_psd, k, mean_truth_psd)
