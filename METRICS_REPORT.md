@@ -203,8 +203,7 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 | `spectral_bias.png` | Per-frequency spectral bias (dB), 3 best + 1 worst highlighted, rest dimmed | Current |
 | `era5_sample_{0-4}_comparison.png` | Per-sample visual comparison (9 methods) | Current |
 | `era5_sample_{0-4}_errors.png` | Per-sample error maps | Current |
-| `era5_sample_{0-2}_ensemble.png` | Ensemble spread visualization | Current |
-| `era5_sample_{3-4}_ensemble.png` | Ensemble spread visualization | **Missing** (code fix applied, pending GPU re-run) |
+| `era5_sample_{0-4}_ensemble.png` | Ensemble spread visualization (10-member, MAE + std overlay) | Current |
 
 ### NorESM Figures (`figures/noresm/`)
 | File | Description | Status |
@@ -218,8 +217,7 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 | `spectral_bias.png` | Per-frequency spectral bias (dB), 3 best + 1 worst highlighted, rest dimmed | Current |
 | `noresm_sample_{0-4}_comparison.png` | Per-sample visual comparison | Current |
 | `noresm_sample_{0-4}_errors.png` | Per-sample error maps | Current |
-| `noresm_sample_{0-2}_ensemble.png` | Ensemble spread visualization | Current |
-| `noresm_sample_{3-4}_ensemble.png` | Ensemble spread visualization | **Missing** (code fix applied, pending GPU re-run) |
+| `noresm_sample_{0-4}_ensemble.png` | Ensemble spread visualization (10-member, MAE + std overlay) | Current |
 
 ## Implementation
 
@@ -245,5 +243,5 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 1. ~~**GPU eval with 8 metrics**~~ — **DONE** (iter11).
 2. ~~**Generate spectral figures**~~ — **DONE** (iter12). PSD curves, spectral bias, RALSD bars, extended metrics panels for both datasets.
 3. ~~**Generate extended metrics panel**~~ — **DONE** (iter12). 8-metric 3x3 grid for ERA5 and NorESM.
-4. **Fix ensemble plots** — Re-run `make_figures.py` on GPU to generate ERA5 samples 3-4 and NorESM samples 3-4 ensemble plots (code fix already applied)
+4. ~~**Fix ensemble plots**~~ — **DONE** (iter17). All 5 samples for both ERA5 and NorESM now have ensemble spread plots.
 5. ~~**Update dual metrics panel**~~ — **DONE** (iter13). Now shows all 8 metrics side-by-side.

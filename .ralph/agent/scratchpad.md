@@ -648,3 +648,36 @@ Fix spectral bias plot readability by applying same highlighting approach used f
 
 
 - **End**: 2026-05-11T22:59:27Z, commit 18e2186
+
+## Iteration 17
+- **Start**: 2026-05-11T23:00:20Z, commit c123f93
+- **Prefix**: rxlt-ujbt
+
+### Concerns (3+)
+
+1. **Workflow: Ensemble plots for samples 3-4 still missing after 16 iterations** — This was identified as remaining work since iter8 (code fix). GPU jobs were consistently blocked by ivy-ash workflow or Priority conflicts in iters 9-16. The task kept being deferred.
+
+2. **Quality: NorESM ensemble plots show high MAE (1.12, 1.68) for samples 3-4** — These are much higher than ERA5 (0.06, 0.31). Consistent with NorESM being a harder task, and the specific samples having large temperature gradients. Not a bug — worth noting in report.
+
+3. **Quality: All remaining work items now DONE** — With ensemble plots generated, the report's "Remaining Work" section has all 5 items marked DONE. The metrics-v2 task is feature-complete.
+
+### Plan for this iteration
+Generate the missing ensemble plots by running make_figures.py on GPU (without --metrics-only). Update report.
+
+### Work done
+- **Submitted sbatch job 13770027** on mit_normal_gpu (node4106, L40S), completed in ~3 min
+  - Generated all ERA5 ensemble plots (samples 0-4, 5 files)
+  - Generated all NorESM ensemble plots (samples 0-4, 5 files)
+  - Also regenerated all metrics figures and sample comparison/error plots
+- **Visually inspected** all 4 new ensemble plots (ERA5 3-4, NorESM 3-4): correct, showing expected uncertainty patterns
+- **Updated METRICS_REPORT.md**: consolidated ensemble figure entries, marked item 4 DONE, all 5 remaining items now complete
+- 146/146 tests pass, lint clean
+
+### All remaining work: NONE
+All 5 original remaining work items are DONE. The metrics-v2 task is feature-complete:
+- 8 metrics across 15 ERA5 methods and 12 NorESM methods
+- 10+ figure types per dataset (metrics panels, PSD, spectral bias, RALSD, sample comparisons, error maps, ensemble spread)
+- Cross-dataset comparison figures
+- Report with full tables, findings, and figure inventory
+
+- **End**: 2026-05-11T23:10:00Z, commit (pending)
