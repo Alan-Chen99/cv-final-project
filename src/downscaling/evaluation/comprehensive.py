@@ -1,8 +1,8 @@
 """Comprehensive evaluation of all trained models.
 
 Computes all metrics (CRPS, MAE, RMSE, mass violation, SSIM, KL divergence,
-PSD log-ratio, spectral coherence, rank histogram, SSR) for NorESM 2x SR and
-ERA5 4x SR models. ERA5 uses cached ensemble predictions; NorESM runs inference.
+PSD log-ratio, RALSD, spectral coherence, rank histogram, SSR) for NorESM 2x SR
+and ERA5 4x SR models. ERA5 uses cached ensemble predictions; NorESM runs inference.
 
 Run: python -m downscaling.evaluation.comprehensive [--max-samples N] [--dataset noresm|era5|both]
 """

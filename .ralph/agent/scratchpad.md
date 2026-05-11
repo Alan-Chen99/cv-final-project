@@ -493,3 +493,14 @@ Scratchpad also incorrectly stated "80 tests pass" in iterations 9-15, but only 
 ### Iteration 16 End
 End commit: `8cf4650`
 End time: ~15:41 EDT
+
+## Iteration 17 — 2026-05-11 15:48 EDT
+Start commit: `d1f2ad4`
+
+### Concerns Review
+1. **Quality**: `compute_all_metrics()` in evaluation/comprehensive.py is the central metric orchestration function — it handles ensemble vs non-ensemble branching, PSD/coherence subset computation, and result dict assembly. Zero test coverage. A regression here silently corrupts all evaluation results. Individual metric functions are tested (80 tests), but the orchestration is not.
+2. **Quality**: Module docstring in evaluation/comprehensive.py (line 4) lists "CRPS, MAE, RMSE, mass violation, SSIM, KL divergence, PSD log-ratio, spectral coherence, rank histogram, SSR" — RALSD is missing. Added in iteration 9 but docstring was never updated.
+3. **Workflow**: Iterations 13-16 were all diminishing-returns polish (dead code, magic numbers, error propagation). The core task (7 new metrics, both datasets evaluated, 5 plots, report) has been complete since iteration 12. One remaining substantive gap is concern #1.
+
+### Plan
+Add integration test for `compute_all_metrics` with synthetic data. Fix docstring. One coherent deliverable.

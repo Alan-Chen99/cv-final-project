@@ -1,8 +1,9 @@
 """Integration tests for baseline evaluation methods and checkpoint loading.
 
 Tests verify bicubic/bilinear baselines produce correct metrics,
-AddCL constraint reduces mass violation, and checkpoint loading
-handles both patterns (full checkpoint and state_dict-only).
+AddCL constraint reduces mass violation, checkpoint loading handles
+both patterns, and compute_all_metrics orchestration returns correct
+result structure for both ensemble and deterministic paths.
 """
 
 import numpy as np
@@ -17,6 +18,7 @@ from downscaling.evaluation.baselines import (
     upsample_bilinear,
 )
 from downscaling.evaluation.checkpoints import load_checkpoint, load_norm_stats
+from downscaling.evaluation.comprehensive import compute_all_metrics
 from downscaling.models.unet import AttentionUNet
 
 
@@ -221,3 +223,105 @@ class TestCheckpointLoading:
         assert loaded["lr_std"] == pytest.approx(0.8)
         # Values should be plain floats, not tensors
         assert isinstance(loaded["res_mean"], float)
+
+
+class TestComputeAllMetrics:
+    """Integration tests for the metric orchestration function.
+
+    Uses small synthetic data (N=10, 16x16 HR, 8x8 LR, factor=2) to verify
+    result structure, key presence, and value sanity for both ensemble and
+    deterministic paths without requiring GPU or real data.
+    """
+
+    @pytest.fixture
+    def synthetic_data(self):
+        """Small synthetic dataset: truth, LR, and predictions."""
+        rng = np.random.default_rng(42)
+        n, h, w, factor = 10, 16, 16, 2
+        lr_h, lr_w = h // factor, w // factor
+
+        truth = rng.standard_normal((n, h, w)).astype(np.float32)
+        lr_orig = torch.from_numpy(
+            rng.standard_normal((n, 1, lr_h, lr_w)).astype(np.float32)
+        )
+        return truth, lr_orig, factor
+
+    # -- Expected keys for each path --
+
+    COMMON_KEYS = {
+        "crps", "mae", "rmse", "mass_violation", "ssim", "kl_divergence",
+        "psd_log_ratio", "ralsd", "spectral_coherence",
+        "psd_k", "psd_power", "psd_truth_power",
+    }
+    ENSEMBLE_KEYS = COMMON_KEYS | {"ssr", "rank_histogram"}
+
+    def test_deterministic_returns_expected_keys(self, synthetic_data):
+        """Non-ensemble path returns all scalar + PSD keys, no SSR/rank_histogram."""
+        truth, lr_orig, factor = synthetic_data
+        preds = truth + np.random.default_rng(99).normal(0, 0.1, truth.shape).astype(np.float32)
+        result = compute_all_metrics(truth, preds, lr_orig, is_ensemble=False, upsampling_factor=factor)
+        assert set(result.keys()) == self.COMMON_KEYS
+
+    def test_ensemble_returns_expected_keys(self, synthetic_data):
+        """Ensemble path returns all keys including SSR and rank_histogram."""
+        truth, lr_orig, factor = synthetic_data
+        n, h, w = truth.shape
+        m = 5
+        ens = np.stack([truth + np.random.default_rng(i).normal(0, 0.3, (n, h, w)) for i in range(m)], axis=1).astype(np.float32)
+        result = compute_all_metrics(truth, ens, lr_orig, is_ensemble=True, upsampling_factor=factor)
+        assert set(result.keys()) == self.ENSEMBLE_KEYS
+
+    def test_all_values_finite(self, synthetic_data):
+        """All scalar metrics are finite for well-behaved synthetic data."""
+        truth, lr_orig, factor = synthetic_data
+        preds = truth + np.random.default_rng(99).normal(0, 0.1, truth.shape).astype(np.float32)
+        result = compute_all_metrics(truth, preds, lr_orig, is_ensemble=False, upsampling_factor=factor)
+        for key in ("crps", "mae", "rmse", "mass_violation", "ssim", "kl_divergence",
+                     "psd_log_ratio", "ralsd", "spectral_coherence"):
+            assert np.isfinite(result[key]), f"{key} is not finite: {result[key]}"
+
+    def test_crps_equals_mae_for_identical_members(self, synthetic_data):
+        """Ensemble with M identical members → CRPS = MAE (spread term vanishes)."""
+        truth, lr_orig, factor = synthetic_data
+        single = (truth + np.random.default_rng(99).normal(0, 0.1, truth.shape)).astype(np.float32)
+        # M=2 identical copies: ensemble spread = 0, so CRPS reduces to MAE
+        preds_dup = np.stack([single, single], axis=1)
+        result = compute_all_metrics(truth, preds_dup, lr_orig, is_ensemble=True, upsampling_factor=factor)
+        assert result["crps"] == pytest.approx(result["mae"], rel=1e-5)
+
+    def test_perfect_prediction_zero_error(self, synthetic_data):
+        """Perfect prediction yields zero MAE and RMSE."""
+        truth, lr_orig, factor = synthetic_data
+        result = compute_all_metrics(truth, truth.copy(), lr_orig, is_ensemble=False, upsampling_factor=factor)
+        assert result["mae"] == pytest.approx(0.0, abs=1e-10)
+        assert result["rmse"] == pytest.approx(0.0, abs=1e-10)
+
+    def test_psd_arrays_consistent_length(self, synthetic_data):
+        """psd_k, psd_power, psd_truth_power have matching lengths."""
+        truth, lr_orig, factor = synthetic_data
+        preds = truth + np.random.default_rng(99).normal(0, 0.1, truth.shape).astype(np.float32)
+        result = compute_all_metrics(truth, preds, lr_orig, is_ensemble=False, upsampling_factor=factor)
+        assert len(result["psd_k"]) == len(result["psd_power"]) == len(result["psd_truth_power"])
+
+    def test_rank_histogram_length_matches_ensemble(self, synthetic_data):
+        """Rank histogram has M+1 bins for M ensemble members."""
+        truth, lr_orig, factor = synthetic_data
+        n, h, w = truth.shape
+        m = 5
+        ens = np.stack([truth + np.random.default_rng(i).normal(0, 0.3, (n, h, w)) for i in range(m)], axis=1).astype(np.float32)
+        result = compute_all_metrics(truth, ens, lr_orig, is_ensemble=True, upsampling_factor=factor)
+        assert len(result["rank_histogram"]) == m + 1
+
+    def test_ssim_bounded(self, synthetic_data):
+        """SSIM is bounded in [-1, 1]."""
+        truth, lr_orig, factor = synthetic_data
+        preds = truth + np.random.default_rng(99).normal(0, 0.1, truth.shape).astype(np.float32)
+        result = compute_all_metrics(truth, preds, lr_orig, is_ensemble=False, upsampling_factor=factor)
+        assert -1.0 <= result["ssim"] <= 1.0
+
+    def test_coherence_bounded(self, synthetic_data):
+        """Spectral coherence is bounded in [0, 1]."""
+        truth, lr_orig, factor = synthetic_data
+        preds = truth + np.random.default_rng(99).normal(0, 0.1, truth.shape).astype(np.float32)
+        result = compute_all_metrics(truth, preds, lr_orig, is_ensemble=False, upsampling_factor=factor)
+        assert 0.0 <= result["spectral_coherence"] <= 1.0 + 1e-10
