@@ -23,6 +23,18 @@ POOL = Path("/home/chenxy/orcd/pool/datasets")
 NORESM_RESULTS = POOL / "metrics" / "noresm" / "comprehensive_results.json"
 ERA5_RESULTS = POOL / "metrics" / "era5" / "era5_comprehensive_results.json"
 
+# Canonical model families — both panels show the same set in the same order/color
+MODEL_FAMILIES = ["CNN", "CNN+AddCL", "Flow", "Flow+AddCL", "SwinIR", "SwinIR+AddCL", "Truth+AddCL"]
+MODEL_COLORS = {
+    "CNN": "#e41a1c",
+    "CNN+AddCL": "#984ea3",
+    "Flow": "#377eb8",
+    "Flow+AddCL": "#4daf4a",
+    "SwinIR": "#ff7f00",
+    "SwinIR+AddCL": "#a65628",
+    "Truth+AddCL": "#999999",
+}
+
 # Models with RALSD above this threshold are considered diverged and excluded from plots
 BROKEN_MODEL_RALSD_THRESHOLD = 10.0
 
@@ -40,9 +52,18 @@ SCALAR_METRICS: list[tuple[str, str, bool]] = [
 ]
 
 
+# Map legacy result names to canonical MODEL_FAMILIES names
+_NAME_MAP: dict[str, str] = {
+    "CNN(none)": "CNN",
+    "Flow(none)": "Flow",
+    "FlowV2+AddCL": "Flow+AddCL",
+}
+
+
 def _load(path: Path) -> dict[str, dict[str, object]]:
     with open(path) as f:
-        return json.load(f)
+        raw: dict[str, dict[str, object]] = json.load(f)
+    return {_NAME_MAP.get(k, k): v for k, v in raw.items()}
 
 
 def _filter_broken(results: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
@@ -80,28 +101,32 @@ def plot_psd_comparison(
         first = next(iter(results.values()))
         k = np.array(first["psd_k"])
         truth_power = np.array(first["psd_truth_power"])
-        ax.loglog(k, truth_power, "k-", linewidth=2.5, label="Truth", zorder=10)
 
-        colors = plt.cm.tab10(np.linspace(0, 1, len(results)))  # type: ignore[attr-defined]
-        for (name, r), color in zip(results.items(), colors, strict=False):
+        ax.axhline(y=1.0, color="k", linewidth=2, linestyle="-", label="Truth", zorder=10)
+
+        for name in MODEL_FAMILIES:
+            if name not in results:
+                continue
+            r = results[name]
             power = np.array(r["psd_power"])
             ralsd_val = r["ralsd"]
-            ax.loglog(
+            ratio = power / truth_power
+            ax.semilogx(
                 k,
-                power,
+                ratio,
                 "-",
-                color=color,
+                color=MODEL_COLORS[name],
                 linewidth=1.5,
                 label=f"{name} (RALSD={ralsd_val:.2f})",
             )
 
         ax.set_xlabel("Wavenumber k", fontsize=11)
-        ax.set_ylabel("Power", fontsize=11)
+        ax.set_ylabel("Power / Truth", fontsize=11)
         ax.set_title(title, fontsize=13)
-        ax.legend(fontsize=8, loc="lower left")
+        ax.legend(fontsize=8, loc="best")
         ax.grid(True, alpha=0.3)
 
-    fig.suptitle("Radially Averaged Power Spectral Density", fontsize=14, y=1.02)
+    fig.suptitle("Radially Averaged PSD Ratio (Model / Truth)", fontsize=14, y=1.02)
     fig.tight_layout()
     fig.savefig(output_path, dpi=150, bbox_inches="tight")
     plt.close(fig)

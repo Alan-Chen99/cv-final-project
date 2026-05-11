@@ -20,7 +20,6 @@ import torch.nn as nn
 
 from downscaling.constraints.layers import apply_addcl
 from downscaling.data import load_noresm_tas
-from downscaling.evaluation.baselines import upsample_bicubic, upsample_bilinear
 from downscaling.evaluation.checkpoints import load_checkpoint, load_norm_stats
 from downscaling.evaluation.harder import compute_minmax_stats, load_harder_model
 from downscaling.evaluation.swinir import (
@@ -66,6 +65,8 @@ def generate_flow_predictions(
     n_ensemble: int = 10,
     ode_steps: int = 10,
     batch_size: int = 64,
+    with_addcl: bool = True,
+    upsampling_factor: int = UPSAMPLING_FACTOR,
 ) -> np.ndarray:
     """Generate flow matching ensemble predictions. Returns (N, M, H, W)."""
     n = lr_up_norm.shape[0]
@@ -85,7 +86,9 @@ def generate_flow_predictions(
                     model, batch_lr, shape=(bs, 1, hr_h, hr_w), steps=ode_steps
                 )
                 res = sampled.cpu() * norm_stats["res_std"] + norm_stats["res_mean"]
-                pred_hr = apply_addcl(batch_lr_up + res, batch_lr_orig, UPSAMPLING_FACTOR)
+                pred_hr = batch_lr_up + res
+                if with_addcl:
+                    pred_hr = apply_addcl(pred_hr, batch_lr_orig, upsampling_factor)
                 preds[start:end, m] = pred_hr[:, 0].numpy()
 
         print(f"  flow: {end}/{n}")
@@ -171,12 +174,13 @@ def generate_swinir_predictions(
     device: str,
     *,
     with_addcl: bool = True,
+    upsampling_factor: int = UPSAMPLING_FACTOR,
 ) -> np.ndarray:
     """Generate SwinIR finetuned predictions. Returns (N, H, W)."""
     model, vmin, vmax = load_swinir_finetuned(pretrained_path, checkpoint_path, device)
     preds_t = predict_swinir_finetuned(model, lr_orig, vmin, vmax, device)
     if with_addcl:
-        preds_t = apply_addcl(preds_t, lr_orig, UPSAMPLING_FACTOR)
+        preds_t = apply_addcl(preds_t, lr_orig, upsampling_factor)
     del model
     torch.cuda.empty_cache()
     return preds_t[:, 0].numpy()
@@ -327,133 +331,93 @@ def run_comprehensive_eval(
 
     results: dict[str, dict[str, object]] = {}
 
-    # --- Flow Matching (wide96-amp, AddCL) ---
-    print("\n--- Flow Matching (AddCL) ---")
-    t0 = time.time()
+    # --- Flow Matching ---
+    print("\n--- Loading Flow model ---")
     model = AttentionUNet(base_channels=96).to(device)
     load_checkpoint(model, str(models_dir / "flow-wide96-amp" / "best_flow.pt"), device)
     norm_stats = load_norm_stats(str(models_dir / "flow-wide96-amp" / "norm_stats.pt"), device)
     lr_up_norm = (lr_up - norm_stats["lr_mean"]) / norm_stats["lr_std"]
 
-    flow_preds = generate_flow_predictions(
-        model, lr_up_norm, lr_up, lr_orig, norm_stats, device,
-        n_ensemble=n_ensemble, ode_steps=ode_steps,
-    )
+    for addcl, label in [(False, "Flow"), (True, "Flow+AddCL")]:
+        print(f"\n--- {label} ---")
+        t0 = time.time()
+        flow_preds = generate_flow_predictions(
+            model, lr_up_norm, lr_up, lr_orig, norm_stats, device,
+            n_ensemble=n_ensemble, ode_steps=ode_steps, with_addcl=addcl,
+        )
+        flow_time = time.time() - t0
+        print(f"  Inference: {flow_time:.1f}s")
+        print("  Computing metrics...")
+        results[label] = compute_all_metrics(truth, flow_preds, lr_orig, is_ensemble=True, upsampling_factor=UPSAMPLING_FACTOR)
+        results[label]["inference_time_s"] = flow_time
+        results[label]["is_ensemble"] = True
+        results[label]["n_ensemble"] = n_ensemble
+        print(f"  CRPS={results[label]['crps']:.4f}  MAE={results[label]['mae']:.4f}  "
+              f"RMSE={results[label]['rmse']:.4f}  SSIM={results[label]['ssim']:.4f}  "
+              f"SSR={results[label].get('ssr', '?')}")
+
     del model
     torch.cuda.empty_cache()
-    flow_time = time.time() - t0
-    print(f"  Inference: {flow_time:.1f}s")
 
-    print("  Computing metrics...")
-    results["Flow+AddCL"] = compute_all_metrics(truth, flow_preds, lr_orig, is_ensemble=True, upsampling_factor=UPSAMPLING_FACTOR)
-    results["Flow+AddCL"]["inference_time_s"] = flow_time
-    results["Flow+AddCL"]["is_ensemble"] = True
-    results["Flow+AddCL"]["n_ensemble"] = n_ensemble
-    print(f"  CRPS={results['Flow+AddCL']['crps']:.4f}  MAE={results['Flow+AddCL']['mae']:.4f}  "
-          f"RMSE={results['Flow+AddCL']['rmse']:.4f}  SSIM={results['Flow+AddCL']['ssim']:.4f}  "
-          f"SSR={results['Flow+AddCL'].get('ssr', '?')}")
-
-    # --- Harder models ---
+    # --- CNN (Harder et al.) ---
     min_val, max_val = compute_minmax_stats(POOL, "noresm")
     print(f"\nHarder min/max: {min_val:.2f} / {max_val:.2f}")
 
-    # CNN (no constraint)
-    print("\n--- Harder CNN (none) ---")
-    t0 = time.time()
+    print("\n--- Loading CNN model ---")
     cnn = load_harder_model(
         models_dir / "harder" / "twc_cnn_none.pth",
         model_type="cnn", constraints="none", device=device,
         upsampling_factor=UPSAMPLING_FACTOR,
     )
-    cnn_preds = generate_cnn_predictions(cnn, lr_orig, min_val, max_val, device)
+    t0 = time.time()
+    cnn_preds_raw = generate_cnn_predictions(cnn, lr_orig, min_val, max_val, device)
     del cnn
     torch.cuda.empty_cache()
     cnn_time = time.time() - t0
     print(f"  Inference: {cnn_time:.1f}s")
-    print("  Computing metrics...")
-    results["CNN(none)"] = compute_all_metrics(truth, cnn_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
-    results["CNN(none)"]["inference_time_s"] = cnn_time
-    results["CNN(none)"]["is_ensemble"] = False
-    print(f"  CRPS={results['CNN(none)']['crps']:.4f}  MAE={results['CNN(none)']['mae']:.4f}  "
-          f"RMSE={results['CNN(none)']['rmse']:.4f}  SSIM={results['CNN(none)']['ssim']:.4f}")
 
-    # CNN (softmax)
-    print("\n--- Harder CNN (softmax) ---")
-    t0 = time.time()
-    cnn_sm = load_harder_model(
-        models_dir / "harder" / "twc_cnn_softmax.pth",
-        model_type="cnn", constraints="softmax", device=device,
-        upsampling_factor=UPSAMPLING_FACTOR,
-    )
-    cnn_sm_preds = generate_cnn_predictions(cnn_sm, lr_orig, min_val, max_val, device)
-    del cnn_sm
-    torch.cuda.empty_cache()
-    cnn_sm_time = time.time() - t0
-    print(f"  Inference: {cnn_sm_time:.1f}s")
-    print("  Computing metrics...")
-    results["CNN(softmax)"] = compute_all_metrics(truth, cnn_sm_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
-    results["CNN(softmax)"]["inference_time_s"] = cnn_sm_time
-    results["CNN(softmax)"]["is_ensemble"] = False
-    print(f"  CRPS={results['CNN(softmax)']['crps']:.4f}  MAE={results['CNN(softmax)']['mae']:.4f}  "
-          f"RMSE={results['CNN(softmax)']['rmse']:.4f}  SSIM={results['CNN(softmax)']['ssim']:.4f}")
+    # CNN without and with AddCL (post-hoc)
+    cnn_preds_addcl = apply_addcl(
+        torch.from_numpy(cnn_preds_raw).unsqueeze(1), lr_orig, UPSAMPLING_FACTOR,
+    )[:, 0].numpy()
 
-    # GAN (softmax) — ensemble
-    print("\n--- Harder GAN (softmax) ---")
-    t0 = time.time()
-    gan = load_harder_model(
-        models_dir / "harder" / "twc_gan_softmax.pth",
-        model_type="gan", constraints="softmax", device=device,
-        upsampling_factor=UPSAMPLING_FACTOR,
-    )
-    gan_preds = generate_gan_predictions(
-        gan, lr_orig, min_val, max_val, device, n_ensemble=n_ensemble,
-    )
-    del gan
-    torch.cuda.empty_cache()
-    gan_time = time.time() - t0
-    print(f"  Inference: {gan_time:.1f}s")
-    print("  Computing metrics...")
-    results["GAN(softmax)"] = compute_all_metrics(truth, gan_preds, lr_orig, is_ensemble=True, upsampling_factor=UPSAMPLING_FACTOR)
-    results["GAN(softmax)"]["inference_time_s"] = gan_time
-    results["GAN(softmax)"]["is_ensemble"] = True
-    results["GAN(softmax)"]["n_ensemble"] = n_ensemble
-    print(f"  CRPS={results['GAN(softmax)']['crps']:.4f}  MAE={results['GAN(softmax)']['mae']:.4f}  "
-          f"RMSE={results['GAN(softmax)']['rmse']:.4f}  SSIM={results['GAN(softmax)']['ssim']:.4f}  "
-          f"SSR={results['GAN(softmax)'].get('ssr', '?')}")
+    for preds, label in [(cnn_preds_raw, "CNN"), (cnn_preds_addcl, "CNN+AddCL")]:
+        print(f"\n--- {label} ---")
+        print("  Computing metrics...")
+        results[label] = compute_all_metrics(truth, preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
+        results[label]["inference_time_s"] = cnn_time
+        results[label]["is_ensemble"] = False
+        print(f"  CRPS={results[label]['crps']:.4f}  MAE={results[label]['mae']:.4f}  "
+              f"RMSE={results[label]['rmse']:.4f}  SSIM={results[label]['ssim']:.4f}")
 
     # --- SwinIR finetuned ---
-    print("\n--- SwinIR finetuned (AddCL) ---")
+    print("\n--- Loading SwinIR model ---")
     pretrained_weights = pretrained_dir / "001_classicalSR_DF2K_s64w8_SwinIR-M_x2.pth"
     swinir_ckpt = models_dir / "swinir_ft" / "best_swinir.pt"
-    t0 = time.time()
-    swinir_preds = generate_swinir_predictions(
-        lr_orig, pretrained_weights, swinir_ckpt, device, with_addcl=True,
-    )
-    swinir_time = time.time() - t0
-    print(f"  Inference: {swinir_time:.1f}s")
-    print("  Computing metrics...")
-    results["SwinIR+AddCL"] = compute_all_metrics(truth, swinir_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
-    results["SwinIR+AddCL"]["inference_time_s"] = swinir_time
-    results["SwinIR+AddCL"]["is_ensemble"] = False
-    print(f"  CRPS={results['SwinIR+AddCL']['crps']:.4f}  MAE={results['SwinIR+AddCL']['mae']:.4f}  "
-          f"RMSE={results['SwinIR+AddCL']['rmse']:.4f}  SSIM={results['SwinIR+AddCL']['ssim']:.4f}")
 
-    # --- Baselines ---
-    print("\n--- Bicubic baseline ---")
-    bicubic_preds = upsample_bicubic(lr_orig, UPSAMPLING_FACTOR)[:, 0].numpy()
-    results["Bicubic"] = compute_all_metrics(truth, bicubic_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
-    results["Bicubic"]["is_ensemble"] = False
-    results["Bicubic"]["inference_time_s"] = 0.0
-    print(f"  CRPS={results['Bicubic']['crps']:.4f}  MAE={results['Bicubic']['mae']:.4f}  "
-          f"RMSE={results['Bicubic']['rmse']:.4f}  SSIM={results['Bicubic']['ssim']:.4f}")
+    for addcl, label in [(False, "SwinIR"), (True, "SwinIR+AddCL")]:
+        print(f"\n--- {label} ---")
+        t0 = time.time()
+        swinir_preds = generate_swinir_predictions(
+            lr_orig, pretrained_weights, swinir_ckpt, device, with_addcl=addcl,
+        )
+        swinir_time = time.time() - t0
+        print(f"  Inference: {swinir_time:.1f}s")
+        print("  Computing metrics...")
+        results[label] = compute_all_metrics(truth, swinir_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
+        results[label]["inference_time_s"] = swinir_time
+        results[label]["is_ensemble"] = False
+        print(f"  CRPS={results[label]['crps']:.4f}  MAE={results[label]['mae']:.4f}  "
+              f"RMSE={results[label]['rmse']:.4f}  SSIM={results[label]['ssim']:.4f}")
 
-    print("\n--- Bilinear baseline ---")
-    bilinear_preds = upsample_bilinear(lr_orig, UPSAMPLING_FACTOR)[:, 0].numpy()
-    results["Bilinear"] = compute_all_metrics(truth, bilinear_preds, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
-    results["Bilinear"]["is_ensemble"] = False
-    results["Bilinear"]["inference_time_s"] = 0.0
-    print(f"  CRPS={results['Bilinear']['crps']:.4f}  MAE={results['Bilinear']['mae']:.4f}  "
-          f"RMSE={results['Bilinear']['rmse']:.4f}  SSIM={results['Bilinear']['ssim']:.4f}")
+    # --- Truth+AddCL (upper bound for AddCL constraint) ---
+    print("\n--- Truth+AddCL ---")
+    truth_addcl = apply_addcl(hr, lr_orig, UPSAMPLING_FACTOR)[:, 0].numpy()
+    results["Truth+AddCL"] = compute_all_metrics(truth, truth_addcl, lr_orig, is_ensemble=False, upsampling_factor=UPSAMPLING_FACTOR)
+    results["Truth+AddCL"]["inference_time_s"] = 0.0
+    results["Truth+AddCL"]["is_ensemble"] = False
+    print(f"  CRPS={results['Truth+AddCL']['crps']:.4f}  MAE={results['Truth+AddCL']['mae']:.4f}  "
+          f"RMSE={results['Truth+AddCL']['rmse']:.4f}  SSIM={results['Truth+AddCL']['ssim']:.4f}")
 
     # --- Save results ---
     print("\n--- Saving results ---")
@@ -485,23 +449,28 @@ def run_comprehensive_eval(
 
 ERA5_UPSAMPLING_FACTOR = 4
 
-# Mapping from prediction filename to display name
-ERA5_PREDICTION_NAMES: dict[str, str] = {
-    "flow_flow_none_test_ensemble.pt": "Flow(none)",
-    "flow_flow_residual_none_test_ensemble.pt": "ResFlow(none)",
-    "flow_flow_v2_addcl_test_ensemble.pt": "FlowV2+AddCL",
-    "flow_flow_res_20step_addcl_test_ensemble.pt": "ResFlow-20s+AddCL",
-    "flow_flow_res_heun_addcl_test_ensemble.pt": "ResFlow-Heun+AddCL",
+# Cached flow predictions (pre-computed .pt files)
+ERA5_FLOW_PREDICTIONS: dict[str, str] = {
+    "flow_flow_none_test_ensemble.pt": "Flow",
+    "flow_flow_v2_addcl_test_ensemble.pt": "Flow+AddCL",
 }
+
+# ERA5 Harder CNN checkpoint (organize2 branch)
+ERA5_HARDER_DIR = POOL / "organize2" / "models" / "harder"
+
+# ERA5 SwinIR checkpoint (research5 branch)
+ERA5_SWINIR_PRETRAINED = POOL / "research5" / "pretrained_weights" / "001_classicalSR_DF2K_s64w8_SwinIR-M_x4.pth"
+ERA5_SWINIR_CKPT = POOL / "research5" / "models" / "swinir_ft" / "best_swinir.pt"
 
 
 def run_era5_eval(
     output_dir: Path,
+    device: str = "cuda",
     max_samples: int = 2000,
 ) -> dict[str, dict[str, object]]:
-    """Run comprehensive evaluation on ERA5 4x SR cached predictions.
+    """Run comprehensive evaluation on ERA5 4x SR models.
 
-    All predictions are pre-computed .pt files — no GPU inference needed.
+    Flow predictions are pre-computed .pt files. CNN and SwinIR require GPU inference.
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     from downscaling.data import load_era5_tcw
@@ -516,8 +485,8 @@ def run_era5_eval(
     results: dict[str, dict[str, object]] = {}
     pred_dir = POOL / "era5_sr_data" / "prediction"
 
-    # --- Cached ensemble predictions ---
-    for filename, display_name in ERA5_PREDICTION_NAMES.items():
+    # --- Flow (cached ensemble predictions) ---
+    for filename, display_name in ERA5_FLOW_PREDICTIONS.items():
         pred_path = pred_dir / filename
         if not pred_path.exists():
             print(f"  Skipping {display_name}: {pred_path} not found")
@@ -545,26 +514,69 @@ def run_era5_eval(
               f"RMSE={r['rmse']:.4f}  SSIM={r['ssim']:.4f}  "
               f"SSR={r.get('ssr', '?')}  Coh={r.get('spectral_coherence', '?')}")
 
-    # --- Baselines ---
-    print("\n--- Bicubic baseline ---")
-    bicubic_preds = upsample_bicubic(lr_orig, ERA5_UPSAMPLING_FACTOR)[:, 0].numpy()
-    results["Bicubic"] = compute_all_metrics(
-        truth, bicubic_preds, lr_orig, is_ensemble=False,
-        upsampling_factor=ERA5_UPSAMPLING_FACTOR,
-    )
-    results["Bicubic"]["is_ensemble"] = False
-    results["Bicubic"]["inference_time_s"] = 0.0
-    print(f"  CRPS={results['Bicubic']['crps']:.4f}  MAE={results['Bicubic']['mae']:.4f}")
+    # --- CNN (Harder et al.) ---
+    min_val, max_val = compute_minmax_stats(POOL, "era5")
+    print(f"\nHarder min/max: {min_val:.2f} / {max_val:.2f}")
 
-    print("\n--- Bilinear baseline ---")
-    bilinear_preds = upsample_bilinear(lr_orig, ERA5_UPSAMPLING_FACTOR)[:, 0].numpy()
-    results["Bilinear"] = compute_all_metrics(
-        truth, bilinear_preds, lr_orig, is_ensemble=False,
-        upsampling_factor=ERA5_UPSAMPLING_FACTOR,
-    )
-    results["Bilinear"]["is_ensemble"] = False
-    results["Bilinear"]["inference_time_s"] = 0.0
-    print(f"  CRPS={results['Bilinear']['crps']:.4f}  MAE={results['Bilinear']['mae']:.4f}")
+    cnn_ckpt = ERA5_HARDER_DIR / "twc_cnn_none.pth"
+    if cnn_ckpt.exists():
+        print("\n--- Loading CNN model ---")
+        cnn = load_harder_model(
+            cnn_ckpt, model_type="cnn", constraints="none", device=device,
+            upsampling_factor=ERA5_UPSAMPLING_FACTOR,
+        )
+        t0 = time.time()
+        cnn_preds_raw = generate_cnn_predictions(cnn, lr_orig, min_val, max_val, device)
+        del cnn
+        torch.cuda.empty_cache()
+        cnn_time = time.time() - t0
+        print(f"  Inference: {cnn_time:.1f}s")
+
+        # CNN without and with AddCL (post-hoc)
+        cnn_preds_addcl = apply_addcl(
+            torch.from_numpy(cnn_preds_raw).unsqueeze(1), lr_orig, ERA5_UPSAMPLING_FACTOR,
+        )[:, 0].numpy()
+
+        for preds, label in [(cnn_preds_raw, "CNN"), (cnn_preds_addcl, "CNN+AddCL")]:
+            print(f"\n--- {label} ---")
+            print("  Computing metrics...")
+            results[label] = compute_all_metrics(truth, preds, lr_orig, is_ensemble=False, upsampling_factor=ERA5_UPSAMPLING_FACTOR)
+            results[label]["inference_time_s"] = cnn_time
+            results[label]["is_ensemble"] = False
+            print(f"  CRPS={results[label]['crps']:.4f}  MAE={results[label]['mae']:.4f}  "
+                  f"RMSE={results[label]['rmse']:.4f}  SSIM={results[label]['ssim']:.4f}")
+    else:
+        print(f"  Skipping CNN: {cnn_ckpt} not found")
+
+    # --- SwinIR finetuned ---
+    if ERA5_SWINIR_CKPT.exists():
+        print("\n--- Loading SwinIR model ---")
+        for addcl, label in [(False, "SwinIR"), (True, "SwinIR+AddCL")]:
+            print(f"\n--- {label} ---")
+            t0 = time.time()
+            swinir_preds = generate_swinir_predictions(
+                lr_orig, ERA5_SWINIR_PRETRAINED, ERA5_SWINIR_CKPT, device,
+                with_addcl=addcl, upsampling_factor=ERA5_UPSAMPLING_FACTOR,
+            )
+            swinir_time = time.time() - t0
+            print(f"  Inference: {swinir_time:.1f}s")
+            print("  Computing metrics...")
+            results[label] = compute_all_metrics(truth, swinir_preds, lr_orig, is_ensemble=False, upsampling_factor=ERA5_UPSAMPLING_FACTOR)
+            results[label]["inference_time_s"] = swinir_time
+            results[label]["is_ensemble"] = False
+            print(f"  CRPS={results[label]['crps']:.4f}  MAE={results[label]['mae']:.4f}  "
+                  f"RMSE={results[label]['rmse']:.4f}  SSIM={results[label]['ssim']:.4f}")
+    else:
+        print(f"  Skipping SwinIR: {ERA5_SWINIR_CKPT} not found")
+
+    # --- Truth+AddCL (upper bound for AddCL constraint) ---
+    print("\n--- Truth+AddCL ---")
+    truth_addcl = apply_addcl(hr, lr_orig, ERA5_UPSAMPLING_FACTOR)[:, 0].numpy()
+    results["Truth+AddCL"] = compute_all_metrics(truth, truth_addcl, lr_orig, is_ensemble=False, upsampling_factor=ERA5_UPSAMPLING_FACTOR)
+    results["Truth+AddCL"]["inference_time_s"] = 0.0
+    results["Truth+AddCL"]["is_ensemble"] = False
+    print(f"  CRPS={results['Truth+AddCL']['crps']:.4f}  MAE={results['Truth+AddCL']['mae']:.4f}  "
+          f"RMSE={results['Truth+AddCL']['rmse']:.4f}  SSIM={results['Truth+AddCL']['ssim']:.4f}")
 
     # --- Save results ---
     print("\n--- Saving results ---")
@@ -618,4 +630,4 @@ if __name__ == "__main__":
 
     if dataset in ("era5", "both"):
         era5_output = POOL / "metrics" / "era5"
-        run_era5_eval(era5_output, max_samples=max_samples)
+        run_era5_eval(era5_output, device=device, max_samples=max_samples)
