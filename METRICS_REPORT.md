@@ -238,10 +238,32 @@ Methods sorted by CRPS. Only flow-wide96-amp available (other flow variants not 
 - 146 non-GPU tests pass (spectral metrics, structural metrics, distribution metrics, batch metrics, plotting)
 - Lint (ruff), format (ruff), typecheck (basedpyright): all pass
 
-## Remaining Work
+## Conclusion
 
-1. ~~**GPU eval with 8 metrics**~~ — **DONE** (iter11).
-2. ~~**Generate spectral figures**~~ — **DONE** (iter12). PSD curves, spectral bias, RALSD bars, extended metrics panels for both datasets.
-3. ~~**Generate extended metrics panel**~~ — **DONE** (iter12). 8-metric 3x3 grid for ERA5 and NorESM.
-4. ~~**Fix ensemble plots**~~ — **DONE** (iter17). All 5 samples for both ERA5 and NorESM now have ensemble spread plots.
-5. ~~**Update dual metrics panel**~~ — **DONE** (iter13). Now shows all 8 metrics side-by-side.
+### Key Takeaways
+
+1. **Flow matching is the best approach across both datasets and all 8 metrics.** Flow-wide96-amp achieves the best CRPS (0.172 ERA5, 0.649 NorESM), best spectral fidelity (RALSD 0.19 dB ERA5, 0.03 dB NorESM), and best distributional fidelity (EMD 0.003 ERA5, 0.174 NorESM). The improvement over the next-best method is ~34% CRPS on both datasets — a large, consistent gap.
+
+2. **Model capacity provides modest but consistent gains.** The 28M-parameter wide model outperforms all 13M variants on every metric. The gap is small (CRPS 0.172 vs 0.175) but persistent across metrics, suggesting the capacity is used effectively rather than overfitting.
+
+3. **Constraint layers are dataset-dependent.** AddCL consistently helps on ERA5 TCW (reduces mass violation to ~1e-6, improves CRPS by 5-10%) but consistently hurts on NorESM TAS (degrades CRPS by 28-47%). The likely cause: NorESM TAS has systematic bias between LR input and HR target that AddCL forces the output to preserve. Constraint layers should not be applied blindly across variables.
+
+4. **Spectral analysis reveals what pixelwise metrics miss.** SwinIR zero-shot has mediocre CRPS (0.326) but good RALSD (0.25 dB) — its pretrained weights preserve frequency content. Conversely, Harder GAN+SmCL on NorESM has moderate CRPS but the worst spectral profile (oscillating bias across frequencies). PSD ratio plots expose these distinctions that CRPS alone cannot.
+
+5. **Probabilistic evaluation matters.** For deterministic methods, CRPS = MAE (verified in both datasets). Flow models achieve CRPS < MAE, confirming that ensemble diversity is adding value beyond the ensemble mean. This validates the 10-member ensemble evaluation protocol.
+
+### Limitations
+
+- **Single variable per dataset**: ERA5 evaluates TCW only, NorESM evaluates TAS only. Results may not transfer to precipitation or multi-variable downscaling.
+- **Fixed ensemble size**: 10 members at 10 ODE steps. Larger ensembles or more steps might change relative rankings, particularly for CRPS.
+- **No uncertainty quantification on metrics**: All metrics are point estimates over 500 test samples. Bootstrap confidence intervals would strengthen the comparison.
+- **NorESM has only one flow model**: Only flow-wide96-amp was trained on NorESM. The 3 other flow variants were ERA5-only, so cross-method flow comparisons are ERA5-only.
+
+### Reproducibility
+
+All evaluation artifacts are checked into git:
+- Evaluation scripts: `scripts/run_eval.py`, `scripts/run_eval_noresm.py`, `scripts/make_figures.py`
+- Results JSON: `eval_results_8metrics.json`, `noresm_eval_results_8metrics.json`
+- Spectral data: `eval_results_8metrics_spectral.npz`, `noresm_eval_results_8metrics_spectral.npz`
+- All figures in `figures/` (47 files across ERA5, NorESM, and cross-dataset)
+- 146 non-GPU tests validate metric implementations and plotting code

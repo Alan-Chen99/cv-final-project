@@ -681,3 +681,18 @@ All 5 original remaining work items are DONE. The metrics-v2 task is feature-com
 - Report with full tables, findings, and figure inventory
 
 - **End**: 2026-05-11T23:10:00Z, commit (pending)
+
+## Iteration 18
+- **Start**: 2026-05-11T23:10:15Z, commit f591991
+- **Prefix**: (no GPU work needed)
+
+### Concerns (3+)
+
+1. **Quality: Report lacks conclusion/summary section** — The report has per-dataset findings, cross-dataset comparison table, and figure inventory, but no synthesized conclusion. A comprehensive evaluation report should end with: what approach works, key takeaways, limitations, and implications. The "Key Findings" sections are per-dataset observations, not a synthesis.
+
+2. **Quality: ERA5 spectral plots highlight 3 flow models with near-identical blue shades** — COLOR_MAP assigns #1f77b4 (Wide96), #4393c3 (Uniform), #6baed6 (ZScore) — all blue. In spectral bias and PSD plots, these overlap and are hard to distinguish. NorESM plots are fine because they highlight diverse method types with distinct colors.
+
+3. **Quality: dual_metrics_panel.png is cramped** — 8 rows x 2 cols with 15 methods per subplot. Value annotations and rotated x-labels overlap at normal viewing size. The per-dataset extended_metrics_panel.png figures are much more readable.
+
+### Plan for this iteration
+Add a conclusion section to METRICS_REPORT.md. This is the highest-impact single improvement: it synthesizes the findings into actionable takeaways. The color issue and dual panel crampedness are lower priority — the current plots convey the key messages despite imperfect aesthetics.
