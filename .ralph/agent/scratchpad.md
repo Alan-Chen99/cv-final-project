@@ -404,3 +404,24 @@ Start commit: `8abaa15`
 ### Iteration 12 End
 End commit: `826ba9e`
 End time: ~15:12 EDT
+
+## Iteration 13 — 2026-05-11 15:13 EDT
+Start commit: `9483cef`
+
+### Concerns Review
+1. **Quality**: Dead `print_summary_table()` function (lines 708-730 in evaluation/comprehensive.py) — exact copy of inline table printing above it. Maintenance hazard: two copies of the same logic can diverge silently.
+2. **Quality**: Plotting code uses `.get(key, 0)` for missing metrics, silently rendering 0 in plots instead of failing. If a metric fails to compute, the plot would show it as 0 — misleading. Violates error propagation rule.
+3. **Quality**: `_filter_broken()` used `.get("ralsd", 0)` — if RALSD is missing from a model, it would NOT be filtered (0 < 10 passes). Should explicitly check key existence.
+
+### Work Done
+- Removed dead `print_summary_table()` function from evaluation/comprehensive.py
+- Consolidated duplicate ssim import into single import block (ruff auto-split back to two blocks for isort compliance — that's fine)
+- Replaced all `.get(key, 0)` in plotting/comprehensive.py with explicit KeyError raises for missing metrics
+- Fixed `_filter_broken()` to check `"ralsd" in r` before filtering
+- Replaced `r.get("ralsd", 0)` in PSD legend with `r["ralsd"]`
+- Verified: ruff clean, basedpyright 0 errors, 80 tests pass, all 5 plots regenerate correctly
+- All changes are code cleanup — no metric values or report content changed
+
+### Iteration 13 End
+End commit: pending
+End time: ~15:17 EDT

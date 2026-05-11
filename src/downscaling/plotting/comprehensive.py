@@ -47,7 +47,7 @@ def _filter_broken(results: dict[str, dict[str, object]]) -> dict[str, dict[str,
     return {
         name: r
         for name, r in results.items()
-        if float(r.get("ralsd", 0)) < 10  # type: ignore[arg-type]
+        if "ralsd" in r and float(r["ralsd"]) < 10  # type: ignore[arg-type]
     }
 
 
@@ -75,7 +75,7 @@ def plot_psd_comparison(
         colors = plt.cm.tab10(np.linspace(0, 1, len(results)))  # type: ignore[attr-defined]
         for (name, r), color in zip(results.items(), colors, strict=False):
             power = np.array(r["psd_power"])
-            ralsd_val = r.get("ralsd", 0)
+            ralsd_val = r["ralsd"]
             ax.loglog(
                 k,
                 power,
@@ -177,10 +177,13 @@ def plot_metrics_summary(
 
         for row, (key, display, higher_better) in enumerate(metrics):
             ax = axes[row, col]
-            vals = [float(results[name].get(key, 0)) for name in names]  # type: ignore[arg-type]
+            for name in names:
+                if key not in results[name]:
+                    raise KeyError(f"Metric '{key}' missing from results for model '{name}'")
+            vals = [float(results[name][key]) for name in names]  # type: ignore[index]
             direction = "higher is better" if higher_better else "lower is better"
 
-            # Color best model green, worst red, rest blue
+            # Color best model green
             best_idx = int(np.argmax(vals)) if higher_better else int(np.argmin(vals))
             colors = ["steelblue"] * n_models
             colors[best_idx] = "#2ca02c"
@@ -234,7 +237,10 @@ def plot_spectral_panel(
         n_models = len(names)
         for row, (key, display, higher_better) in enumerate(spectral_keys):
             ax = axes[row, col]
-            vals = [float(results[name].get(key, 0)) for name in names]  # type: ignore[arg-type]
+            for name in names:
+                if key not in results[name]:
+                    raise KeyError(f"Metric '{key}' missing from results for model '{name}'")
+            vals = [float(results[name][key]) for name in names]  # type: ignore[index]
             best_idx = int(np.argmax(vals)) if higher_better else int(np.argmin(vals))
             colors = ["steelblue"] * n_models
             colors[best_idx] = "#2ca02c"

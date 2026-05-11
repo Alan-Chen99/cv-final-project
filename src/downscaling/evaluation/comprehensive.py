@@ -705,30 +705,6 @@ def run_era5_eval(
     return results
 
 
-def print_summary_table(
-    label: str,
-    results: dict[str, dict[str, object]],
-    n: int,
-) -> None:
-    """Print a formatted results table."""
-    print(f"\n{'=' * 110}")
-    print(f"EVALUATION RESULTS — {label}")
-    print(f"Samples: {n}")
-    print("=" * 110)
-    header = f"{'Model':<22} {'CRPS':>8} {'MAE':>8} {'RMSE':>8} {'MassViol':>8} {'SSIM':>8} {'KL':>8} {'PSD-LR':>8} {'RALSD':>8} {'Coh':>8} {'SSR':>8}"
-    print(header)
-    print("-" * len(header))
-    for name, r in results.items():
-        ssr_str = f"{r['ssr']:.3f}" if "ssr" in r else "  —"
-        coh_str = f"{r['spectral_coherence']:.3f}" if "spectral_coherence" in r else "  —"
-        print(
-            f"{name:<22} {r['crps']:8.4f} {r['mae']:8.4f} {r['rmse']:8.4f} "
-            f"{r['mass_violation']:8.4f} {r['ssim']:8.4f} {r['kl_divergence']:8.4f} "
-            f"{r['psd_log_ratio']:8.4f} {r['ralsd']:8.4f} {coh_str:>8} {ssr_str:>8}"
-        )
-    print("=" * 110)
-
-
 if __name__ == "__main__":
     max_samples = 2000
     dataset = "both"
