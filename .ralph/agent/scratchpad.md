@@ -105,3 +105,9 @@ Start commit: `0c54176`
   - SSR: perfect calibration ~1.0, underdispersive <0.5, overdispersive >2.0, perfect prediction returns inf, single member raises, finite-size correction verification
 - All 35 tests pass (10 CRPS + 14 PSD + 11 calibration), ruff clean, basedpyright clean
 - Updated `__init__.py` with re-exports
+- Committed: `e62cbd9`
+
+### Iteration 3 End
+End commit: `e62cbd9`
+End time: ~13:25 EDT
+Next: Implement SSIM metric (task-1778519849-067b)
