@@ -317,3 +317,8 @@ Start commit: `3ae9240`
 - Updated `__init__.py` exports
 - All 80 tests pass (71 prior + 9 RALSD), ruff clean, basedpyright clean
 - Did NOT re-run evaluation (needs next iteration — GPU for NorESM, CPU for ERA5)
+
+### Iteration 9 End
+End commit: `864d881`
+End time: ~14:38 EDT
+Next: Re-run evaluation on both datasets (NorESM needs GPU, ERA5 is CPU-only) to get RALSD values. Update EVAL_REPORT.md with RALSD column.
