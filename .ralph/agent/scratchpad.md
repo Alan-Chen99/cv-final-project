@@ -301,3 +301,49 @@ Rewrite METRICS_REPORT.md with complete, verified data:
 - Update report with RALSD/SSIM/PSNR data
 
 - **End**: 2026-05-11T21:05:00Z, commit cf052f7
+
+## Iteration 8
+- **Start**: 2026-05-11T21:07:53Z, commit 0c13674
+- **Prefix**: xrut-azjs
+
+### Concerns (3+)
+
+1. **Fact: Pending sbatch job 13761716 referenced non-existent script** — Job referenced `scripts/eval_comprehensive.sh` which was never created. Would have failed silently when started. Cancelled it.
+
+2. **Workflow: GPU still Priority-blocked on preemptable** — Both normal slots occupied by ivy-ash (running ~30min, ends ~18:37 cluster time). Preemptable queue returns "insufficient priority" even with --immediate. salloc attempt (13762500) also got revoked.
+
+3. **Workflow: 8 iterations, no GPU results on disk** — The most persistent blocker. All RALSD/SSIM/PSNR data is unverified. The iter5 stdout data in scratchpad is the only record and cannot be reproduced.
+
+4. **Quality: sbatch script was ERA5-only** — Prior script only ran ERA5 eval, not NorESM. Fixed to run both.
+
+### Plan for this iteration
+Since GPU is blocked: review all code for correctness, run tests, fix the sbatch script to actually work, prepare for next iteration's GPU run.
+
+### Work done
+- Cancelled broken pending job 13761716 (referenced non-existent `scripts/eval_comprehensive.sh`)
+- **Full code review** of the eval pipeline:
+  - `run_eval.py`: correct, incremental saving works, spectral curves computed and saved
+  - `run_eval_noresm.py`: correct, mirrors ERA5 with NorESM-specific paths/upsampling_factor=2
+  - `batch_metrics.py`: correct wrapper around spectral/structural metrics
+  - `spectral.py`: RALSD implementation matches paper definition, handles different image sizes
+  - `structural.py`: uses skimage SSIM (standard), PSNR correct
+  - `evaluate.py`: return_predictions correctly collects ensemble means (N,H,W)
+  - `baselines.py`: upsample functions consistent between metric computation and prediction collection
+  - `swinir.py`, `harder.py`: return_predictions correct
+  - **No bugs found**
+- Verified report data matches JSON files (spot-checked key values)
+- All 132 tests pass, lint clean, typecheck 0 errors
+- **Updated sbatch script** (`scripts/eval_era5_sbatch.sh`):
+  - Runs BOTH ERA5 and NorESM evals in one job (was ERA5-only)
+  - Outputs to `eval_results_7metrics.json` and `noresm_eval_results_7metrics.json`
+  - Uses function `run_in_container()` for DRY singularity exec calls
+  - Fixed job name to `metrics-v2-eval`
+  - Increased time limit to 1.5h for both datasets
+
+### Next iteration work
+- Submit sbatch job when GPU becomes available
+- If ivy-ash releases, try salloc for interactive GPU access
+- Generate spectral figures from .npz data
+- Update report with RALSD/SSIM/PSNR data
+- Regenerate ensemble plots for samples 3-4
+

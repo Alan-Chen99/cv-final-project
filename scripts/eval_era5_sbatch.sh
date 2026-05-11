@@ -1,12 +1,17 @@
 #!/bin/bash
 #SBATCH -p mit_preemptable
-#SBATCH -J pine-frost-era5
+#SBATCH -J metrics-v2-eval
 #SBATCH -G 1
 #SBATCH -c 16
 #SBATCH --mem=64G
-#SBATCH -t 1:00:00
-#SBATCH -o /home/chenxy/orcd/scratch/logs/eval-era5-%j.log
-#SBATCH -e /home/chenxy/orcd/scratch/logs/eval-era5-%j.log
+#SBATCH -t 1:30:00
+#SBATCH -o /home/chenxy/orcd/scratch/logs/eval-7metrics-%j.log
+#SBATCH -e /home/chenxy/orcd/scratch/logs/eval-7metrics-%j.log
+
+# Runs ERA5 (500 samples) + NorESM (500 samples) evaluation with all 7 metrics.
+# Incremental saving: JSON written after each method group.
+# Outputs: eval_results_7metrics.json, eval_results_7metrics_spectral.npz,
+#          noresm_eval_results_7metrics.json, noresm_eval_results_7metrics_spectral.npz
 
 set -euo pipefail
 
@@ -19,16 +24,26 @@ nvidia-smi
 
 module load apptainer
 
-singularity exec --nv \
-  --cleanenv \
-  --mount 'type=bind,source=/orcd,destination=/orcd' \
-  --mount 'type=bind,source=/home/chenxy/nix_store,destination=/nix,ro' \
-  --mount "type=bind,source=$PROJECT_DIR,destination=/workspace" \
-  --env PREPEND_PATH=/nix/state/profile/bin:/nix/nix_path/bin \
-  --env NIX_REMOTE=daemon \
-  --env BASH_ENV="$HOME/.bashrc" \
-  --env PYTHONUNBUFFERED=1 \
-  "$SIF" \
-  bash -c 'cd /workspace && source .venv/bin/activate && python scripts/run_eval.py --max-samples 500 --output eval_results_7metrics.json'
+run_in_container() {
+  singularity exec --nv \
+    --cleanenv \
+    --mount 'type=bind,source=/orcd,destination=/orcd' \
+    --mount 'type=bind,source=/home/chenxy/nix_store,destination=/nix,ro' \
+    --mount "type=bind,source=$PROJECT_DIR,destination=/workspace" \
+    --env PREPEND_PATH=/nix/state/profile/bin:/nix/nix_path/bin \
+    --env NIX_REMOTE=daemon \
+    --env BASH_ENV="$HOME/.bashrc" \
+    --env PYTHONUNBUFFERED=1 \
+    "$SIF" \
+    bash -c "cd /workspace && source .venv/bin/activate && $1"
+}
+
+echo "=== ERA5 TCW 4x evaluation ==="
+run_in_container 'python scripts/run_eval.py --max-samples 500 --output eval_results_7metrics.json'
+echo "ERA5 eval completed at $(date)"
+
+echo "=== NorESM TAS 2x evaluation ==="
+run_in_container 'python scripts/run_eval_noresm.py --max-samples 500 --output noresm_eval_results_7metrics.json'
+echo "NorESM eval completed at $(date)"
 
 echo "Job $SLURM_JOB_ID finished at $(date)"
