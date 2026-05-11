@@ -44,10 +44,13 @@ def _load(path: Path) -> dict[str, dict[str, object]]:
 
 def _filter_broken(results: dict[str, dict[str, object]]) -> dict[str, dict[str, object]]:
     """Remove models with clearly diverged metrics (e.g. RALSD > 10)."""
+    for name, r in results.items():
+        if "ralsd" not in r:
+            raise KeyError(f"Model '{name}' is missing 'ralsd' metric — results may be stale")
     return {
         name: r
         for name, r in results.items()
-        if "ralsd" in r and float(r["ralsd"]) < 10  # type: ignore[arg-type]
+        if float(r["ralsd"]) < 10  # type: ignore[arg-type]
     }
 
 

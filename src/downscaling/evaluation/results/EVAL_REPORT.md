@@ -51,6 +51,8 @@
 | Bicubic | 1.7490 | 1.7490 | 2.8156 | 0.0626 | 0.8984 | 0.2611 | 0.0316 | 0.406 | 0.973 | -- |
 | Bilinear | 1.7499 | 1.7499 | 2.8142 | 0.1665 | 0.8953 | 0.2668 | 0.0264 | 0.321 | 0.973 | -- |
 
+*Note: For deterministic models (M=1), CRPS reduces to MAE because the ensemble-spread term is zero. The identical values are not a copy-paste error.*
+
 ### NorESM Findings
 
 1. **CNN(none) dominates pointwise metrics but violates conservation.** CRPS 1.30, MAE 1.30, SSIM 0.92 — but mass violation 1.13 K. NorESM LR/HR are from different simulations, so the unconstrained model bypasses the LR bottleneck.
