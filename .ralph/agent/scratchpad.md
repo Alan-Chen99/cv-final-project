@@ -278,3 +278,26 @@ Rewrite METRICS_REPORT.md with complete, verified data:
 - Remove unverified RALSD/SSIM/PSNR data (mark as pending)
 - Add NorESM analysis including constraint tradeoff finding
 - Proper figure inventory from visual inspection
+
+### Work done
+- Rewrote METRICS_REPORT.md completely:
+  - All 15 ERA5 methods with verified 4-metric data (was 6 methods with unverified data)
+  - All 12 NorESM methods with verified data (was missing entirely)
+  - Removed unverified RALSD/SSIM/PSNR columns — marked as pending GPU eval
+  - Added cross-dataset comparison table
+  - Added NorESM analysis: constraint layers HURT on TAS (swinir-ft 0.988 -> 1.455 with addcl)
+  - Proper figure inventory with status
+  - All data verified against JSON files via Python script
+- Cancelled dangling salloc from iter6 (job 13761188) and mlnl-eval (job 13760724)
+- Visually inspected 6 figures: metrics panels, CRPS, samples, flow_vs_baseline — all look correct
+- Confirmed ERA5 samples 3-4 missing ensemble plots (code fix from iter6, needs GPU re-run)
+- GPU blocked: both normal slots by ivy-ash until ~18:37 EDT, preemptable Priority-blocked
+- Lint/typecheck: maintained code passes (src/, tests/)
+
+### Next iteration work
+- Run GPU eval (ERA5 + NorESM) with 7 metrics — this is THE critical blocker
+- Generate spectral figures from .npz data
+- Regenerate ensemble plots for samples 3-4
+- Update report with RALSD/SSIM/PSNR data
+
+- **End**: 2026-05-11T21:05:00Z, commit cf052f7
