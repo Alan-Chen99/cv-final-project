@@ -565,3 +565,22 @@ Update `plot_dual_metrics_panel` to show all 8 metrics. Fix `make_figures.py` de
 
 ### Plan for this iteration
 Fix the PSD comparison plot readability. When many methods overlap, add a ratio subplot (PSD_pred/PSD_truth in dB) that reveals small differences invisible in the raw PSD. Highlight a few representative methods in the main PSD panel; dim the rest. Regenerate figures. Single focused change.
+
+### Work done
+- **Improved `plot_psd_comparison`** in `src/downscaling/plotting/spectral.py`:
+  - Added `_rank_methods_by_spectral_distance()` helper to auto-select representative methods
+  - When >5 methods: 2-panel layout (PSD + ratio), highlight 3 best + 1 worst by spectral distance
+  - Top panel: highlighted methods in color with thick lines, rest dimmed gray
+  - Bottom panel: PSD ratio (pred/truth) in dB for ALL methods, clearly showing frequency-dependent deviations
+  - When <=5 methods: single-panel layout (backward compatible)
+- **Added test** `test_ratio_subplot_with_many_methods`: verifies 2-panel layout with 8 methods
+- **Regenerated PSD figures** for both ERA5 and NorESM:
+  - ERA5: highlights Wide96, ZScore, Uniform (best 3) + Bilinear (worst). Ratio subplot shows bilinear dropping to -2 dB at high freq while flow models stay near 0
+  - NorESM: highlights Wide96, SwinIR FT (best 2), Harder CNN + GAN+SmCL (worst). Ratio subplot reveals GAN oscillation and constraint-cluster behavior invisible in raw PSD
+- **Updated METRICS_REPORT.md**: figure descriptions updated, test count 144->145
+- 145/145 tests pass, lint clean, typecheck 0 errors
+
+### Next iteration work
+- Fix ensemble plots for ERA5 samples 3-4 and NorESM samples 3-4 (needs GPU)
+
+- **End**: 2026-05-11T22:44:00Z, commit 3b7e9a0
