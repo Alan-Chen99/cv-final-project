@@ -232,6 +232,25 @@ def main():
             batch = compute_batch_metrics(gt, predictions[name])
             results[name].update(batch)
 
+    def _save_incremental() -> None:
+        """Save results after each method to prevent data loss from crashes."""
+        output_path = args.output or Path("eval_results.json")
+        with open(output_path, "w") as f:
+            json.dump(
+                {
+                    "split": args.split,
+                    "n_samples": int(n_eval),
+                    "n_ensemble": args.n_ensemble,
+                    "ode_steps": args.ode_steps,
+                    "constraint": args.constraint,
+                    "sampler": args.sampler,
+                    "results": results,
+                },
+                f,
+                indent=2,
+            )
+        print(f"  [incremental save: {len(results)} methods -> {output_path}]")
+
     # Baselines — cheap to recompute predictions for batch metrics
     print("\n=== Baselines ===")
 
@@ -251,6 +270,7 @@ def main():
         predictions[bname] = pred[:, 0].numpy()
         _add_batch_metrics(bname)
         _print_metrics(bname)
+    _save_incremental()
 
     # SwinIR models
     if not args.baselines_only:
@@ -305,6 +325,7 @@ def main():
                     print(f"  ({elapsed:.1f}s)")
                 except Exception as e:
                     print(f"  ERROR {name}: {e}")
+        _save_incremental()
 
     # Harder et al. trained models
     if not args.baselines_only:
@@ -360,6 +381,7 @@ def main():
                 torch.cuda.empty_cache()
             except Exception as e:
                 print(f"  ERROR {name}: {e}")
+        _save_incremental()
 
     if not args.baselines_only:
         print(f"\n=== Flow Matching Models (device={args.device}) ===")
@@ -417,6 +439,7 @@ def main():
                     elapsed = time.time() - t_start
                     _print_metrics(name)
                     print(f"  ({elapsed:.1f}s)")
+                    _save_incremental()
                 except Exception as e:
                     print(f"  ERROR {name}: {e}")
 

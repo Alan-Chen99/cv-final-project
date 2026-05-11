@@ -162,3 +162,59 @@ Specifically:
 - Start report file
 
 - **End**: 2026-05-11T20:05:00Z, commit 4fa881a
+
+## Iteration 5
+- **Start**: 2026-05-11T20:05:29Z, commit 837fa6c
+- **Prefix**: ridge-cedar
+
+### Concerns (3+)
+
+1. **Workflow: 4 iterations of code, zero GPU runs** — The most critical gap. All new metrics code (spectral.py, structural.py, batch_metrics.py) has never been tested on actual model outputs. Tests pass on synthetic data but production eval could fail due to shape mismatches, memory issues, or incorrect function signatures when interacting with real model predictions.
+
+2. **Quality: Existing eval results are stale** — eval_results_500.json and noresm_eval_results_500.json have only 4 metrics (CRPS, MAE, RMSE, mass_violation). No RALSD, SSIM, PSNR. All existing figures were generated from these 4-metric results. Everything needs re-running.
+
+3. **Workflow: No report file yet** — The task explicitly requires "Write a report file tracked in git. Have subsequent iterations review and revise it." After 4 iterations, no report exists. This cannot be further deferred.
+
+4. **Quality: Missing ensemble plots for samples 3-4** — Both ERA5 and NorESM have ensemble plots for samples 0-2 only. Samples 3-4 have comparison and error plots but no ensemble spread visualization. Inconsistent.
+
+### Plan for this iteration
+Run the GPU evaluation for ERA5 dataset with all 7 metrics. This is the highest-priority unblocked work — everything else (figures, report, NorESM eval) depends on having real 7-metric results first.
+
+Steps:
+1. Allocate GPU via salloc (preemptable)
+2. Sanity test: run eval with --max-samples 10 to verify end-to-end
+3. Run full ERA5 eval: --max-samples 500
+4. Verify output JSON has all 7 metrics + spectral .npz file exists
+
+### Work done
+- Ran sanity test (10 samples): ALL 15 methods evaluated with ALL 7 metrics. Pipeline works end-to-end.
+- Ran full ERA5 eval (500 samples): 14/15 methods completed successfully before job was cancelled.
+  - Job 13757291 (normal GPU, node3405) allocated at 16:17, cancelled at 16:32 (15 min).
+  - flow-v2-zscore was killed mid-evaluation (32/500 samples). All other 14 methods completed.
+  - Results NOT saved: script was killed before writing JSON/npz.
+- Added incremental saving to both `run_eval.py` and `run_eval_noresm.py`:
+  - `_save_incremental()` writes JSON after each method group (baselines, SwinIR, Harder, each flow model)
+  - Prevents future data loss from job cancellation
+- Could not re-run: subsequent GPU allocation attempts (3x) were immediately cancelled by competing agent processes (ivy-ash-c, ivy-ash-d, 3277-eval).
+- Cleaned up: no dangling allocations or processes.
+
+### Key results from the 500-sample ERA5 run (from stdout, 14/15 methods):
+| Method | CRPS | MAE | RMSE | RALSD(dB) | SSIM |
+|---|---|---|---|---|---|
+| flow-wide96-amp (28M) | 0.172024 | 0.251212 | 0.456964 | 0.19 | 0.9925 |
+| flow-uniform-amp (13M) | 0.175654 | 0.256598 | 0.467506 | 0.22 | 0.9921 |
+| flow-logitnorm-ema (13M) | 0.181591 | 0.265857 | 0.499243 | 0.29 | 0.9914 |
+| swinir-finetuned+addcl | 0.263245 | 0.263245 | 0.509424 | 0.34 | 0.9910 |
+| harder-gan+smcl | 0.283489 | 0.286570 | 0.553964 | 0.46 | 0.9896 |
+| bilinear | 0.519055 | 0.519055 | 0.963896 | 1.09 | 0.9758 |
+
+Flow models dominate on ALL 7 metrics. RALSD confirms flow models produce best spectral fidelity (0.19dB vs 1.09dB for bilinear).
+
+### Next iteration work
+- Re-run ERA5 eval with incremental saving enabled (will survive cancellations)
+- Run NorESM eval
+- Generate spectral plots from .npz data
+- Write report file
+- Fix missing ensemble plots for samples 3-4
+
+- **End**: 2026-05-11T20:37:00Z, commit TBD

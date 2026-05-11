@@ -142,6 +142,27 @@ def main() -> None:
             batch = compute_batch_metrics(gt, predictions[name])
             results[name].update(batch)
 
+    def _save_incremental() -> None:
+        """Save results after each method to prevent data loss from crashes."""
+        with open(args.output, "w") as f:
+            json.dump(
+                {
+                    "dataset": "noresm",
+                    "variable": "tas",
+                    "upsampling_factor": UPSAMPLING_FACTOR,
+                    "split": args.split,
+                    "n_samples": n_eval,
+                    "n_ensemble": args.n_ensemble,
+                    "ode_steps": args.ode_steps,
+                    "constraint": args.constraint,
+                    "sampler": args.sampler,
+                    "results": results,
+                },
+                f,
+                indent=2,
+            )
+        print(f"  [incremental save: {len(results)} methods -> {args.output}]")
+
     # === Baselines ===
     print("\n=== Baselines ===")
     for bname, with_addcl in [
@@ -168,6 +189,7 @@ def main() -> None:
         predictions[bname] = pred[:, 0].numpy()
         _add_batch_metrics(bname)
         _print_result(bname, results[bname])
+    _save_incremental()
 
     if args.baselines_only:
         _save_and_print(results, predictions, gt, args, n_eval)
@@ -226,6 +248,7 @@ def main() -> None:
                 _print_result(name, results[name], time.time() - t_start)
             except Exception as e:
                 print(f"  ERROR {name}: {e}")
+    _save_incremental()
 
     # === Harder et al. ===
     print("\n=== Harder et al. Baselines ===")
@@ -281,6 +304,7 @@ def main() -> None:
             torch.cuda.empty_cache()
         except Exception as e:
             print(f"  ERROR {name}: {e}")
+    _save_incremental()
 
     # === Flow Matching ===
     print(f"\n=== Flow Matching Models (device={args.device}) ===")
@@ -341,6 +365,7 @@ def main() -> None:
         predictions[name] = preds
         _add_batch_metrics(name)
         _print_result(name, results[name], time.time() - t_start)
+        _save_incremental()
         del model
         torch.cuda.empty_cache()
 
