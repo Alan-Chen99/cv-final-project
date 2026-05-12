@@ -190,6 +190,138 @@ def plot_ensemble_spread(
     return fig
 
 
+def plot_output_grid(
+    lr: torch.Tensor | np.ndarray,
+    hr: torch.Tensor | np.ndarray,
+    predictions: dict[str, torch.Tensor | np.ndarray],
+    sample_indices: list[int] | None = None,
+    n_samples: int = 3,
+    output_path: str | None = None,
+    figsize_per_cell: tuple[float, float] = (2.5, 2.5),
+    cmap: str = "viridis",
+    crop: tuple[int, int, int, int] | None = None,
+    title: str = "Output Comparison",
+) -> plt.Figure:
+    """Horizontal grid: rows are samples, columns are methods.
+
+    Columns: LR (nearest-upsampled), HR ground truth, then one per method.
+    Each row uses per-sample color range (from that sample's HR) so contrast
+    is preserved across samples with different value ranges.
+
+    Args:
+        lr: Low-resolution input, shape (N, 1, H_lr, W_lr) or (N, H_lr, W_lr).
+        hr: High-resolution ground truth, shape (N, 1, H_hr, W_hr) or (N, H_hr, W_hr).
+        predictions: Dict mapping method name to prediction tensor.
+            Each should be shape (N, ..., H_hr, W_hr). For ensembles (N, M, H, W),
+            the ensemble mean is displayed.
+        sample_indices: Explicit list of sample indices to show. Overrides n_samples.
+        n_samples: Number of samples (rows) if sample_indices is not given.
+        output_path: Optional path to save figure.
+        figsize_per_cell: Size of each cell in the grid.
+        cmap: Matplotlib colormap name.
+        crop: Optional (row_start, row_end, col_start, col_end) in HR pixel coords.
+            When set, all cells show only this region (zoomed in).
+        title: Figure title.
+    """
+    if sample_indices is None:
+        n_avail = hr.shape[0] if hasattr(hr, "shape") else len(hr)
+        sample_indices = list(range(min(n_samples, n_avail)))
+    n_rows = len(sample_indices)
+
+    # Resolve spatial sizes
+    hr_0 = _to_numpy(hr[sample_indices[0]] if hr.ndim > 2 else hr)
+    hr_h, hr_w = hr_0.shape[-2], hr_0.shape[-1]
+    lr_0 = _to_numpy(lr[sample_indices[0]] if lr.ndim > 2 else lr)
+    lr_h, lr_w = lr_0.shape[-2], lr_0.shape[-1]
+
+    method_names = list(predictions.keys())
+
+    if crop is not None:
+        r0, r1, c0, c1 = crop
+        lr_label = f"LR (crop {r1 - r0}x{c1 - c0})"
+        hr_label = f"HR (crop {r1 - r0}x{c1 - c0})"
+    else:
+        lr_label = f"LR ({lr_h}x{lr_w})"
+        hr_label = f"HR ({hr_h}x{hr_w})"
+
+    col_labels = [lr_label, hr_label] + method_names
+    n_cols = len(col_labels)
+
+    fig, axes = plt.subplots(
+        n_rows,
+        n_cols,
+        figsize=(figsize_per_cell[0] * n_cols, figsize_per_cell[1] * n_rows),
+        squeeze=False,
+    )
+
+    def _maybe_crop(img: np.ndarray) -> np.ndarray:
+        if crop is None:
+            return img
+        r0, r1, c0, c1 = crop
+        return img[r0:r1, c0:c1]
+
+    for row, si in enumerate(sample_indices):
+        lr_np = _to_numpy(lr[si] if lr.ndim > 2 else lr)
+        hr_np = _to_numpy(hr[si] if hr.ndim > 2 else hr)
+
+        # Per-sample color range from full HR (before crop) for consistent mapping
+        vmin, vmax = float(hr_np.min()), float(hr_np.max())
+
+        hr_np = _maybe_crop(hr_np)
+
+        # Col 0: LR (nearest-upsampled to HR size, then crop)
+        lr_up = F.interpolate(
+            torch.from_numpy(lr_np).float().unsqueeze(0).unsqueeze(0),
+            size=(hr_h, hr_w),
+            mode="nearest",
+        )
+        axes[row, 0].imshow(_maybe_crop(lr_up.squeeze().numpy()), cmap=cmap, vmin=vmin, vmax=vmax)
+
+        # Col 1: HR ground truth
+        axes[row, 1].imshow(hr_np, cmap=cmap, vmin=vmin, vmax=vmax)
+
+        # Remaining cols: predictions
+        for col, name in enumerate(method_names, start=2):
+            pred = predictions[name]
+            pred_np = _to_numpy(pred[si] if pred.ndim > 2 else pred)
+            # Ensemble: average over member dimension
+            if pred_np.ndim == 3:
+                pred_np = pred_np.mean(axis=0)
+            pred_np = _maybe_crop(pred_np)
+            axes[row, col].imshow(pred_np, cmap=cmap, vmin=vmin, vmax=vmax)
+            mae = float(np.mean(np.abs(hr_np - pred_np)))
+            axes[row, col].text(
+                0.98,
+                0.02,
+                f"{mae:.3f}",
+                transform=axes[row, col].transAxes,
+                fontsize=7,
+                color="white",
+                ha="right",
+                va="bottom",
+                bbox={"facecolor": "black", "alpha": 0.5, "pad": 1.5, "linewidth": 0},
+            )
+
+    # Column headers
+    for col, label in enumerate(col_labels):
+        axes[0, col].set_title(label, fontsize=9)
+
+    # Row labels
+    for row, si in enumerate(sample_indices):
+        axes[row, 0].set_ylabel(f"Sample {si}", fontsize=9)
+
+    for ax in axes.flat:
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+    fig.tight_layout()
+    fig.suptitle(title, fontsize=13, y=1.01)
+
+    if output_path:
+        fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    return fig
+
+
 def generate_baseline_predictions(
     lr_orig: torch.Tensor,
     n_samples: int = 5,

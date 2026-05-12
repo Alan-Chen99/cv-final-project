@@ -52,6 +52,7 @@ from downscaling.plotting.samples import (
     generate_baseline_predictions,
     plot_ensemble_spread,
     plot_error_maps,
+    plot_output_grid,
     plot_sample_comparison,
 )
 from downscaling.sampling.ode import midpoint_sample
@@ -463,6 +464,35 @@ def _save_sample_figures(
                 output_path=output_dir / f"{prefix}_sample_{idx}_ensemble.png",
             )
             print(f"  Saved {prefix} ensemble spread for sample {idx}")
+
+    # Output grids: full + zoomed, 3 samples each
+    grid_n = min(3, n_vis_samples)
+    print(f"  Plotting {prefix} output grid ({len(all_preds)} methods x {grid_n} samples)...")
+    plot_output_grid(
+        lr=lr_orig[:n_vis_samples],
+        hr=hr[:n_vis_samples],
+        predictions=all_preds,
+        n_samples=grid_n,
+        output_path=output_dir / f"{prefix}_output_grid.png",
+    )
+    print(f"  Saved {output_dir / f'{prefix}_output_grid.png'}")
+
+    # Zoomed grid: center 50% crop in HR space
+    hr_h = hr.shape[-2]
+    hr_w = hr.shape[-1]
+    q_h, q_w = hr_h // 4, hr_w // 4
+    crop_box = (q_h, hr_h - q_h, q_w, hr_w - q_w)
+    print(f"  Plotting {prefix} zoomed grid (crop {crop_box})...")
+    plot_output_grid(
+        lr=lr_orig[:n_vis_samples],
+        hr=hr[:n_vis_samples],
+        predictions=all_preds,
+        n_samples=grid_n,
+        crop=crop_box,
+        title="Output Comparison (Zoomed Center)",
+        output_path=output_dir / f"{prefix}_output_grid_zoomed.png",
+    )
+    print(f"  Saved {output_dir / f'{prefix}_output_grid_zoomed.png'}")
 
     plt.close("all")
     print(f"{prefix.upper()} sample figures saved to {output_dir}/")
