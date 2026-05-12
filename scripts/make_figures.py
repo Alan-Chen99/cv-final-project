@@ -209,12 +209,58 @@ def _resolve_harder_ckpt(spec: HarderSpec, pool_dir: Path, anvita_dir: Path) -> 
     return None
 
 
-def _pick_diverse_indices(n_total: int, n_pick: int) -> list[int]:
-    """Pick evenly-spaced indices across the dataset."""
+def _pick_random_indices(n_total: int, n_pick: int, seed: int = 42) -> list[int]:
+    """Stratified random sampling: one random index per equal-sized bin."""
     if n_pick >= n_total:
         return list(range(n_total))
-    step = n_total // n_pick
-    return [i * step for i in range(n_pick)]
+    rng = np.random.default_rng(seed)
+    bin_size = n_total // n_pick
+    return [rng.integers(i * bin_size, (i + 1) * bin_size) for i in range(n_pick)]
+
+
+def _find_best_crop(hr: torch.Tensor, crop_frac: float = 0.5) -> tuple[int, int, int, int]:
+    """Find the crop region with highest average gradient magnitude.
+
+    Slides a crop_frac-sized window across the HR fields and picks the
+    position that maximizes average spatial gradient across all samples.
+    Returns (row_start, row_end, col_start, col_end).
+    """
+    hr_np = hr[:, 0].numpy() if hr.ndim == 4 else hr.numpy()
+    h, w = hr_np.shape[-2], hr_np.shape[-1]
+    ch, cw = int(h * crop_frac), int(w * crop_frac)
+
+    # Gradient magnitude map averaged across samples
+    # diff axis=-2 → (N, H-1, W), diff axis=-1 → (N, H, W-1)
+    dy = np.abs(np.diff(hr_np, axis=-2)).mean(axis=0)  # (H-1, W)
+    dx = np.abs(np.diff(hr_np, axis=-1)).mean(axis=0)  # (H, W-1)
+
+    grad_map = np.zeros((h, w), dtype=np.float64)
+    grad_map[: h - 1, :] += dy
+    grad_map[:, : w - 1] += dx
+
+    # Integral image for fast window sums
+    integral = grad_map.cumsum(axis=0).cumsum(axis=1)
+
+    def _rect_sum(r0: int, c0: int, r1: int, c1: int) -> float:
+        s = integral[r1 - 1, c1 - 1]
+        if r0 > 0:
+            s -= integral[r0 - 1, c1 - 1]
+        if c0 > 0:
+            s -= integral[r1 - 1, c0 - 1]
+        if r0 > 0 and c0 > 0:
+            s += integral[r0 - 1, c0 - 1]
+        return float(s)
+
+    best_score = -1.0
+    best_r0, best_c0 = 0, 0
+    for r0 in range(h - ch + 1):
+        for c0 in range(w - cw + 1):
+            score = _rect_sum(r0, c0, r0 + ch, c0 + cw)
+            if score > best_score:
+                best_score = score
+                best_r0, best_c0 = r0, c0
+
+    return (best_r0, best_r0 + ch, best_c0, best_c0 + cw)
 
 
 def _load_test_data(
@@ -386,7 +432,7 @@ def make_sample_figures(
     lr_up, hr, lr_orig = _load_test_data(dataset_name, pool_dir)
     print(f"  Loaded: lr_orig={lr_orig.shape}, hr={hr.shape}")
 
-    vis_idx = _pick_diverse_indices(hr.shape[0], n_vis_samples)
+    vis_idx = _pick_random_indices(hr.shape[0], n_vis_samples)
     print(f"  Sample indices: {vis_idx}")
     lr_up = lr_up[vis_idx]
     hr = hr[vis_idx]
@@ -434,7 +480,7 @@ def make_sample_figures(
             )
             print(f"  Saved {dataset_name} ensemble spread sample {idx}")
 
-    # Output grids: full + zoomed center crop
+    # Output grids: full + zoomed (best-detail crop)
     grid_n = min(3, n_vis_samples)
     print(f"  Plotting {dataset_name} output grid ({len(preds)} methods x {grid_n} samples)...")
     plot_output_grid(
@@ -445,9 +491,7 @@ def make_sample_figures(
         output_path=output_dir / f"{dataset_name}_output_grid.png",
     )
 
-    hr_h, hr_w = hr.shape[-2], hr.shape[-1]
-    q_h, q_w = hr_h // 4, hr_w // 4
-    crop_box = (q_h, hr_h - q_h, q_w, hr_w - q_w)
+    crop_box = _find_best_crop(hr[:grid_n])
     print(f"  Plotting {dataset_name} zoomed grid (crop {crop_box})...")
     plot_output_grid(
         lr=lr_orig,
@@ -455,7 +499,7 @@ def make_sample_figures(
         predictions=preds,
         n_samples=grid_n,
         crop=crop_box,
-        title="Output Comparison (Zoomed Center)",
+        title="Output Comparison (Zoomed)",
         output_path=output_dir / f"{dataset_name}_output_grid_zoomed.png",
     )
 
