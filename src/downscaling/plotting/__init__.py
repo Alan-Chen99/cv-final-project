@@ -1,10 +1,10 @@
 from downscaling.plotting.comprehensive import (
     generate_all_figures,
     plot_calibration_panel,
-    plot_metrics_summary,
+    plot_individual_metrics,
     plot_psd_comparison,
     plot_rank_histograms,
-    plot_spectral_panel,
+    plot_single_metric,
 )
 from downscaling.plotting.metrics import (
     load_results,
@@ -35,9 +35,9 @@ __all__ = [
     "plot_error_maps",
     "plot_flow_vs_baseline",
     "plot_metrics_panel",
-    "plot_metrics_summary",
+    "plot_individual_metrics",
     "plot_psd_comparison",
     "plot_rank_histograms",
     "plot_sample_comparison",
-    "plot_spectral_panel",
+    "plot_single_metric",
 ]

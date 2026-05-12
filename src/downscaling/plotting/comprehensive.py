@@ -48,19 +48,6 @@ MODEL_COLORS = {
 # Models with RALSD above this threshold are considered diverged and excluded from plots
 BROKEN_MODEL_RALSD_THRESHOLD = 10.0
 
-# Reference baselines excluded from "best" highlighting — not model predictions
-_REFERENCE_MODELS = {"Truth+AddCL"}
-
-
-def _best_model_idx(names: list[str], vals: list[float], higher_better: bool) -> int:
-    """Return index of best non-reference model, or -1 if none."""
-    candidates = [(i, v) for i, (n, v) in enumerate(zip(names, vals)) if n not in _REFERENCE_MODELS]
-    if not candidates:
-        return -1
-    indices, cvals = zip(*candidates)
-    best = int(np.argmax(cvals)) if higher_better else int(np.argmin(cvals))
-    return indices[best]
-
 
 def _format_val(v: float, precision: int = 4) -> str:
     """Format value, collapsing -0.0000 to 0.0000."""
@@ -235,69 +222,6 @@ def plot_rank_histograms(
     print(f"  Saved {output_path}")
 
 
-# ---------------------------------------------------------------------------
-# 3. Full metrics summary — side-by-side bar charts
-# ---------------------------------------------------------------------------
-
-
-def plot_metrics_summary(
-    noresm: dict[str, dict[str, object]],
-    era5: dict[str, dict[str, object]],
-    output_path: Path,
-) -> None:
-    metrics = SCALAR_METRICS
-    n_metrics = len(metrics)
-
-    fig, axes = plt.subplots(n_metrics, 2, figsize=(16, 3 * n_metrics))
-
-    for col, (results, ds_label) in enumerate(
-        [(noresm, "NorESM TAS 2x SR"), (era5, "ERA5 TCW 4x SR")]
-    ):
-        names = list(results.keys())
-        n_models = len(names)
-
-        for row, (key, display, higher_better) in enumerate(metrics):
-            ax = axes[row, col]
-            for name in names:
-                if key not in results[name]:
-                    raise KeyError(f"Metric '{key}' missing from results for model '{name}'")
-            vals = [float(results[name][key]) for name in names]  # type: ignore[index]
-            direction = "higher is better" if higher_better else "lower is better"
-
-            best_idx = _best_model_idx(names, vals, higher_better)
-            colors = ["steelblue"] * n_models
-            if best_idx >= 0:
-                colors[best_idx] = "#2ca02c"
-
-            ax.barh(range(n_models), vals, color=colors, edgecolor="white")
-            ax.set_yticks(range(n_models))
-            ax.set_yticklabels(names, fontsize=8)
-            ax.invert_yaxis()
-
-            # Value labels
-            for i, v in enumerate(vals):
-                ax.text(v, i, f" {_format_val(v)}", va="center", fontsize=7)
-
-            if col == 0:
-                ax.set_ylabel(f"{display}\n({direction})", fontsize=9)
-            if row == 0:
-                ax.set_title(ds_label, fontsize=12)
-
-    fig.suptitle(
-        "Comprehensive Metric Comparison — All Models",
-        fontsize=14,
-        y=1.005,
-    )
-    fig.tight_layout()
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    print(f"  Saved {output_path}")
-
-
-# ---------------------------------------------------------------------------
-# 4. Quality panel — non-spectral metrics
-# ---------------------------------------------------------------------------
-
 QUALITY_METRICS: list[tuple[str, str, bool]] = [
     ("crps", "CRPS", False),
     ("mae", "MAE", False),
@@ -306,105 +230,6 @@ QUALITY_METRICS: list[tuple[str, str, bool]] = [
     ("ssim", "SSIM", True),
     ("kl_divergence", "KL Divergence", False),
 ]
-
-
-def plot_quality_panel(
-    noresm: dict[str, dict[str, object]],
-    era5: dict[str, dict[str, object]],
-    output_path: Path,
-) -> None:
-    n_rows = len(QUALITY_METRICS)
-    fig, axes = plt.subplots(n_rows, 2, figsize=(14, 3.5 * n_rows))
-
-    for col, (results, ds_label) in enumerate([(noresm, "NorESM TAS 2x"), (era5, "ERA5 TCW 4x")]):
-        names = list(results.keys())
-        n_models = len(names)
-        for row, (key, display, higher_better) in enumerate(QUALITY_METRICS):
-            ax = axes[row, col]
-            for name in names:
-                if key not in results[name]:
-                    raise KeyError(f"Metric '{key}' missing from results for model '{name}'")
-            vals = [float(results[name][key]) for name in names]  # type: ignore[index]
-            best_idx = _best_model_idx(names, vals, higher_better)
-            colors = ["steelblue"] * n_models
-            if best_idx >= 0:
-                colors[best_idx] = "#2ca02c"
-
-            ax.barh(range(n_models), vals, color=colors, edgecolor="white")
-            ax.set_yticks(range(n_models))
-            ax.set_yticklabels(names, fontsize=8)
-            ax.invert_yaxis()
-            for i, v in enumerate(vals):
-                ax.text(v, i, f" {_format_val(v)}", va="center", fontsize=7)
-            if col == 0:
-                direction = "higher=better" if higher_better else "lower=better"
-                ax.set_ylabel(f"{display}\n({direction})", fontsize=9)
-            if row == 0:
-                ax.set_title(ds_label, fontsize=12)
-
-    fig.suptitle(
-        "Quality Metrics — NorESM vs ERA5",
-        fontsize=14,
-        y=1.01,
-    )
-    fig.tight_layout()
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    print(f"  Saved {output_path}")
-
-
-# ---------------------------------------------------------------------------
-# 5. Spectral quality panel — PSD-LR, RALSD, Coherence
-# ---------------------------------------------------------------------------
-
-
-def plot_spectral_panel(
-    noresm: dict[str, dict[str, object]],
-    era5: dict[str, dict[str, object]],
-    output_path: Path,
-) -> None:
-    spectral_keys = [
-        ("psd_log_ratio", "PSD Log-Ratio", False),
-        ("ralsd", "RALSD (dB)", False),
-        ("spectral_coherence", "Spectral Coherence", True),
-    ]
-    fig, axes = plt.subplots(len(spectral_keys), 2, figsize=(14, 3.5 * len(spectral_keys)))
-
-    for col, (results, ds_label) in enumerate([(noresm, "NorESM TAS 2x"), (era5, "ERA5 TCW 4x")]):
-        names = list(results.keys())
-        n_models = len(names)
-        for row, (key, display, higher_better) in enumerate(spectral_keys):
-            ax = axes[row, col]
-            for name in names:
-                if key not in results[name]:
-                    raise KeyError(f"Metric '{key}' missing from results for model '{name}'")
-            vals = [float(results[name][key]) for name in names]  # type: ignore[index]
-            best_idx = _best_model_idx(names, vals, higher_better)
-            colors = ["steelblue"] * n_models
-            if best_idx >= 0:
-                colors[best_idx] = "#2ca02c"
-
-            ax.barh(range(n_models), vals, color=colors, edgecolor="white")
-            ax.set_yticks(range(n_models))
-            ax.set_yticklabels(names, fontsize=8)
-            ax.invert_yaxis()
-            for i, v in enumerate(vals):
-                ax.text(v, i, f" {_format_val(v)}", va="center", fontsize=7)
-            if col == 0:
-                direction = "higher=better" if higher_better else "lower=better"
-                ax.set_ylabel(f"{display}\n({direction})", fontsize=9)
-            if row == 0:
-                ax.set_title(ds_label, fontsize=12)
-
-    fig.suptitle(
-        "Spectral Quality Metrics — NorESM vs ERA5",
-        fontsize=14,
-        y=1.01,
-    )
-    fig.tight_layout()
-    fig.savefig(output_path, dpi=150, bbox_inches="tight")
-    plt.close(fig)
-    print(f"  Saved {output_path}")
 
 
 # ---------------------------------------------------------------------------
@@ -458,6 +283,81 @@ def plot_calibration_panel(
 
 
 # ---------------------------------------------------------------------------
+# 7. Individual metric plots — one per metric, both datasets as grouped bars
+# ---------------------------------------------------------------------------
+
+_DATASET_COLORS = {"NorESM TAS 2x": "#377eb8", "ERA5 TCW 4x": "#e41a1c"}
+
+
+def plot_single_metric(
+    noresm: dict[str, dict[str, object]],
+    era5: dict[str, dict[str, object]],
+    metric_key: str,
+    metric_display: str,
+    higher_better: bool,
+    output_path: Path,
+) -> None:
+    """Side-by-side vertical bar charts (left=NorESM, right=ERA5), each sorted independently."""
+    direction = "higher is better" if higher_better else "lower is better"
+
+    def _sort_key(m: str, results: dict[str, dict[str, object]]) -> float:
+        v = float(results[m][metric_key])  # type: ignore[index]
+        return -v if higher_better else v
+
+    fig, (ax_n, ax_e) = plt.subplots(1, 2, figsize=(14, 5))
+
+    for ax, results, ds_label, color in [
+        (ax_n, noresm, "NorESM TAS 2x", _DATASET_COLORS["NorESM TAS 2x"]),
+        (ax_e, era5, "ERA5 TCW 4x", _DATASET_COLORS["ERA5 TCW 4x"]),
+    ]:
+        methods = sorted(results.keys(), key=lambda m, r=results: _sort_key(m, r))
+        vals = [float(results[m][metric_key]) for m in methods]  # type: ignore[index]
+        x = np.arange(len(methods))
+
+        ax.bar(x, vals, color=color, edgecolor="white", linewidth=0.5)
+
+        for i, v in enumerate(vals):
+            ax.text(i, v, f" {_format_val(v)}", ha="center", va="bottom", fontsize=7, rotation=45)
+
+        ax.set_xticks(x)
+        ax.set_xticklabels(methods, fontsize=9, rotation=30, ha="right")
+        ax.set_title(ds_label, fontsize=12)
+        ax.grid(axis="y", alpha=0.3)
+        if all(v >= 0 for v in vals):
+            ax.set_ylim(0, max(vals) * 1.25)
+
+    ax_n.set_ylabel(f"{metric_display} ({direction})", fontsize=11)
+    fig.suptitle(metric_display, fontsize=13)
+    fig.tight_layout()
+    fig.savefig(output_path, dpi=150, bbox_inches="tight")
+    plt.close(fig)
+    print(f"  Saved {output_path}")
+
+
+def plot_individual_metrics(
+    noresm: dict[str, dict[str, object]],
+    era5: dict[str, dict[str, object]],
+    output_dir: Path,
+) -> None:
+    """Generate one plot per metric in output_dir/metrics/."""
+    metrics_dir = output_dir / "metrics"
+    metrics_dir.mkdir(parents=True, exist_ok=True)
+
+    all_metrics = QUALITY_METRICS + [
+        ("psd_log_ratio", "PSD Log-Ratio", False),
+        ("ralsd", "RALSD (dB)", False),
+        ("spectral_coherence", "Spectral Coherence", True),
+    ]
+
+    for key, display, higher_better in all_metrics:
+        slug = key.replace("_", "-")
+        plot_single_metric(
+            noresm, era5, key, display, higher_better,
+            metrics_dir / f"{slug}.png",
+        )
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -484,9 +384,7 @@ def generate_all_figures(output_dir: Path) -> None:
     print("\nGenerating plots...")
     plot_psd_comparison(noresm, era5, output_dir / "psd_comparison.png")
     plot_rank_histograms(noresm, era5, output_dir / "rank_histograms.png")
-    plot_metrics_summary(noresm, era5, output_dir / "metrics_summary.png")
-    plot_quality_panel(noresm, era5, output_dir / "quality_metrics.png")
-    plot_spectral_panel(noresm, era5, output_dir / "spectral_metrics.png")
+    plot_individual_metrics(noresm, era5, output_dir)
     plot_calibration_panel(noresm, era5, output_dir / "calibration.png")
 
     print(f"\nAll plots saved to {output_dir}/")
