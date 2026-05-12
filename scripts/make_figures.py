@@ -488,12 +488,15 @@ def _save_sample_figures(
             print(f"  Saved {prefix} ensemble spread for sample {idx}")
 
     # Output grids: full + zoomed, 3 samples each
+    # Drop simple interpolation baselines — they add clutter without insight
+    _DROP_FROM_GRID = {"Bilinear", "Bicubic", "Bicubic+AddCL"}
+    grid_preds = {k: v for k, v in all_preds.items() if k not in _DROP_FROM_GRID}
     grid_n = min(3, n_vis_samples)
-    print(f"  Plotting {prefix} output grid ({len(all_preds)} methods x {grid_n} samples)...")
+    print(f"  Plotting {prefix} output grid ({len(grid_preds)} methods x {grid_n} samples)...")
     plot_output_grid(
         lr=lr_orig[:n_vis_samples],
         hr=hr[:n_vis_samples],
-        predictions=all_preds,
+        predictions=grid_preds,
         n_samples=grid_n,
         output_path=output_dir / f"{prefix}_output_grid.png",
     )
@@ -508,7 +511,7 @@ def _save_sample_figures(
     plot_output_grid(
         lr=lr_orig[:n_vis_samples],
         hr=hr[:n_vis_samples],
-        predictions=all_preds,
+        predictions=grid_preds,
         n_samples=grid_n,
         crop=crop_box,
         title="Output Comparison (Zoomed Center)",
