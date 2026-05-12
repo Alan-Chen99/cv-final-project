@@ -236,6 +236,14 @@ def _load_harder_predictions(
     return preds
 
 
+def _pick_diverse_indices(n_total: int, n_pick: int) -> list[int]:
+    """Pick evenly-spaced indices across the dataset for visual diversity."""
+    if n_pick >= n_total:
+        return list(range(n_total))
+    step = n_total // n_pick
+    return [i * step for i in range(n_pick)]
+
+
 def make_era5_sample_figures(
     pool_dir: Path,
     output_dir: Path,
@@ -247,6 +255,13 @@ def make_era5_sample_figures(
     print(f"\nLoading ERA5 test data from {pool_dir}...")
     lr_up, _, hr, lr_orig = load_era5_tcw(pool_dir, "test")
     print(f"  Loaded: lr_orig={lr_orig.shape}, hr={hr.shape}")
+
+    # Pick diverse samples spread across the test set
+    vis_idx = _pick_diverse_indices(hr.shape[0], n_vis_samples)
+    print(f"  Selected sample indices: {vis_idx}")
+    lr_up = lr_up[vis_idx]
+    hr = hr[vis_idx]
+    lr_orig = lr_orig[vis_idx]
 
     baselines = generate_baseline_predictions(lr_orig, n_samples=n_vis_samples, upsampling_factor=4)
 
@@ -343,6 +358,13 @@ def make_noresm_sample_figures(
     print(f"\nLoading NorESM test data from {pool_dir}...")
     lr_up, _, hr, lr_orig = load_noresm_tas(pool_dir, "test")
     print(f"  Loaded: lr_orig={lr_orig.shape}, hr={hr.shape}")
+
+    # Pick diverse samples spread across the test set
+    vis_idx = _pick_diverse_indices(hr.shape[0], n_vis_samples)
+    print(f"  Selected sample indices: {vis_idx}")
+    lr_up = lr_up[vis_idx]
+    hr = hr[vis_idx]
+    lr_orig = lr_orig[vis_idx]
 
     baselines = generate_baseline_predictions(lr_orig, n_samples=n_vis_samples, upsampling_factor=2)
 
